@@ -1196,7 +1196,8 @@ guides, which agents need there.
     `/docs/CLAUDE.md`;
   - `/future-plans`, `/phpunit.phar`, `/scripts`;
   - `/CLAUDE.md`, `/AGENTS.md`;
-  - `/magrathea_logo.png`, `/magrathea_logo.svg`.
+  - `/assets`, the brand source files (item 34). The old root logos, `/magrathea_logo.png` and
+    `/magrathea_logo.svg`, are already deleted.
 - What ships: `src/` (including `Tests/`, which the admin's Tests page uses), `bin/`, `docs/mds/`,
   `skills.MD`, `README.md`, `LICENSE` and `composer.json`.
 - Check it without committing, with `git check-attr export-ignore -- <path>…`. Pass each ignored
@@ -1246,6 +1247,80 @@ guides, which agents need there.
   https://www.platypusweb.com.br/magratheaphp3/docs/?p=migrations/migrate-3.0 .
 - `skills.MD`'s "Upgrading" line does the same.
 
+### 34. The new logo
+- [ ] done
+
+**Error.** 3.0 has a new logo, but every copy in the repository is still the old one: a 750×750
+base64 PNG wrapped in an SVG (~126 KB each). The copies are:
+- `src/Admin/views/logo.svg`: the admin logo (`Admin::$adminLogo`, `Admin.php:29`), printed by
+  `AdminManager::PrintLogo()` on the login, setup, message and home pages and in the side menu;
+- `src/Admin/views/magrathea_logo.svg`: the admin favicon (`Admin::$favicon`, `Admin.php:30`),
+  inlined as a data URI by `AdminManager::GetFaviconTag()`;
+- `src/Bootstrap/views/logo.svg`: the wizard header, through `include()`
+  (`Bootstrap/views/sections/header.php:12`);
+- `docs/assets/img/logo.svg`: the docs topbar, the home page and the favicon
+  (`docs/views/layout.php:8,15`, `docs/views/home.php:6`);
+- `src/magrathea.svg`, which nothing references.
+
+The wizard has no favicon at all.
+
+**The new files** are in `/assets`, which doesn't ship (item 31):
+- `magrathea3_logo.svg`: the full-color logo;
+- `magrathea3_logo_unicolor.svg`: the single-color (`#f79914`) version;
+- `favicons/`: `favicon.svg` (the unicolor shape in a square viewBox, `0 -53.5 544 544`),
+  `favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`,
+  `android-chrome-192x192.png`, `android-chrome-512x512.png` and `site.webmanifest`.
+
+**Constraints.**
+- The admin and the wizard run from `vendor/`, which the web server doesn't serve, so they can't
+  link to image files. Their favicon has to stay an inline data URI of an SVG. The PNG/ICO set and
+  the manifest are for the docs site only.
+- The new logo isn't square (viewBox `544×437`) and its `<svg>` has no `width`/`height`.
+  `PrintLogo()` sizes the SVG by replacing the literal `<?=$logoSize?>` in it
+  (`AdminManager.php:58-61`), and the wizard header relies on the file's own `width="50"
+  height="50"`.
+- The new SVGs start with an `<?xml …?>` declaration and a `<!DOCTYPE>`. The wizard `include()`s
+  its logo as PHP, so with `short_open_tag=On` `<?xml` is a parse error, and `PrintLogo()` echoes
+  both lines into the HTML.
+
+**Solution.**
+- In every copy that goes into `src/`, drop the `<?xml …?>` line and the `<!DOCTYPE>` so the file
+  starts with `<svg`. Change nothing else in the drawing.
+- Admin logo: replace `src/Admin/views/logo.svg` with `magrathea3_logo.svg`, and add
+  `width="<?=$logoSize?>" height="<?=$logoSize?>"` to its `<svg>` element so `PrintLogo()` keeps
+  sizing it. The default `preserveAspectRatio` (`xMidYMid meet`) centers the 544×437 drawing in the
+  square box: don't stretch it.
+- Admin favicon: replace `src/Admin/views/magrathea_logo.svg` with `favicons/favicon.svg` (the
+  unicolor shape, already square). `GetFaviconTag()` doesn't change.
+- Wizard logo: replace `src/Bootstrap/views/logo.svg` with `magrathea3_logo.svg`, with
+  `width="50" height="50"` on its `<svg>`.
+- Wizard favicon: add an inline `<link rel="icon" href="data:image/svg+xml;base64,…"
+  type="image/svg+xml">` to the `<head>` of `Bootstrap/views/index.php` and `locked.php`, built the
+  way `GetFaviconTag()` builds it, from a new `src/Bootstrap/views/favicon.svg` (a copy of
+  `favicons/favicon.svg`). Don't make the wizard depend on `Admin\AdminManager` for this.
+- Delete `src/magrathea.svg`.
+- Docs site:
+  - replace `docs/assets/img/logo.svg` with `magrathea3_logo.svg` (the topbar and the home page keep
+    using it);
+  - copy `assets/favicons/` to `docs/assets/favicons/` as it is: `site.webmanifest` uses relative
+    paths;
+  - in `docs/views/layout.php`, replace the `logo.svg` icon line with `favicon.svg`
+    (`type="image/svg+xml"`), `favicon.ico` (`sizes="any"`), the 32 and 16 PNGs, `apple-touch-icon`
+    and `site.webmanifest`, all under `<?= $baseUrl ?>/assets/favicons/`.
+- Don't touch `docs/assets/img/platypus-logo.svg`: it's the company logo, not Magrathea's.
+- Tests: none for the images. Run the full suite (the `PrintLogo()` and favicon paths must still
+  render), then check by hand that no file in `src/` starts with `<?xml`:
+  `grep -rl '^<?xml' src/`.
+- Docs: `admin/admin.md` and `admin/admin-manager.md` mention the logo and favicon properties.
+  Update them only if what they say about the defaults is no longer true.
+- No migration section: nothing a project calls or configures changes. A project that set its own
+  logo with `SetAdminLogo()` keeps it.
+- Changelog: `**note:**` new MagratheaPHP 3 logo and favicons in the admin, the setup wizard and
+  the docs.
+
+**Impact.** Visual only. Each logo copy drops from ~126 KB to ~31 KB, and the admin favicon to
+~4 KB. That's smaller inline SVG on every admin page.
+
 ---
 
 ## Release (after every item is done)
@@ -1268,9 +1343,7 @@ guides, which agents need there.
     `platypustechnology/magratheaphp2` active while 2.x is maintained; when 2.x support ends, mark
     it abandoned, pointing to `platypustechnology/magratheaphp`;
   - publish the docs at `https://www.platypusweb.com.br/magratheaphp3/docs/`. Don't redirect
-    `/magratheaphp2/`: 2.x projects still need it. Give it a banner pointing to 3.0 instead;
-  - the new logo: replace `src/magrathea.svg` (admin), `src/Bootstrap/views/logo.svg` (wizard), the
-    images in `docs/assets/img/`, and `magrathea_logo.png`/`magrathea_logo.svg` at the root.
+    `/magratheaphp2/`: 2.x projects still need it. Give it a banner pointing to 3.0 instead.
 - [ ] Final report:
   - the files changed, and the test counts;
   - what needs a real MySQL:
