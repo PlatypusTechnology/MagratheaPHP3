@@ -167,14 +167,15 @@ user input.
 
 **What changed.** `MagratheaModel::GetById()`, and so `new Model($id)`, put the id of an int-PK model
 straight into the SQL, and the API's `:id` route segment reached it: a SQL injection. In 3.0, an
-int PK accepts only an int or a string of digits. Anything else (`"5abc"`, `" 5"`, `"5.0"`) throws
-`MagratheaModelException` with code 400, which the API answers with HTTP 400. String-PK models are
-unchanged.
+int PK accepts only an int or a string of digits, optionally negative. Anything else (`"5abc"`,
+`" 5"`, `"5\n"`, `"5.0"`, an array) throws `MagratheaModelException` with code 400 before any query
+runs, which the API answers with HTTP 400. String-PK models are unchanged. The check is public:
+`$model->ValidateId($id)` returns the id as an int, or throws.
 
 **What to do.** Nothing for ids that come from the database or from the API's routes. Where code
-builds an id from other input (a form field, a CSV import) before `new Model($id)`, trim and
-validate it first. Note in your report that API clients sending a malformed id now get HTTP 400
-instead of a 500 or a SQL error.
+builds an id from other input (a form field, a CSV import) before `new Model($id)`, trim it and
+check it with `(new Model())->ValidateId($id)` first, or catch the exception. Note in your report
+that API clients sending a malformed id now get HTTP 400 instead of a 500 or a SQL error.
 
 ## M1. ⚠ Admin login and sessions
 
@@ -191,13 +192,16 @@ grep -rnE 'magrathea_user|User not found|Password incorrect' --exclude-dir=vendo
   loses access on their next request.
 - Every failed login (unknown email, wrong password, inactive user) answers "Invalid email or
   password", on the admin login page and in `MagratheaApiAuth::AdminUserLogin()`'s 403.
+  `AdminUserControl::Login()` returns `"user" => null` for all of them (a wrong password used to
+  return the user).
 - The session id changes at login.
 
 **What to do.**
 1. Code that read `$_SESSION["magrathea_user"]` (a serialized `AdminUser`): call
    `AdminManager::Instance()->GetLoggedUser()` instead.
 2. Clients or tests that matched "User not found" or "Password incorrect": match the new message,
-   or just the 403.
+   or just the 403. Code that read `$result["user"]` from a failed `AdminUserControl::Login()`
+   gets `null`.
 3. **⚠ Ask the human** about the users this query lists: they lose admin access in 3.0.
    ```sql
    SELECT id, email, active FROM `_magrathea_users` WHERE active IS NULL OR active = 0;

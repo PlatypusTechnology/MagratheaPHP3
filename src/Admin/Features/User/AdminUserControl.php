@@ -26,23 +26,27 @@ class AdminUserControl extends MagratheaModelControl {
 	}
 
 	/**
-	 * Logs in
+	 * Logs in.
+	 * Every failure (unknown e-mail, wrong password, inactive user) returns the same message and no user.
 	 * @param string $email			user e-mail
 	 * @param string $password	user password
 	 * @return array		returns array with [ success, user, message ]
 	 */
 	public function Login(string $email, string $password): array {
+		$failed = [ "success" => false, "user" => null, "message" => "Invalid email or password" ];
 		try {
 			$query = Query::Select()
 				->Where(["email" => $email])
 				->Obj(new AdminUser());
 			$user = self::RunRow($query);
 			if ($user == null) {
-				return [ "success" => false, "user" => null, "message" => "User not found" ];
+				// one bcrypt run, as a wrong password costs, so the time doesn't tell the e-mail is unknown
+				password_hash($password, PASSWORD_BCRYPT);
+				return $failed;
 			}
 			$pwdCorrect = $user->CheckPassword($password);
-			if (!$pwdCorrect) {
-				return [ "success" => false, "user" => $user, "message" => "Password incorrect" ];
+			if (!$pwdCorrect || empty($user->active)) {
+				return $failed;
 			}
 			$this->SetLoginAsNow($user);
 			return [ "success" => true, "user" => $user ];

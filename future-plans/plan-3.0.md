@@ -116,7 +116,7 @@ Several items rely on these. Keep them identical everywhere:
 ## Group S — Security (do it first)
 
 ### 0. `GetById()`: SQL injection through integer primary keys
-- [ ] done
+- [x] done
 
 **Error.** `MagratheaModel::GetById()` builds its WHERE clause by hand
 (`src/MagratheaModel.php:241-245`):
@@ -151,7 +151,7 @@ decimal point) throws, and the API answers HTTP 400, instead of a SQL error or a
 Changelog: `**fix:**`.
 
 ### 1. Admin login and sessions
-- [ ] done
+- [x] done
 
 **Error.**
 - `AdminUsers::Login()` stores the whole `AdminUser` object in the session with `serialize()`
@@ -181,8 +181,11 @@ Changelog: `**fix:**`.
   simply logged out.
 - `AdminUserControl::Login()` refuses inactive users. Every failure (unknown email, wrong password,
   inactive user) returns the same message, "Invalid email or password", with `"user" => null`. The
-  unknown-email path still runs `password_verify()` against a fixed dummy hash, so the response
-  time doesn't give it away either.
+  unknown-email path still runs bcrypt once (`password_hash($password, PASSWORD_BCRYPT)`, result
+  discarded), so the response time doesn't give it away either. Hashing costs the same as a
+  `password_verify()` at the default cost, with no hard-coded dummy hash in the code. Hashes stored
+  at an older cost (10, before PHP 8.4) still verify faster than that; rehashing them on login
+  isn't part of this item.
 - `MagratheaApiAuth::AdminUserLogin()` doesn't change: it already forwards the message with its 403.
 - Tests (new `adminLoginTest.php`, with a recording database and a session array):
   - a login stores an int id in the session;

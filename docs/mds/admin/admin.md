@@ -216,12 +216,18 @@ if (!AdminManager::Instance()->Auth()) {
 ```
 
 #### `GetLoggedUser(): AdminUser|null`
-Returns the currently logged-in admin user.
+Returns the currently logged-in admin user, or `null`.
 
 ```php
 $user = AdminManager::Instance()->GetLoggedUser();
-echo "Welcome, " . $user->name;
+echo "Welcome, " . $user->email;
 ```
+
+The session keeps only the user's id (`$_SESSION["magrathea_user"]`), and the user is loaded from
+the database once per request. If the user was deleted or deactivated (`active = 0`) since logging
+in, it returns `null` and logs the session out, so a role change or a deactivation applies on the
+next request. Don't read `$_SESSION["magrathea_user"]` yourself: use this method. (Since 3.0.
+Before, the session held a serialized copy of the user, taken at login.)
 
 #### `PermissionDenied(): void`
 Render a "permission denied" page.
@@ -400,6 +406,10 @@ See the CRUD Object Feature in Admin Features for the details.
 - The admin panel requires `session_start()` — call `MagratheaPHP::StartSession()` in your bootstrap.
 - The admin is designed to live under a protected path (e.g., `/admin/`) separate from the public API.
 - Admin user management uses its own user table, separate from your application's user table.
+- Admin login (the login page and `MagratheaApiAuth::AdminUserLogin()`) refuses users with
+  `active = 0`, and answers every failure (unknown email, wrong password, inactive user) with the
+  same message, "Invalid email or password", taking about the same time, so it doesn't tell which
+  emails belong to admins. A successful login changes the session id. (Since 3.0.)
 - The built-in API Explorer reads from `MagratheaApi::GetEndpointsDetail()` — make sure your API registers descriptions via the `$description` parameter of `Add()`.
 - Every authenticated admin POST request is checked against a CSRF token (`Magrathea2\Admin\AdminCsrf`), enforced automatically — no opt-out, no config flag. Forms built with `AdminForm` and AJAX calls made through the shared `ajax()`/`callAction()`/`callApi()`/`callFeature()` JS helpers get the token attached for free. If you build a raw `<form>` or a custom AJAX call outside those helpers, add the token yourself: a hidden `magrathea_csrf_token` field (`AdminCsrf::Instance()->GetToken()`) or an `X-Magrathea-CSRF-Token` header. GET requests are never checked.
 - Admin API errors (`AdminApi`, called with the `callApi()` JS helper) come with a 4xx/5xx HTTP status since 2.4.0. `callApi()` still resolves them with the `{"success": false, ...}` body, so `.then(rs => { if(!rs.success) ... })` keeps working; it rejects only on network errors or non-JSON responses. The lower-level `ajax()`/`ajaxApi()` helpers reject on any 4xx/5xx (the body is in `err.data`).

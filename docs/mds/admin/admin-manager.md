@@ -52,14 +52,18 @@ if (!AdminManager::Instance()->Auth()) {
 ```
 
 ### `GetLoggedUser(): AdminUser|null`
-Return the currently logged-in `AdminUser` object.
+Return the currently logged-in `AdminUser` object, or `null`.
 
 ```php
 $user = AdminManager::Instance()->GetLoggedUser();
 if ($user) {
-    echo "Logged in as: " . $user->name;
+    echo "Logged in as: " . $user->email;
 }
 ```
+
+The session keeps only the user's id; the user is loaded from the database once per request.
+A user deleted or deactivated (`active = 0`) since logging in gets `null`, and the session is
+logged out. (Since 3.0.)
 
 ### `PermissionDenied(): void`
 Render the permission-denied error page and exit.

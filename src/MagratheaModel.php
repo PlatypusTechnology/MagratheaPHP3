@@ -226,12 +226,28 @@ abstract class MagratheaModel{
 	}
 	
 	/**
+	 * Validates an id for this model's primary key.
+	 * An int PK accepts only an int or a string of digits (optionally negative), and returns it cast to int;
+	 * any other PK type returns the id unchanged (it must be escaped or bound by the caller).
+	 * @param 	mixed 		$id 		id to validate
+	 * @return 	int|mixed 			the id, as an int for int PKs
+	 * @throws 	MagratheaModelException 	(code 400) if the id is invalid for an int PK
+	 */
+	public function ValidateId($id) {
+		if($this->dbValues[$this->dbPk] !== "int") return $id;
+		if(!is_int($id) && !(is_string($id) && preg_match('/^-?\d+$/D', $id))) {
+			throw new MagratheaModelException("Invalid id for ".get_class($this).": [".(is_scalar($id) ? $id : gettype($id))."]", 400);
+		}
+		return (int)$id;
+	}
+
+	/**
 	 * Returns object by Id. If null, creates a null instance of the object.
 	 * This will also load any related objects that are set as "autoload" internally.
 	 * if an object with the given id can not be found, or any of the auto-load related objects can not be found an exception will be thrown.
 	 * @param 	integer|string 		$id 		id for the referred object
 	 * @return 	object|null 			desired object
-	 * @throws 	MagratheaModelException 	object could not be found
+	 * @throws 	MagratheaModelException 	object could not be found, or (code 400) the id is invalid for an int PK
 	 */
 	public function GetById($id){
 		if( empty($id) ) return null;
@@ -239,7 +255,7 @@ abstract class MagratheaModel{
 			->Table($this->dbTable)
 			->SelectObj($this);
 		if($this->dbValues[$this->dbPk] === "int") {
-			$sql->Where($this->dbTable.".".$this->dbPk." = ".$id);
+			$sql->Where($this->dbTable.".".$this->dbPk." = ".$this->ValidateId($id));
 		} else {
 			$sql->Where($this->dbTable.".".$this->dbPk." = '".Database::Instance()->Escape($id)."'");
 		}

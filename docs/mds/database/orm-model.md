@@ -355,6 +355,22 @@ $product = new Product();
 $product->GetById(42);
 ```
 
+On an `int` primary key, the id must be an int or a string of digits (`42`, `"42"`, `"-1"`).
+Anything else (`"42abc"`, `" 42"`, `"4.2"`, an array) throws `MagratheaModelException` with code
+`400` before any query runs, so the API answers HTTP 400 for a malformed `:id`. The same applies to
+`new Product($id)`, which calls `GetById()`. String primary keys (`string`, `uuid`) are escaped and
+not checked. (Since 3.0. Before, an `int` PK id went into the SQL unescaped: a SQL injection
+through any `/:id` route.)
+
+### `ValidateId(mixed $id): mixed`
+The check `GetById()` runs on the id. For an `int` primary key, it returns the id as an `int`, or
+throws `MagratheaModelException` (code `400`). For any other primary key type, it returns the id
+unchanged. Use it to check ids built from input before writing with them.
+
+```php
+$id = (new Product())->ValidateId($_POST["product_id"]);
+```
+
 ---
 
 ## Introspection Methods
