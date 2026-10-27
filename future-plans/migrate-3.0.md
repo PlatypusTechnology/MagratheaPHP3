@@ -3,7 +3,7 @@
 **From:** `2.3.*` or `2.4.*` · **To:** `3.0.0`
 
 > **Draft**, written with `future-plans/plan-3.0.md`. Section **M\<n\>** matches plan item \<n\>
-> and is finalized when that item is implemented. Plan item 33 moves this file to
+> and is finalized when that item is implemented. Plan item 34 moves this file to
 > `docs/mds/migrations/migrate-3.0.md`, which ships in `vendor/`, and removes this note.
 
 ## For the agent applying this migration
@@ -51,7 +51,8 @@ project, without the rest of the docs.
 | M18–M23 | The admin's Database section (explorer, query editor, dumps, checks); menu items changed | Only for custom menus using removed items | Fix the menu | |
 | M24–M26 | New `vendor/bin/magrathea` CLI; framework error pages print text in the CLI | No | Declare the bootstrap if it isn't `app/_inc.php` | |
 | M27–M28 | Setup Wizard rebuilt: dedicated entry file, token lock | Yes, for projects with a 2.x wizard entry file | Replace or delete that file | ⚠ |
-| M29–M33 | `skills.MD` rewritten for 3.0; `instructions.MD` removed; the docs ship in `vendor/` | Only for agent configs pointing at `instructions.MD` | Update those pointers | |
+| M29 | CORS origins file read by `AllowFromFile()` and edited by the opt-in admin feature; `Vary: Origin`; `AllowAll()` drops credentials; `AddAcceptHeaders()` appends | Only for code relying on `AddAcceptHeaders()` replacing the list | Switch those calls to `SetAcceptHeaders()` | |
+| M30–M34 | `skills.MD` rewritten for 3.0; `instructions.MD` removed; the docs ship in `vendor/` | Only for agent configs pointing at `instructions.MD` | Update those pointers | |
 
 **Coming from 2.3?** This table covers only 3.0. A 2.3 project also inherits the 2.4.0 changes,
 and some of them break silently: section 3 lists them.
@@ -589,7 +590,31 @@ grep -rn 'bootstrap_unlocked' configs/ 2>/dev/null
    Ask the human to confirm the web root.
 3. Remove `bootstrap_unlocked` from every section except `dev`.
 
-## M29–M33. AI docs and packaging
+## M29. CORS origins
+
+**Applies if:**
+```bash
+grep -rn 'AddAcceptHeaders(' --include='*.php' --exclude-dir=vendor .
+```
+
+**What changed.**
+- `AddAcceptHeaders()` appends to the accepted headers (it used to replace the list), dropping
+  case-insensitive duplicates. `SetAcceptHeaders()` replaces it.
+- `AllowAll()` no longer sends `Access-Control-Allow-Credentials` (browsers reject it with `*`, so
+  credentialed requests never worked). `Allow()` also sends `Vary: Origin`.
+- New: `MagratheaApi::AllowFromFile()` reads the allowed origins from
+  `configs/cors-origins.txt` (`GetCorsOriginsFile()`), and the opt-in admin feature
+  `$this->LoadCors()` edits that file, rejecting lines that aren't `scheme://host[:port]`.
+
+**What to do.**
+1. For each `AddAcceptHeaders()` call: if it was meant to replace the list, call
+   `SetAcceptHeaders()` instead. A list that already includes `Authorization` and `Content-Type`
+   gives the same result either way.
+2. Optional: a project that reads its own origins file (`cors-origins.txt` in `configs/`) can
+   replace that code with `$this->AllowFromFile()` and its own CORS admin page with
+   `$this->LoadCors()`. The file stays where it is.
+
+## M30–M34. AI docs and packaging
 
 **Applies if** the project's agent instructions (`AGENTS.md`, `CLAUDE.md`, editor rules) point at
 `instructions.MD`:

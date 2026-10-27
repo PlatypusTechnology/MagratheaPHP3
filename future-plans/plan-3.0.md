@@ -6,7 +6,7 @@ which repository it's in. Line numbers refer to the code as of 2026-10-25, befor
 items shift some of them, so when a line doesn't match, find the code by name.
 
 **Companion file:** `future-plans/migrate-3.0.md`, the migration guide for projects on 2.3/2.4. Each
-item updates its section (**M0**, **M1**, … match the item numbers), and item 33 moves the file
+item updates its section (**M0**, **M1**, … match the item numbers), and item 34 moves the file
 into the docs.
 
 ## Goal
@@ -28,6 +28,8 @@ In 3.0, agents write the application code and the framework stops generating it.
 `Magrathea` and the package `platypustechnology/magratheaphp`. Every item after the rename works
 under the new names.
 
+3.0 also lets APIs keep their CORS origins in a file that the admin edits (Group O).
+
 ## Rules for the implementing agent
 
 1. **Conventions.** Load the `magrathea-php2` skill for the framework's conventions. It describes
@@ -43,7 +45,7 @@ under the new names.
       green;
    4. update the narrative docs in `docs/mds/`. Signatures are read live from `src/`; only the
       prose needs care;
-   5. fix any `skills.MD` section the item makes wrong (item 29 then rewrites the whole file).
+   5. fix any `skills.MD` section the item makes wrong (item 30 then rewrites the whole file).
       **Don't copy it to `~/.claude/skills/`**: the local skill serves projects still on 2.x, and
       the release splits it in two (see Release);
    6. bring the item's section **M\<n\>** in `future-plans/migrate-3.0.md` in line with what was
@@ -666,7 +668,7 @@ nothing can bump `updated_at` on purpose ("last seen", "touch the parent").
   `DATETIME` has no 2038 limit and no session-zone conversion. The session zone is synced to PHP's,
   so `CURRENT_TIMESTAMP` is in PHP's zone. Existing `TIMESTAMP` columns aren't converted: both types
   work.
-- Document the table contract in `database/orm-model.md` (and in `skills.MD`, item 29): every table
+- Document the table contract in `database/orm-model.md` (and in `skills.MD`, item 30): every table
   a model maps has both columns, with those defaults (`TIMESTAMP` works too).
 - Item 15's check finds the tables that break the contract.
 
@@ -1010,7 +1012,7 @@ text on stderr and exit code 1, instead of HTML and exit code 0.
 | `version` | `MagratheaPHP::Version()`, `AppVersion()` | |
 
 - Tests: each command, against fakes.
-- `skills.MD` gets a "Verify your work" section (item 29).
+- `skills.MD` gets a "Verify your work" section (item 30).
 
 ---
 
@@ -1029,7 +1031,7 @@ text on stderr and exit code 1, instead of HTML and exit code 0.
   the token, which only someone with access to the server's files can read.
 
 **Solution.**
-- **Entry file**: `public/setup.php`, part of the project skeleton (`skills.MD` §17, item 29):
+- **Entry file**: `public/setup.php`, part of the project skeleton (`skills.MD` §17, item 30):
   ```php
   <?php
   // Magrathea setup wizard: locked by a token only someone with access to the server's files can read
@@ -1102,7 +1104,7 @@ verified session.
    the driver, the statement count (PHP driver only) and the first error.
 5. **Admin**: `Install::InstallDatabase()` when `_magrathea_config` is missing; then the first super
    admin (an email, and a password of 12 or more characters) when `Admin\Start::CanCreateFirstUser()`
-   allows it (`Admin/Start.php:174-180`). The admin's entry file comes with the skeleton (item 29);
+   allows it (`Admin/Start.php:174-180`). The admin's entry file comes with the skeleton (item 30);
    the wizard doesn't write it.
 6. **Checks**: `ProjectCheck::Run()`, with the schema's timestamp and drift findings and their fix
    SQL.
@@ -1126,9 +1128,90 @@ request without a verified session.
 
 ---
 
+## Group O — CORS origins
+
+### 29. `AllowFromFile()` and the admin's CORS Origins feature
+- [ ] done
+
+**Error.**
+- `MagratheaApi` only takes origins in code (`Allow([...])`, `MagratheaApi.php:129-135`). Projects
+  that edit them at runtime write their own reader and admin page. MagratheaContacts has both:
+  `Cors()` in `src/api/api/api.php` reads `GetConfigRoot()."/cors-origins.txt"`, and
+  `src/api/magrathea-admin/CorsAdmin.php` edits it.
+- `Allow()` doesn't send `Vary: Origin`, so a cache or proxy can serve one origin's
+  `Access-Control-Allow-Origin` to another origin.
+- `AllowAll()` (`:106-111`) sends `Access-Control-Allow-Credentials: true` with
+  `Access-Control-Allow-Origin: *`, a combination browsers reject.
+- `AddAcceptHeaders()` (`:143-145`) replaces the accepted-headers list, although its name, its
+  docblock and `api/magrathea-api.md` say it appends.
+
+**Solution.**
+- `MagratheaApi`:
+  - `const CORS_ORIGINS_FILE = "cors-origins.txt"` and static `GetCorsOriginsFile(): string`
+    (`MagratheaPHP::Instance()->GetConfigRoot()."/".self::CORS_ORIGINS_FILE`);
+  - static `ReadCorsOrigins(?string $file = null): array`: one origin per line, trimmed. Empty lines
+    and lines starting with `#` are skipped. A missing or unreadable file returns `[]`;
+  - `AllowFromFile(?string $file = null): MagratheaApi` calls `Allow(self::ReadCorsOrigins($file))`.
+    A missing file allows no origin. It doesn't touch the accepted headers;
+  - `Allow()` also sends `header('Vary: Origin', false)` (`false` appends, so it doesn't replace
+    another `Vary`);
+  - `AllowAll()` stops sending `Access-Control-Allow-Credentials`;
+  - `AddAcceptHeaders(string|array $accept): MagratheaApi` appends, dropping case-insensitive
+    duplicates. The new `SetAcceptHeaders(array $headers): MagratheaApi` replaces the list.
+    Neither one sends anything; `AcceptHeaders()` still sends the header.
+- The admin feature `src/Admin/Features/Cors/` (`AdminFeatureCors.php`, `index.php`, `scripts.js`)
+  follows `AdminFeatureCache`'s pattern (`AddJs()`, `SetClassPath()`, `AdminElements::Alert()`
+  responses). `featureId`: `AdminFeatureCors`; `featureName`: "CORS Origins".
+  - `Index()` shows the file's path ("not created yet" when it's missing), a textarea with the
+    file's escaped content, and a Save button that calls
+    `callFeature(featureId, "Save", "POST", { origins })`.
+  - `Save()` answers 405 to anything but POST (see "Admin dispatch rules"). It splits the posted
+    `origins` on `\r\n|\r|\n`, trims each line, drops empty lines and keeps `#` comments. Every
+    other line must pass the static `IsValidOrigin(string $origin): bool`:
+    `^[a-z][a-z0-9+.-]*://([a-z0-9-]+(\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(:[0-9]{1,5})?$`. That is
+    what browsers send in `Origin`, so `capacitor://localhost` and `http://[::1]:3000` pass, while
+    `*`, `null`, `https://a.com/`, `HTTPS://a.com` and anything with a path fail: `Allow()`
+    compares exactly, so those lines could never match. If any line fails, nothing is written and
+    a danger Alert lists the failing lines, escaped. Otherwise the file is written with
+    `file_put_contents(…, LOCK_EX)`; a write failure shows a danger Alert with the path.
+  - Errors answer 200 with an Alert, like `AdminFeatureCache::Save()`: the admin's `ajax()` drops
+    non-JSON error bodies (`views/javascript/scripts.js:86-93`).
+  - Opt-in: the new protected `Admin::LoadCors()` isn't called by `SetFeatures()`. When it's
+    loaded, `Admin::AddMagratheaMenu()` adds its item to the Setup section, after AppConfig.
+- Tests:
+  - `MagratheaTests/apiCorsTest.php`: `ReadCorsOrigins()` (comments, blank lines, surrounding
+    whitespace, missing file); `AddAcceptHeaders()` appends and drops duplicates;
+    `SetAcceptHeaders()` replaces. The CLI can't read sent headers (`headers_list()` is empty), so
+    `Vary: Origin` and `AllowAll()`'s headers go in the final report;
+  - `MagratheaTests/adminCorsFeatureTest.php`: an `IsValidOrigin()` data provider. `Save()` answers
+    405 to GET, writes valid lines with comments kept, and leaves the file untouched when a line is
+    invalid. Failing lines are escaped. The config root points into `test-dump/`;
+  - `MagratheaAdminTests/adminFeaturesTest.php` and `adminMenuTest.php`: the feature isn't loaded
+    by default, and an `Admin` subclass calling `LoadCors()` gets it in the Setup section.
+- Docs:
+  - `api/magrathea-api.md`: `AllowFromFile()`, `ReadCorsOrigins()`, `GetCorsOriginsFile()`,
+    `Vary: Origin`, `AllowAll()` without credentials, `AddAcceptHeaders()`/`SetAcceptHeaders()`;
+  - `admin/admin-features.md`: a "CORS Origins Feature" section after the Cache feature;
+  - `admin/admin.md`: a row in the features table ("`$this->LoadCors()` in `SetFeatures()`");
+  - `docs/lib/DocMap.php`: add `Admin/Features/Cors/AdminFeatureCors.php` to the `admin-features`
+    entry's `src` list, so freshness tracks it. It's not a new page, so there's no new entry;
+  - `skills.MD`'s CORS lines (the `AllowAll()` example and "use `Allow([...])` in production"):
+    mention `AllowFromFile()`. Items 30 and 31 carry it into the rewrite and `AGENTS.md`.
+
+**Impact** (M29).
+- `AddAcceptHeaders()` now appends. Calls that relied on it replacing the list:
+  `grep -rn 'AddAcceptHeaders(' --exclude-dir=vendor .` finds them; switch to `SetAcceptHeaders()`.
+  A list that already includes the defaults (`Authorization`, `Content-Type`) ends up the same.
+- `AllowAll()`: credentialed browser requests never worked with it, so nothing changes for them.
+- Projects with their own reader (MagratheaContacts) can replace it with `$this->AllowFromFile()`
+  and their CORS admin page with `$this->LoadCors()`: same file, same location. A file that has
+  invalid lines is still read; the admin refuses to save it until they're fixed.
+
+---
+
 ## Group H — AI-facing docs and packaging
 
-### 29. `skills.MD` for 3.0
+### 30. `skills.MD` for 3.0
 - [ ] done
 
 **Error.** In 3.0, `skills.MD` takes the code generator's place: every inaccuracy becomes a bug in
@@ -1157,11 +1240,11 @@ generated code. It still:
   work" (`vendor/bin/magrathea check`, `models:verify`, `db:describe --json`); dumps.
 - Entry points log the exception and answer a generic error instead of calling `p_r($ex)`.
 - The §17 skeleton adds `public/setup.php` and an `AGENTS.md` stub: five lines pointing to
-  `vendor/platypustechnology/magratheaphp/skills.MD` and `…/docs/mds/`, which ship after item 31.
+  `vendor/platypustechnology/magratheaphp/skills.MD` and `…/docs/mds/`, which ship after item 32.
 - "Reference files" points to the shipped `docs/mds/index.md`, not `instructions.MD`.
 - The §18 checklist is rewritten for 3.0.
 
-### 30. `AGENTS.md` replaces `instructions.MD`
+### 31. `AGENTS.md` replaces `instructions.MD`
 - [ ] done
 
 **Error.** `instructions.MD` is stale, and it ships in `vendor/`. It teaches `documentation/` and
@@ -1179,10 +1262,10 @@ routes (they're `:name`), `AdminCrudObject` properties that don't exist, and PHP
   - the conventions (tabs, PHPDoc, changelog lines);
   - the doc-sync rules from `CLAUDE.md` (the Reflector, DocMap, the narrative docs, `skills.MD`);
   - `future-plans/` and the per-release migration guide.
-- It doesn't ship (item 31). Pointing `CLAUDE.md` at it is Paulo's call: ask, and don't edit
+- It doesn't ship (item 32). Pointing `CLAUDE.md` at it is Paulo's call: ask, and don't edit
   `CLAUDE.md`.
 
-### 31. Packaging (`.gitattributes`)
+### 32. Packaging (`.gitattributes`)
 - [ ] done
 
 **Error.** Only `/docs` is export-ignored (`.gitattributes:1`), so every project's `vendor/` gets
@@ -1196,7 +1279,7 @@ guides, which agents need there.
     `/docs/CLAUDE.md`;
   - `/future-plans`, `/phpunit.phar`, `/scripts`;
   - `/CLAUDE.md`, `/AGENTS.md`;
-  - `/assets`, the brand source files (item 34). The old root logos, `/magrathea_logo.png` and
+  - `/assets`, the brand source files (item 35). The old root logos, `/magrathea_logo.png` and
     `/magrathea_logo.svg`, are already deleted.
 - What ships: `src/` (including `Tests/`, which the admin's Tests page uses), `bin/`, `docs/mds/`,
   `skills.MD`, `README.md`, `LICENSE` and `composer.json`.
@@ -1209,7 +1292,7 @@ guides, which agents need there.
 
 **Impact.** None at runtime.
 
-### 32. Narrative docs pass and DocMap
+### 33. Narrative docs pass and DocMap
 - [ ] done
 
 **Solution.**
@@ -1233,12 +1316,12 @@ guides, which agents need there.
   `admin/admin.md`; add `Admin/DatabaseExplorer.php` and `Admin/QueryEditor.php` to that page's
   src list.
 
-### 33. The migration guide
+### 34. The migration guide
 - [ ] done
 
 **Solution.**
 - Move `future-plans/migrate-3.0.md` to `docs/mds/migrations/migrate-3.0.md`, which ships after item
-  31, and remove its draft note.
+  32, and remove its draft note.
 - Add the DocMap `migrations` entry
   `"migrate-3.0" => ["title" => "3.0", "md" => "migrations/migrate-3.0.md", "src" => []]`, and its
   `index.md` row.
@@ -1247,7 +1330,7 @@ guides, which agents need there.
   https://www.platypusweb.com.br/magratheaphp3/docs/?p=migrations/migrate-3.0 .
 - `skills.MD`'s "Upgrading" line does the same.
 
-### 34. The new logo
+### 35. The new logo
 - [ ] done
 
 **Error.** 3.0 has a new logo, but every copy in the repository is still the old one: a 750×750
@@ -1264,7 +1347,7 @@ base64 PNG wrapped in an SVG (~126 KB each). The copies are:
 
 The wizard has no favicon at all.
 
-**The new files** are in `/assets`, which doesn't ship (item 31):
+**The new files** are in `/assets`, which doesn't ship (item 32):
 - `magrathea3_logo.svg`: the full-color logo;
 - `magrathea3_logo_unicolor.svg`: the single-color (`#f79914`) version;
 - `favicons/`: `favicon.svg` (the unicolor shape in a square viewBox, `0 -53.5 544 544`),
@@ -1329,11 +1412,11 @@ The wizard has no favicon at all.
 - [ ] The `### 3.0.0` changelog section has its date line, the migration `**note:**` first, and every
       `**removed:**` line.
 - [ ] Full suite green; record the counts here.
-- [ ] After Paulo commits: `git archive HEAD | tar -t` matches item 31.
+- [ ] After Paulo commits: `git archive HEAD | tar -t` matches item 32.
 - [ ] Split the local skill in two:
   - `~/.claude/skills/magrathea-php2/` stays the frozen 2.x cookbook. Only its frontmatter
     `description` changes, to say it's for projects on 2.x (`platypustechnology/magratheaphp2`);
-  - the 3.0 `skills.MD` (`name: magrathea-php`, item 29) is copied to
+  - the 3.0 `skills.MD` (`name: magrathea-php`, item 30) is copied to
     `~/.claude/skills/magrathea-php/SKILL.md`, byte for byte (check with `cmp`).
 - [ ] Paulo's infrastructure steps:
   - create `PlatypusTechnology/MagratheaPHP3` and push the existing history into it (the
