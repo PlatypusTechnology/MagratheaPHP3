@@ -1,10 +1,10 @@
 <?php
 
-namespace Magrathea2\Admin\Api;
+namespace Magrathea\Admin\Api;
 
-use Magrathea2\Admin\AdminDatabase;
+use Magrathea\Admin\AdminDatabase;
 
-class DatabaseApi extends \Magrathea2\MagratheaApiControl {
+class DatabaseApi extends \Magrathea\MagratheaApiControl {
 
 	/**
 	 * Creates a backup file in the backups folder (see `AdminDatabase::DoBackup()`)

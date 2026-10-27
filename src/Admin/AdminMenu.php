@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
-use Magrathea2\MagratheaPHP;
-use Magrathea2\Singleton;
+use Magrathea\MagratheaPHP;
+use Magrathea\Singleton;
 
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -185,7 +185,7 @@ class AdminMenu {
 		$repoLink = [
 			'title' => "Github repo",
 			'class' => 'menu-link',
-			'link' => "https://github.com/PlatypusTechnology/MagratheaPHP2",
+			'link' => "https://github.com/PlatypusTechnology/MagratheaPHP3",
 		];
 		$platypusLink = [
 			'title' => 'Platypus Web (author)',

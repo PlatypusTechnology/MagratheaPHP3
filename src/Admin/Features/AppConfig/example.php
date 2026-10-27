@@ -8,7 +8,7 @@
 		<div class="row">
 			<div class="col-12">
 				<pre>
-var = \Magrathea2\ConfigApp::Instance()...
+var = \Magrathea\ConfigApp::Instance()...
 	...->Save($key, $value, $overwrite=true): AppConfig;
 	...->Get(string $key, $default=null): ?string;
 	...->GetBool(string $key, bool $default=false): bool;

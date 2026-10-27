@@ -1,9 +1,9 @@
 <?php
 
-namespace Magrathea2;
-use Magrathea2\DB\Database;
-use Magrathea2\DB\Query;
-use Magrathea2\Exceptions\MagratheaModelException;
+namespace Magrathea;
+use Magrathea\DB\Database;
+use Magrathea\DB\Query;
+use Magrathea\Exceptions\MagratheaModelException;
 
 #######################################################################################
 ####

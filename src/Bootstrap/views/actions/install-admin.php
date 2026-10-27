@@ -1,6 +1,6 @@
 <?php
 
-	use Magrathea2\Admin\Install;
+	use Magrathea\Admin\Install;
 
 	$adminInstall = new Install();
 

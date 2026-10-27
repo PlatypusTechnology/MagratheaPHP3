@@ -1,14 +1,14 @@
 <?php
 
-use Magrathea2\Config;
-use Magrathea2\Debugger;
-use Magrathea2\MagratheaPHP;
-use Magrathea2\TimezoneCheck;
-use Magrathea2\DB\Database;
-use Magrathea2\DB\DatabaseSimulate;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Exceptions\MagratheaDBConnectionLostException;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Config;
+use Magrathea\Debugger;
+use Magrathea\MagratheaPHP;
+use Magrathea\TimezoneCheck;
+use Magrathea\DB\Database;
+use Magrathea\DB\DatabaseSimulate;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaDBConnectionLostException;
+use Magrathea\Tests\TestsHelper;
 
 // FakeConnectionDatabase, FakeMysqli
 require_once __DIR__."/databaseConnectionTest.php";

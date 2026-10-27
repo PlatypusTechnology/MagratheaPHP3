@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\Config;
+use Magrathea\Config;
 
 $fileLocation = Config::Instance()->GetFilePath();
 ?>

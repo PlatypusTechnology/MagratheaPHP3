@@ -1,18 +1,18 @@
 <?php
 
-namespace Magrathea2;
-use Magrathea2\Singleton;
-use Magrathea2\Exceptions\MagratheaException;
-use Magrathea2\Exceptions\MagratheaConfigException;
-use Magrathea2\Exceptions\MagratheaDBException;
+namespace Magrathea;
+use Magrathea\Singleton;
+use Magrathea\Exceptions\MagratheaException;
+use Magrathea\Exceptions\MagratheaConfigException;
+use Magrathea\Exceptions\MagratheaDBException;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 
@@ -118,7 +118,7 @@ class Logger extends Singleton {
 	 */
 	public function Log($logThis) {
 		if( Config::Instance()->GetEnvironment() == "test" ) return;
-		if( is_a($logThis, \Magrathea2\Exceptions\MagratheaConfigException::class) ) {
+		if( is_a($logThis, \Magrathea\Exceptions\MagratheaConfigException::class) ) {
 			p_r($logThis);
 			echo "==[config not properly set!]==";
 			return;
@@ -129,7 +129,7 @@ class Logger extends Singleton {
 		if(!is_writable($this->logPath)){
 			$message = "error trying to save file at [".$path."] - confirm permission for writing";
 			$message .= " - - error message: [".$logThis."]";
-			throw new \Magrathea2\Exceptions\MagratheaConfigException($message);
+			throw new \Magrathea\Exceptions\MagratheaConfigException($message);
 		}
 		file_put_contents($path, $line, FILE_APPEND);
 	}

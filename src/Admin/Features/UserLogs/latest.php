@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Admin\Features\UserLogs\AdminLogControl;
-use function Magrathea2\p_r;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Admin\Features\UserLogs\AdminLogControl;
+use function Magrathea\p_r;
 
 $adminElements = AdminElements::Instance();
 $control = new AdminLogControl();

@@ -1,7 +1,7 @@
 <?php
 
 $pageTitle = "Admin Scripts";
-\Magrathea2\Admin\AdminElements::Instance()->Header($pageTitle);
+\Magrathea\Admin\AdminElements::Instance()->Header($pageTitle);
 
 ?>
 

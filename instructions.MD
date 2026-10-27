@@ -1,4 +1,4 @@
-# Instructions for AI Assistants — MagratheaPHP2
+# Instructions for AI Assistants — MagratheaPHP
 
 This file is a guide for any AI assistant (Claude, GPT, Gemini, etc.) working on this codebase. Read it before doing any task. It explains the project structure, conventions, key design decisions, and how to approach common tasks.
 
@@ -6,9 +6,9 @@ This file is a guide for any AI assistant (Claude, GPT, Gemini, etc.) working on
 
 ## What This Project Is
 
-**MagratheaPHP2** is a full PHP framework primarily designed for building RESTful APIs. It also ships with an ORM, a query builder, a file-based cache, a logging system, an email system, CSS/JS compression, and an admin panel.
+**MagratheaPHP** is a full PHP framework primarily designed for building RESTful APIs. It also ships with an ORM, a query builder, a file-based cache, a logging system, an email system, CSS/JS compression, and an admin panel.
 
-- **Namespace root:** `Magrathea2`
+- **Namespace root:** `Magrathea`
 - **Source code:** `src/`
 - **Documentation:** `documentation/`
 - **Config format:** INI files (`config/magrathea.conf`)
@@ -229,5 +229,5 @@ Full documentation lives in `documentation/`:
 ## Author & Contact
 
 - **Author:** Paulo Henrique Martins — Platypus Technology
-- **Official docs:** https://www.platypusweb.com.br/magratheaphp2
+- **Official docs:** https://www.platypusweb.com.br/magratheaphp3
 - **License:** MIT

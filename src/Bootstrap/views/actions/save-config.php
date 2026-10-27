@@ -1,8 +1,8 @@
 <?php
 
-  use Magrathea2\Config;
-  use Magrathea2\ConfigFile;
-  use Magrathea2\MagratheaPHP;
+  use Magrathea\Config;
+  use Magrathea\ConfigFile;
+  use Magrathea\MagratheaPHP;
 
   $data = $_POST;
 

@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Admin\AdminFeature;
-use Magrathea2\Admin\Features\AppConfig\AdminFeatureAppConfig;
-use Magrathea2\Admin\Features\CrudObject\AdminCrudObject;
-use Magrathea2\MagratheaModel;
-use Magrathea2\MagratheaModelControl;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\AdminFeature;
+use Magrathea\Admin\Features\AppConfig\AdminFeatureAppConfig;
+use Magrathea\Admin\Features\CrudObject\AdminCrudObject;
+use Magrathea\MagratheaModel;
+use Magrathea\MagratheaModelControl;
+use Magrathea\Tests\TestsHelper;
 
 class DispatchTestFeature extends AdminFeature {
 	public $calls = [];

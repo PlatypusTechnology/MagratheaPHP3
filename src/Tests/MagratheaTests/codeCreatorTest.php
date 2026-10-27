@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\CodeCreator;
-use Magrathea2\Admin\CodeManager;
-use Magrathea2\Admin\ObjectManager;
-use Magrathea2\ConfigFile;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Admin\CodeCreator;
+use Magrathea\Admin\CodeManager;
+use Magrathea\Admin\ObjectManager;
+use Magrathea\ConfigFile;
+use Magrathea\Exceptions\MagratheaException;
 
 class codeCreatorTest extends \PHPUnit\Framework\TestCase {
 

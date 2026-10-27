@@ -1,7 +1,7 @@
 <?php
 
 $headerTitle = $headerTitle ?? "Magrathea Bootstrap";
-$version = Magrathea2\MagratheaPHP::Instance()->Version();
+$version = Magrathea\MagratheaPHP::Instance()->Version();
 
 ?>
 

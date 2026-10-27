@@ -1,10 +1,10 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -12,15 +12,15 @@ namespace Magrathea2\Admin;
 ####
 #######################################################################################
 
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
-use Magrathea2\Exceptions\MagratheaException;
-use Magrathea2\MagratheaPHP;
-use function Magrathea2\now;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Exceptions\MagratheaException;
+use Magrathea\MagratheaPHP;
+use function Magrathea\now;
 
 /**
  * Class for code generations
  */
-class CodeCreator extends \Magrathea2\Singleton { 
+class CodeCreator extends \Magrathea\Singleton { 
 
 	public $namespace;
 	public $structure;
@@ -212,8 +212,8 @@ class CodeCreator extends \Magrathea2\Singleton {
 		$code .= $this->GetCommentAlert();
 		$code .= "namespace ".$this->GetNamespace($object, true).";\n\n";
 
-		$code .= "use Magrathea2\iMagratheaModel;\n";
-		$code .= "use Magrathea2\MagratheaModel;\n\n";
+		$code .= "use Magrathea\iMagratheaModel;\n";
+		$code .= "use Magrathea\MagratheaModel;\n\n";
 
 
 		$code .= "class ".$object."Base extends MagratheaModel implements iMagratheaModel {\n\n";
@@ -280,7 +280,7 @@ class CodeCreator extends \Magrathea2\Singleton {
 		$code .= $this->GetCommentAlert();
 		$code .= "namespace ".$this->GetNamespace($object, true, true).";\n\n";
 
-		$code .= "use Magrathea2\MagratheaModelControl;\n\n";
+		$code .= "use Magrathea\MagratheaModelControl;\n\n";
 
 		$code .= "class ".$object."ControlBase extends MagratheaModelControl {\n";
 			$code .= "\tprotected static \$modelNamespace = \"".$this->GetNamespace($object)."\";\n";
@@ -344,7 +344,7 @@ class CodeCreator extends \Magrathea2\Singleton {
 
 		$code .= "namespace ".$this->GetNamespace($object, false, true).";\n\n";
 
-		$code .= "class ".$object."Admin extends \Magrathea2\Admin\Features\CrudObject\AdminCrudObject {\n";
+		$code .= "class ".$object."Admin extends \Magrathea\Admin\Features\CrudObject\AdminCrudObject {\n";
 		$code .= "\tpublic string \$featureName = \"".$object." CRUD\";\n\n";
 		$code .= "\tpublic function Initialize() {\n";
 		$code .= "\t\t\$this->SetObject(new ".$this->GetFullObjName($object, false)."(), new ".$this->GetFullControlName($object)."());\n";
@@ -369,7 +369,7 @@ class CodeCreator extends \Magrathea2\Singleton {
 		$code .= "/**\n";
 		$code .= "* @property ".$this->GetFullControlName($object)." \$service\n";
 		$code .= "*/\n";
-		$code .= "class ".$object."Api extends \Magrathea2\MagratheaApiControl {\n";
+		$code .= "class ".$object."Api extends \Magrathea\MagratheaApiControl {\n";
 		$code .= "\tpublic function __construct() {\n";
 		$code .= "\t\t\$this->model = get_class(new ".$this->GetFullObjName($object, false)."());\n";
 		$code .= "\t\t\$this->service = new ".$this->GetFullControlName($object)."();\n";

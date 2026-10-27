@@ -1,7 +1,7 @@
 <div class="form-group">
 	<?php
 
-use function Magrathea2\isMagratheaModel;
+use function Magrathea\isMagratheaModel;
 
  if($name !== false) { ?>
 	<label for="<?=$id?>"><?=$name?></label>

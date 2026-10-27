@@ -1,14 +1,14 @@
 # CLAUDE.md — docs
 
 Guide for your future self working on this folder. This is a from-scratch documentation
-site for MagratheaPHP2, replacing the old `docs/`, `docs-cache/`, and `.phpdoc/` folders
+site for MagratheaPHP, replacing the old `docs/`, `docs-cache/`, and `.phpdoc/` folders
 (deleted 2026-07-20). The old repo-root `documentation/` folder (the narrative markdown
 source) was renamed to `mds/` and moved inside this site's folder on the same date — it is
 no longer a repo-root sibling, it now lives at `mds/` inside here.
 
 Note: this site's own folder was originally called `documentation/` and was renamed to
 `docs/` later on 2026-07-20, to match the path already live in production
-(`platypusweb.com.br/site/magratheaphp2/docs/`). Don't confuse this with the older,
+(`platypusweb.com.br/magratheaphp2/docs/`; 3.0 lives at `/magratheaphp3/docs/`). Don't confuse this with the older,
 unrelated `docs/` folder mentioned above that existed before this site was built and was
 deleted — that name was reused after the fact.
 
@@ -52,7 +52,7 @@ to delete/replace later without touching the main framework's composer.json.
   classloader does a bare `include()` (not `include_once`) when it resolves a class file
   that turns out to not actually contain a class. `src/_Functions.php` is procedural (global
   functions, no class) but its name would otherwise resolve as if it were class
-  `Magrathea2\_Functions`. Calling `ReflectionClass("Magrathea2\_Functions")` triggers that
+  `Magrathea\_Functions`. Calling `ReflectionClass("Magrathea\_Functions")` triggers that
   bare `include`, and since `_Functions.php` is *also* loaded once already via composer's
   `files` autoload, PHP fatals with "Cannot redeclare function". `DocMap::HasClass()` regex-
   checks a src file actually declares `class|interface|trait` before anything calls

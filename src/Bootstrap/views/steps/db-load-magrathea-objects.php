@@ -1,8 +1,8 @@
 <?php
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
-	$manager = Magrathea2\Admin\ObjectManager::Instance();
+	$manager = Magrathea\Admin\ObjectManager::Instance();
 	$confFile = $manager->GetObjectFilePath();
 
 	?>

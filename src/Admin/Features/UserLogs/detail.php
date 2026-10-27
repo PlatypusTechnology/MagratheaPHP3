@@ -15,7 +15,7 @@
 			</div>
 			<div class="col-4">
 				<?php
-				\Magrathea2\Admin\AdminElements::Instance()->
+				\Magrathea\Admin\AdminElements::Instance()->
 					Textarea(
 						"data_log".$log->id,
 						"Data for Log ".$log->id,

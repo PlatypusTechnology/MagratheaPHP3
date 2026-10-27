@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminDatabase;
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminFiles;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Admin\AdminDatabase;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminFiles;
+use Magrathea\Exceptions\MagratheaException;
 
 $adminDb = AdminDatabase::Instance();
 try {

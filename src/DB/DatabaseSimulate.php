@@ -1,18 +1,18 @@
 <?php
 
-namespace Magrathea2\DB;
-use Magrathea2\Debugger;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Singleton;
+namespace Magrathea\DB;
+use Magrathea\Debugger;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Singleton;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####	Magrathea1 created: 2012-12 by Paulo Martins
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 

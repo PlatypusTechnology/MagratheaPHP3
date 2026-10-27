@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
 
 AdminElements::Instance()->Header("App Configuration Migration");
 
-/** @var \Magrathea2\Admin\Features\AppConfig\AdminFeatureAppConfig $featureClass */
+/** @var \Magrathea\Admin\Features\AppConfig\AdminFeatureAppConfig $featureClass */
 $featureClass = AdminManager::Instance()->GetActiveFeature();
 $featureId = $featureClass->featureId;
 

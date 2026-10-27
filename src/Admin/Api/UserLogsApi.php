@@ -1,12 +1,12 @@
 <?php
 
-namespace Magrathea2\Admin\Api;
+namespace Magrathea\Admin\Api;
 
-use Magrathea2\Admin\Features\UserLogs\AdminLog;
-use Magrathea2\Admin\Features\UserLogs\AdminLogControl;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\Admin\Features\UserLogs\AdminLog;
+use Magrathea\Admin\Features\UserLogs\AdminLogControl;
+use Magrathea\Exceptions\MagratheaApiException;
 
-class UserLogsApi extends \Magrathea2\MagratheaApiControl {
+class UserLogsApi extends \Magrathea\MagratheaApiControl {
 	public function __construct() {
 		$this->model = get_class(new AdminLog());
 		$this->service = new AdminLogControl();

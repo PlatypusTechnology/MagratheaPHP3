@@ -1,14 +1,14 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
 
-use function Magrathea2\getClassNameOfClass;
-use function Magrathea2\p_r;
+use function Magrathea\getClassNameOfClass;
+use function Magrathea\p_r;
 
 $elements = AdminElements::Instance();
 
-/** @var $feature \Magrathea2\Admin\AdminFeature */
+/** @var $feature \Magrathea\Admin\AdminFeature */
 $feature = AdminManager::Instance()->GetActiveFeature();
 $api = $feature->apiName;
 $url = $feature->apiUrl;

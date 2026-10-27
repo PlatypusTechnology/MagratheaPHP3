@@ -1,7 +1,7 @@
 # MagratheaApiControl — API Controller Base
 
 **File:** `src/MagratheaApiControl.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 
 Base class for all API controllers. Provides HTTP request parsing, JWT authentication helpers, CRUD stubs, and caching utilities.
 
@@ -24,8 +24,8 @@ Base class for all API controllers. Provides HTTP request parsing, JWT authentic
 <?php
 namespace App\Api;
 
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\MagratheaApiControl;
+use Magrathea\Exceptions\MagratheaApiException;
 use App\Controls\ProductControl;
 
 class ProductApiControl extends MagratheaApiControl {
@@ -270,8 +270,8 @@ public function ExportCsv(): void {
 <?php
 namespace App\Api;
 
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\MagratheaApiControl;
+use Magrathea\Exceptions\MagratheaApiException;
 use App\Controls\UserControl;
 
 class AuthApiControl extends MagratheaApiControl {

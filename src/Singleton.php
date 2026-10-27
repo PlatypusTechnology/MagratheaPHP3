@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 

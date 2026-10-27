@@ -1,16 +1,16 @@
-# Getting Started with MagratheaPHP2
+# Getting Started with MagratheaPHP
 
 ## Installation
 
 ```bash
-composer require magrathea/magrathea-php2
+composer require platypustechnology/magratheaphp
 ```
 
 Or clone and install dependencies:
 
 ```bash
-git clone https://github.com/your-org/MagratheaPHP2.git
-cd MagratheaPHP2
+git clone https://github.com/PlatypusTechnology/MagratheaPHP3.git
+cd MagratheaPHP3
 composer install
 ```
 
@@ -58,7 +58,7 @@ Every entry point (e.g. `index.php` or your API entry file) starts with:
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
+use Magrathea\MagratheaPHP;
 
 $app = MagratheaPHP::Instance()
     ->AppPath(__DIR__ . "/app") // app root; the config is read from ./configs/
@@ -75,8 +75,8 @@ $app = MagratheaPHP::Instance()
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
-use Magrathea2\MagratheaApi;
+use Magrathea\MagratheaPHP;
+use Magrathea\MagratheaApi;
 
 $app = MagratheaPHP::Instance()
     ->AppPath(__DIR__ . "/app")
@@ -105,7 +105,7 @@ $api->Run();
 // models/User.php
 namespace App\Models;
 
-use Magrathea2\MagratheaModel;
+use Magrathea\MagratheaModel;
 
 class User extends MagratheaModel {
     protected $dbTable = "users";
@@ -124,7 +124,7 @@ class User extends MagratheaModel {
 // controls/UserControl.php
 namespace App\Controls;
 
-use Magrathea2\MagratheaModelControl;
+use Magrathea\MagratheaModelControl;
 use App\Models\User;
 
 class UserControl extends MagratheaModelControl {
@@ -139,7 +139,7 @@ class UserControl extends MagratheaModelControl {
 // api/UserApiControl.php
 namespace App\Api;
 
-use Magrathea2\MagratheaApiControl;
+use Magrathea\MagratheaApiControl;
 use App\Controls\UserControl;
 
 class UserApiControl extends MagratheaApiControl {
@@ -157,7 +157,7 @@ class UserApiControl extends MagratheaApiControl {
 ```php
 <?php
 // index.php
-use Magrathea2\MagratheaApi;
+use Magrathea\MagratheaApi;
 use App\Api\UserApiControl;
 
 $api = new MagratheaApi();
@@ -189,7 +189,7 @@ $app->Prod();
 
 ## Setup Wizard (Bootstrap)
 
-`Magrathea2\Bootstrap\Start::Instance()->Load()` renders a setup wizard: folder structure, config
+`Magrathea\Bootstrap\Start::Instance()->Load()` renders a setup wizard: folder structure, config
 editing, DB connection test, a raw SQL runner, admin install and admin password reset. That's a
 remote control for your server, so it's **locked by default** (since 2.4.0).
 

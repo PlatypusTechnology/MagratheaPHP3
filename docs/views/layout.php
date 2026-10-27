@@ -4,16 +4,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . " — " : "" ?>MagratheaPHP2 Documentation</title>
+<title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . " — " : "" ?>MagratheaPHP Documentation</title>
 <link rel="icon" href="<?= $baseUrl ?>/assets/img/logo.svg">
 <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
 </head>
 <body>
 
 <div class="topbar">
-	<a class="brand" href="https://www.platypusweb.com.br/magratheaphp2">
+	<a class="brand" href="https://www.platypusweb.com.br/magratheaphp3">
 		<img src="<?= $baseUrl ?>/assets/img/logo.svg" alt="">
-		MagratheaPHP2
+		MagratheaPHP
 	</a>
 	<div class="spacer"></div>
 	<div class="searchbox" data-open-search>
@@ -25,7 +25,7 @@
 		<a href="<?= $baseUrl ?>/?p=examples">Examples</a>
 		<a href="<?= $baseUrl ?>/?p=md-files">MD Files</a>
 		<a href="<?= $baseUrl ?>/?p=about">About</a>
-		<a href="https://github.com/PlatypusTechnology/MagratheaPHP2" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub" style="display:flex; align-items:center;">
+		<a href="https://github.com/PlatypusTechnology/MagratheaPHP3" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub" style="display:flex; align-items:center;">
 			<svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
 		</a>
 	</div>

@@ -22,11 +22,11 @@ die; // remove this line once configuration below is correct for your environmen
 
 require "../vendor/autoload.php";
 
-Magrathea2\MagratheaPHP::Instance()
+Magrathea\MagratheaPHP::Instance()
     ->AppPath(realpath(dirname(__FILE__)))
     ->Dev()
     ->Load();
-Magrathea2\Bootstrap\Start::Instance()->Load();
+Magrathea\Bootstrap\Start::Instance()->Load();
 PHP,
 		"note" => "The `die;` is intentional: it stops the script from running until you've reviewed the config for the target environment, then you delete the line. Since 2.4.0 the wizard is also locked unless the active environment's config section has `bootstrap_unlocked = true`.",
 	],
@@ -43,7 +43,7 @@ require __DIR__ . "/../vendor/autoload.php";
 error_reporting(E_ALL);
 ini_set("display_errors", "1");
 
-Magrathea2\MagratheaPHP::Instance()
+Magrathea\MagratheaPHP::Instance()
     ->MinVersion("2.1.19")
     ->AppPath(realpath(dirname(__FILE__)))
     ->AddRootCodeFolder("admin", "api", "api/Authentication")
@@ -98,7 +98,7 @@ $recent = ArticleControl::RunQuery(
 );
 
 // Paginated for an API response (no COUNT(*), has_more via limit+1 trick)
-$query = \Magrathea2\DB\Query::Select()
+$query = \Magrathea\DB\Query::Select()
     ->Obj(new \App\Models\Article())
     ->Where(["published" => 1])
     ->Order("created_at DESC");
@@ -112,8 +112,8 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["database/query-builder"],
 		"code" => <<<'PHP'
-use Magrathea2\DB\Query;
-use Magrathea2\DB\Database;
+use Magrathea\DB\Query;
+use Magrathea\DB\Database;
 
 // SELECT with model + JOIN
 $sql = Query::Select()
@@ -142,15 +142,15 @@ PHP,
 		"code" => <<<'PHP'
 namespace App\Api;
 
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\MagratheaApiControl;
+use Magrathea\Exceptions\MagratheaApiException;
 use App\Controls\ArticleControl;
 
 class ArticleApi extends MagratheaApiControl {
 
     public function GetList() {
         $page  = (int)($this->request["page"] ?? 0);
-        $query = \Magrathea2\DB\Query::Select()
+        $query = \Magrathea\DB\Query::Select()
             ->Obj(new \App\Models\Article())
             ->Where(["published" => 1]);
 
@@ -174,7 +174,7 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["api/authentication"],
 		"code" => <<<'PHP'
-use Magrathea2\Authentication;
+use Magrathea\Authentication;
 
 // Issuing a token (login controller)
 $token = Authentication::Instance()->GenerateToken([
@@ -195,7 +195,7 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["utilities/cache"],
 		"code" => <<<'PHP'
-use Magrathea2\MagratheaCache;
+use Magrathea\MagratheaCache;
 
 $key = "articles:published:page:{$page}";
 
@@ -217,8 +217,8 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["utilities/logger", "utilities/debugger"],
 		"code" => <<<'PHP'
-use Magrathea2\Logger;
-use Magrathea2\Debugger;
+use Magrathea\Logger;
+use Magrathea\Debugger;
 
 // Production-safe logging
 Logger::Instance()->Log("Order #{$order->id} processed", "orders");
@@ -234,7 +234,7 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["utilities/mail"],
 		"code" => <<<'PHP'
-use Magrathea2\MagratheaMailSMTP;
+use Magrathea\MagratheaMailSMTP;
 
 MagratheaMailSMTP::Instance()
     ->To("someone@example.com", "Someone")
@@ -254,7 +254,7 @@ PHP,
 // public/admin.php
 require __DIR__ . "/../app/_inc.php";
 
-Magrathea2\Admin\AdminManager::Instance()
+Magrathea\Admin\AdminManager::Instance()
     ->SetAdminClass(\App\Admin\MyAdmin::class)
     ->Run();
 PHP,
@@ -266,7 +266,7 @@ PHP,
 		"source" => "original",
 		"topics" => ["admin/admin-features"],
 		"code" => <<<'PHP'
-use Magrathea2\Admin\Features\AdminFeatureCrud;
+use Magrathea\Admin\Features\AdminFeatureCrud;
 
 $this->AddFeature(
     new AdminFeatureCrud("Articles", \App\Models\Article::class, [
@@ -322,7 +322,7 @@ PHP,
 		"source" => "original",
 		"topics" => ["core/config"],
 		"code" => <<<'PHP'
-use Magrathea2\Config;
+use Magrathea\Config;
 
 // Get() reads a bare key from the ACTIVE environment section
 // (general/use_environment, or whatever ->SetEnvironment() set)

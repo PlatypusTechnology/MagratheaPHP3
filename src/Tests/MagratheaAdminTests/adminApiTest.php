@@ -1,29 +1,29 @@
 <?php
 
-namespace Magrathea2\Admin\Api {
+namespace Magrathea\Admin\Api {
 	// AdminApi::Call() only instantiates classes in this namespace
 	class AdminTestThrowingApi {
 		public function TypeFail($params) {
 			return strlen([]);
 		}
 		public function SoftFail($params) {
-			throw new \Magrathea2\Exceptions\MagratheaApiException("invalid data", 400, ["field" => "name"], false);
+			throw new \Magrathea\Exceptions\MagratheaApiException("invalid data", 400, ["field" => "name"], false);
 		}
 		public function PlainFail($params) {
 			throw new \Exception("boom");
 		}
 		public function DbFail($params) {
-			throw new \Magrathea2\Exceptions\MagratheaDBException("disconnected", "SELECT 1", 4031);
+			throw new \Magrathea\Exceptions\MagratheaDBException("disconnected", "SELECT 1", 4031);
 		}
 	}
 }
 
 namespace {
 
-use Magrathea2\Admin\Api\AdminApi;
-use Magrathea2\Config;
-use Magrathea2\Debugger;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\Api\AdminApi;
+use Magrathea\Config;
+use Magrathea\Debugger;
+use Magrathea\Tests\TestsHelper;
 
 class StatusCapturingAdminApi extends AdminApi {
 	public ?int $status = null;

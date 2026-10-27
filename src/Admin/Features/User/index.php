@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\Admin\Features\User\AdminUserControl;
-use function Magrathea2\p_r;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
+use function Magrathea\p_r;
 
 $elements = AdminElements::Instance();
 $elements->Header("Users Feature");

@@ -2,7 +2,7 @@
 	<div class="card-header center card-header-login">
 		<div class="card-logo">
 			<?php
-				Magrathea2\Admin\AdminManager::Instance()->PrintLogo(200);
+				Magrathea\Admin\AdminManager::Instance()->PrintLogo(200);
 			?>
 		</div>
 		<div class="card-title"><span>Login</span></div>

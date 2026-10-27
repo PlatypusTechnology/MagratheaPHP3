@@ -1,6 +1,6 @@
-# MagratheaPHP2
+# MagratheaPHP
 
-Version 2 of the acclaimed Magrathea PHP Framework — a lightweight PHP MVC framework with a
+Version 3 of the acclaimed Magrathea PHP Framework — a lightweight PHP MVC framework with a
 built-in ORM, database abstraction, REST API tooling, authentication, caching, mail, logging,
 and other utilities needed to build web applications without pulling in a large stack of
 dependencies.
@@ -8,7 +8,7 @@ dependencies.
 ## Installation
 
 ```bash
-composer require platypustechnology/magratheaphp2
+composer require platypustechnology/magratheaphp
 ```
 
 ## Features
@@ -29,7 +29,7 @@ composer require platypustechnology/magratheaphp2
 Full documentation — class references, method signatures (kept live via PHP Reflection), and
 narrative usage guides — is available online:
 
-**https://www.platypusweb.com.br/magratheaphp2/docs/**
+**https://www.platypusweb.com.br/magratheaphp3/docs/**
 
 The documentation site's source also ships in this repository under [`docs/`](docs/index.php)
 (PHP-rendered; point a web server or `php -S` at that folder to browse it locally), with its

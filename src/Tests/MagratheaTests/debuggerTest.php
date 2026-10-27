@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Debugger;
-use Magrathea2\MagratheaApi;
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\Exceptions\MagratheaException;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Debugger;
+use Magrathea\MagratheaApi;
+use Magrathea\MagratheaApiControl;
+use Magrathea\Exceptions\MagratheaException;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Tests\TestsHelper;
 
 class CapturingControl extends MagratheaApiControl {
 	public function Caught($params) {
@@ -228,12 +228,12 @@ class debuggerTest extends \PHPUnit\Framework\TestCase {
 		$code = <<<'PHP'
 <?php
 require $argv[1];
-use Magrathea2\Config;
-use Magrathea2\Debugger;
-use Magrathea2\MagratheaApi;
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\MagratheaCache;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Config;
+use Magrathea\Debugger;
+use Magrathea\MagratheaApi;
+use Magrathea\MagratheaApiControl;
+use Magrathea\MagratheaCache;
+use Magrathea\Exceptions\MagratheaException;
 class ProcessControl extends MagratheaApiControl {
 	public function Caught($params) {
 		try { throw (new MagratheaException("caught one", 42))->SetData(["id" => 7]); } catch(MagratheaException $ex) {}
@@ -241,7 +241,7 @@ class ProcessControl extends MagratheaApiControl {
 		return ["ok" => true];
 	}
 	public function Thrown($params) {
-		throw new \Magrathea2\Exceptions\MagratheaApiException("thrown one", 409);
+		throw new \Magrathea\Exceptions\MagratheaApiException("thrown one", 409);
 	}
 	public function Cached($params) {
 		$this->Cache("debug-cache");
@@ -307,7 +307,7 @@ PHP;
 		$this->assertIsArray($rs, "not JSON: ".$output);
 		$this->assertFalse($rs["success"]);
 		$this->assertSame("thrown one", $rs["data"]["message"]);
-		$this->assertSame("Magrathea2\\Exceptions\\MagratheaApiException", $rs["_debug"][0]["type"]);
+		$this->assertSame("Magrathea\\Exceptions\\MagratheaApiException", $rs["_debug"][0]["type"]);
 	}
 
 	function testJsonListHasNoDebug() {

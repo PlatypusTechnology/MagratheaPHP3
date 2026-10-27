@@ -1,13 +1,13 @@
 <?php
 
-namespace Magrathea2\Errors;
+namespace Magrathea\Errors;
 
 use Exception;
-use Magrathea2\Singleton;
+use Magrathea\Singleton;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

@@ -1,12 +1,12 @@
 <?php
 
-use Magrathea2\MagratheaApi;
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\Tests\TestsHelper;
-use Magrathea2\DB\Database;
-use Magrathea2\Exceptions\MagratheaApiException;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Exceptions\MagratheaDBConnectionLostException;
+use Magrathea\MagratheaApi;
+use Magrathea\MagratheaApiControl;
+use Magrathea\Tests\TestsHelper;
+use Magrathea\DB\Database;
+use Magrathea\Exceptions\MagratheaApiException;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaDBConnectionLostException;
 
 // the CLI running the suite may not have the mysqli extension
 if(!class_exists("mysqli_sql_exception")) {
@@ -19,7 +19,7 @@ class FailingHealthCheckDatabaseMock extends Database {
 	}
 }
 
-class RawModeAuthMock extends \Magrathea2\MagratheaApiAuth {
+class RawModeAuthMock extends \Magrathea\MagratheaApiAuth {
 	public function Deny($params): bool {
 		$this->SetAuthenticationErrorData("no token");
 		return false;
@@ -52,7 +52,7 @@ class ThrowingControl extends MagratheaApiControl {
 	}
 }
 
-class ThrowingAuth extends \Magrathea2\MagratheaApiAuth {
+class ThrowingAuth extends \Magrathea\MagratheaApiAuth {
 	public ?\Throwable $toThrow = null;
 	public function Fail($params): bool {
 		throw $this->toThrow;
@@ -69,18 +69,18 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 		$this->api = new MagratheaApi();
 		$this->resetDatabaseSingleton();
 		// DEV echoes every new exception: output here breaks header-dependent tests that run later
-		$this->debugType = \Magrathea2\Debugger::Instance()->GetType();
-		\Magrathea2\Debugger::Instance()->SetType(\Magrathea2\Debugger::NONE);
+		$this->debugType = \Magrathea\Debugger::Instance()->GetType();
+		\Magrathea\Debugger::Instance()->SetType(\Magrathea\Debugger::NONE);
 	}
 
 	protected function tearDown(): void {
-		\Magrathea2\Debugger::Instance()->SetType($this->debugType);
+		\Magrathea\Debugger::Instance()->SetType($this->debugType);
 		$this->resetDatabaseSingleton();
 		parent::tearDown();
 	}
 
 	private function resetDatabaseSingleton(): void {
-		$property = new \ReflectionProperty(\Magrathea2\Singleton::class, "instance");
+		$property = new \ReflectionProperty(\Magrathea\Singleton::class, "instance");
 		$property->setAccessible(true);
 		$instances = $property->getValue();
 		$instances[Database::class] = null;
@@ -192,13 +192,13 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 		return $api->ReturnError(500, "something failed");
 	}
 	private function returnApiExceptionWithSecret(MagratheaApi $api, string $secret) {
-		return $api->ReturnApiException(new \Magrathea2\Exceptions\MagratheaApiException("something failed", 500));
+		return $api->ReturnApiException(new \Magrathea\Exceptions\MagratheaApiException("something failed", 500));
 	}
 
 	public static function stacktraceDebugTypes(): array {
 		return [
-			"dev" => [\Magrathea2\Debugger::DEV],
-			"analysis" => [\Magrathea2\Debugger::ANALYSIS],
+			"dev" => [\Magrathea\Debugger::DEV],
+			"analysis" => [\Magrathea\Debugger::ANALYSIS],
 		];
 	}
 
@@ -207,7 +207,7 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 	 */
 	public function testErrorStacktracesDontLeakCallArguments(int $debugType) {
 		TestsHelper::Print("Testing error stacktraces don't include call arguments");
-		$debugger = \Magrathea2\Debugger::Instance();
+		$debugger = \Magrathea\Debugger::Instance();
 		$previousType = $debugger->GetType();
 		$debugger->SetType($debugType);
 		$secret = "super-secret-password-".uniqid();
@@ -441,13 +441,13 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 		if(!is_dir($dir)) mkdir($dir, 0777, true);
 		$file = "api-errors.log";
 		@unlink($dir."/".$file);
-		\Magrathea2\Config::Instance()->SetEnvironment("test-api-log");
-		\Magrathea2\Logger::Instance()->SetLogPath($dir)->SetLogFile($file);
+		\Magrathea\Config::Instance()->SetEnvironment("test-api-log");
+		\Magrathea\Logger::Instance()->SetLogPath($dir)->SetLogFile($file);
 		return $dir."/".$file;
 	}
 	private function ResetLogger(): void {
-		\Magrathea2\Config::Instance()->SetEnvironment(null);
-		\Magrathea2\Logger::Instance()->SetLogPath(null)->SetLogFile(null);
+		\Magrathea\Config::Instance()->SetEnvironment(null);
+		\Magrathea\Logger::Instance()->SetLogPath(null)->SetLogFile(null);
 		system('rm -rf -- '.escapeshellarg(__DIR__."/test-dump/api-logs"));
 	}
 
@@ -475,7 +475,7 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 	public function testExecuteUrlShowsErrorInDev() {
 		TestsHelper::Print("Testing ExecuteUrl shows the PHP Error's message in DEV");
 		$log = $this->LogToTempFile();
-		\Magrathea2\Debugger::Instance()->SetDev();
+		\Magrathea\Debugger::Instance()->SetDev();
 		try {
 			$api = $this->ErrorApi(false);
 			$response = $api->ExecuteUrl("fail", "GET");
@@ -492,8 +492,8 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 		TestsHelper::Print("Testing a PHP Error still gets a JSON 500 when the Logger can't write");
 		$errorLog = tempnam(sys_get_temp_dir(), "magrathea-error-log");
 		$previousErrorLog = ini_set("error_log", $errorLog);
-		\Magrathea2\Config::Instance()->SetEnvironment("test-api-log");
-		\Magrathea2\Logger::Instance()->SetLogPath("/nonexistent/magrathea-logs")->SetLogFile("x.log");
+		\Magrathea\Config::Instance()->SetEnvironment("test-api-log");
+		\Magrathea\Logger::Instance()->SetLogPath("/nonexistent/magrathea-logs")->SetLogFile("x.log");
 		try {
 			$api = $this->ErrorApi(false);
 			$response = $api->ExecuteUrl("fail", "GET");

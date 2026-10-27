@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
 
 $control = new AppConfigControl();
-/** @var \Magrathea2\Admin\Features\AppConfig\AdminFeatureAppConfig $featureClass */
+/** @var \Magrathea\Admin\Features\AppConfig\AdminFeatureAppConfig $featureClass */
 $featureClass = AdminManager::Instance()->GetActiveFeature();
 
 $hideSystem = $featureClass->onlyApp;

@@ -1,7 +1,7 @@
 # AdminManager — Admin Runtime Singleton
 
 **File:** `src/Admin/AdminManager.php`
-**Namespace:** `Magrathea2\Admin`
+**Namespace:** `Magrathea\Admin`
 **Extends:** `Singleton`
 
 The runtime singleton for the admin panel. Manages initialization, authentication, session state, asset compilation, feature routing, and UI helpers. You interact with `AdminManager` throughout an admin request lifecycle.
@@ -223,8 +223,8 @@ AdminManager::Instance()->Log(
 // admin/index.php
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\MagratheaPHP;
+use Magrathea\Admin\AdminManager;
 use App\Admin\ProductAdminFeature;
 use App\Admin\OrderAdminFeature;
 

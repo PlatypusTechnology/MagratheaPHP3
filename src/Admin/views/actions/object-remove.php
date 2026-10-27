@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\ObjectManager;
 
 $control = ObjectManager::Instance();
 $objectName = $_POST["object"];

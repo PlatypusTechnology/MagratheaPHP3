@@ -1,12 +1,12 @@
 {
-	"name": "platypustechnology/magratheaphp2",
-	"description": "Magrathea PHP 2",
+	"name": "platypustechnology/magratheaphp",
+	"description": "Magrathea PHP",
 	"type": "library",
 	"license": "MIT",
-	"homepage": "https://www.platypusweb.com.br/magratheaphp2/docs/",
+	"homepage": "https://www.platypusweb.com.br/magratheaphp3/docs/",
 	"autoload": {
 		"psr-4": {
-			"Magrathea2\\": "src/"
+			"Magrathea\\": "src/"
 		},
 		"files": [
 			"src/_EnumTrait.php",

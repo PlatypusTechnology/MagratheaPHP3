@@ -2,7 +2,7 @@
 $allTables = @$_GET["show-all"];
 $showAll = ($allTables == "true");
 
-$tables = Magrathea2\Admin\AdminDatabase::Instance()->GetTables($showAll);
+$tables = Magrathea\Admin\AdminDatabase::Instance()->GetTables($showAll);
 ?>
 <div class="list-group list-group-flush bg-light">
 <?php

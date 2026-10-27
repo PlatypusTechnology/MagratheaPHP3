@@ -11,7 +11,7 @@ $file = $viewFile;
 
 if(!file_exists($file)) {
 	$msg = "file [".htmlspecialchars($file)."] does not exist";
-	\Magrathea2\Admin\AdminElements::Instance()->Alert($msg, "danger");
+	\Magrathea\Admin\AdminElements::Instance()->Alert($msg, "danger");
 	return;
 }
 

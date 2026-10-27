@@ -1,7 +1,7 @@
-# Testing with MagratheaPHP2
+# Testing with MagratheaPHP
 
 **Directory:** `src/Tests/`
-**Namespace:** `Magrathea2\Tests`
+**Namespace:** `Magrathea\Tests`
 
 The framework ships with built-in test utilities to help you write unit tests for your models, APIs, and controllers.
 
@@ -26,7 +26,7 @@ database. Use it, or your own bootstrap, in `phpunit.xml`:
 
 ```xml
 <!-- phpunit.xml -->
-<phpunit bootstrap="vendor/platypustechnology/magratheaphp2/src/Tests/phpUnitBootstrap.php">
+<phpunit bootstrap="vendor/platypustechnology/magratheaphp/src/Tests/phpUnitBootstrap.php">
     <testsuites>
         <testsuite name="Application">
             <directory>tests/</directory>
@@ -42,7 +42,7 @@ database. Use it, or your own bootstrap, in `phpunit.xml`:
 For unit tests that shouldn't hit a real database, call `Mock()` on the instance:
 
 ```php
-use Magrathea2\DB\Database;
+use Magrathea\DB\Database;
 
 class ProductControlTest extends \PHPUnit\Framework\TestCase {
 
@@ -79,7 +79,7 @@ protected function setUp(): void {
 `[general]` section plus one flat section per environment.
 
 ```php
-use Magrathea2\Config;
+use Magrathea\Config;
 
 Config::Instance()->SetConfig([
     "general" => ["use_environment" => "test"],
@@ -94,7 +94,7 @@ Config::Instance()->Get("db_name"); // "test_db"
 ## Mocking ConfigApp (Database-stored Config)
 
 ```php
-use Magrathea2\ConfigApp;
+use Magrathea\ConfigApp;
 
 ConfigApp::Instance()->Mock([
     "feature_flag_x" => "true",
@@ -161,7 +161,7 @@ class ProductApiControlTest extends TestCase {
 
     protected function setUp(): void {
         // Mock the database before tests
-        \Magrathea2\DB\Database::Instance()->Mock();
+        \Magrathea\DB\Database::Instance()->Mock();
         $this->ctrl = new ProductApiControl();
     }
 
@@ -179,7 +179,7 @@ and call `ExecuteUrl()`. It returns the response array instead of printing JSON:
 
 ```php
 public function testListRoute(): void {
-    \Magrathea2\DB\Database::Instance()->Mock();
+    \Magrathea\DB\Database::Instance()->Mock();
     $api = (new MagratheaApi())->SetRaw();
     $api->Add("GET", "products", new ProductApiControl(), "List");
 
@@ -204,13 +204,13 @@ The query builder doesn't execute SQL, it builds strings. String values are esca
 escapes without one):
 
 ```php
-use Magrathea2\DB\Query;
+use Magrathea\DB\Query;
 use PHPUnit\Framework\TestCase;
 
 class QueryBuilderTest extends TestCase {
 
     protected function setUp(): void {
-        \Magrathea2\DB\Database::Instance()->Mock();
+        \Magrathea\DB\Database::Instance()->Mock();
     }
 
     public function testBasicSelect(): void {
@@ -244,7 +244,7 @@ class QueryBuilderTest extends TestCase {
 ## Simulating Email
 
 ```php
-use Magrathea2\MagratheaMail;
+use Magrathea\MagratheaMail;
 use PHPUnit\Framework\TestCase;
 
 class MailTest extends TestCase {
@@ -273,7 +273,7 @@ and their `test*` methods, and runs them by shelling out to the framework's `php
 `phpUnitBootstrap.php`. It's not an assertion library, and it doesn't run anything by itself.
 
 ```php
-use Magrathea2\Tests\TestsManager;
+use Magrathea\Tests\TestsManager;
 
 // e.g. in your Admin subclass, so the folder shows up on the Tests page
 TestsManager::Instance()->AddTest([__DIR__ . "/../tests"], "App tests");

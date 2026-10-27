@@ -1,14 +1,14 @@
 <?php
 
-use Magrathea2\Config;
-use Magrathea2\ConfigFile;
+use Magrathea\Config;
+use Magrathea\ConfigFile;
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\AdminUrls;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\AdminUrls;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 $configControl = Config::Instance();
 
@@ -48,7 +48,7 @@ if(@$_POST["magrathea-action"] && $_POST["magrathea-action"] == "config-save") {
 		$success = $mconfig->Save(true);
 		AdminManager::Instance()->Log("config file saved", "magrathea.conf", $config);
 	} catch(Exception $ex) {
-		\Magrathea2\Debugger::Instance()->Error($ex);
+		\Magrathea\Debugger::Instance()->Error($ex);
 		$saveError = $ex->getMessage();
 		$success = false;
 	}

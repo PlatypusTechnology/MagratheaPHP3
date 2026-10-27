@@ -1,9 +1,9 @@
 <?php
 
-namespace Magrathea2\Admin\Features\OpenApi;
+namespace Magrathea\Admin\Features\OpenApi;
 
-use Magrathea2\Admin\AdminFeature;
-use Magrathea2\Admin\iAdminFeature;
+use Magrathea\Admin\AdminFeature;
+use Magrathea\Admin\iAdminFeature;
 
 class OpenApiAdmin extends AdminFeature implements iAdminFeature {
 	public string $featureName = "Open API";

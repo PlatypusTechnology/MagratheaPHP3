@@ -1,7 +1,7 @@
 <?php
 
-namespace Magrathea2\DB;
-use Magrathea2\Singleton;
+namespace Magrathea\DB;
+use Magrathea\Singleton;
 
 class QueryHelper {
 

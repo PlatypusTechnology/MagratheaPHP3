@@ -1,10 +1,10 @@
 # MagratheaPHP — Main Entry Point
 
 **File:** `src/MagratheaPHP.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Extends:** `Singleton`
 
-The central bootstrap class for any MagratheaPHP2 application. Manages the app root path, autoloading, environment mode, configuration loading, and database connection. Uses the Singleton pattern — always access via `MagratheaPHP::Instance()`.
+The central bootstrap class for any MagratheaPHP application. Manages the app root path, autoloading, environment mode, configuration loading, and database connection. Uses the Singleton pattern — always access via `MagratheaPHP::Instance()`.
 
 ---
 
@@ -147,7 +147,7 @@ Reads the app version from `<magRoot>/version` and removes trailing line breaks 
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
+use Magrathea\MagratheaPHP;
 
 $app = MagratheaPHP::Instance()
     ->AppPath(__DIR__)

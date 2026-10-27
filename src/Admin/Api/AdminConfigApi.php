@@ -1,22 +1,22 @@
 <?php
 
-namespace Magrathea2\Admin\Api;
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
-use Magrathea2\Admin\CodeManager;
-use Magrathea2\Exceptions\MagratheaApiException;
+namespace Magrathea\Admin\Api;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Admin\CodeManager;
+use Magrathea\Exceptions\MagratheaApiException;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin Api created: 2023-04 by Paulo Martins
 ####
 #######################################################################################
-class AdminConfigApi extends \Magrathea2\MagratheaApiControl {
+class AdminConfigApi extends \Magrathea\MagratheaApiControl {
 
 	public function SaveConfig($params) {
 		unset($params["magrathea_api"]);

@@ -1,5 +1,5 @@
 <?php
-	use Magrathea2\Config;
+	use Magrathea\Config;
 
 	$config = Config::Instance();
 	$env = $config->GetEnvironment();

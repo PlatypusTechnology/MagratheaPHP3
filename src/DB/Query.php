@@ -1,8 +1,8 @@
 <?php
-namespace Magrathea2\DB;
+namespace Magrathea\DB;
 
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\MagratheaModel;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\MagratheaModel;
 
 enum QueryType {
 	case Unknown;
@@ -489,7 +489,7 @@ class Query {
 	 */
 	public function SQL(){
 		$this->sql = "";
-//		\Magrathea2\p_r($this);
+//		\Magrathea\p_r($this);
 		$sqlSelect = $this->select;
 		if(count($this->selectArr) > 0){
 			$sqlSelect .= implode(', ', $this->selectArr);

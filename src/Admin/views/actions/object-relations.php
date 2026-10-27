@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
+use Magrathea\Admin\AdminElements;
 
 // $objectName comes from object-edit.php: escaped
 $relObjectHtml = htmlspecialchars((string)($objectName ?? ""));

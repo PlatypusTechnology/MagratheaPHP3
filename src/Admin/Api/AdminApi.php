@@ -1,20 +1,20 @@
 <?php
 
-namespace Magrathea2\Admin\Api;
+namespace Magrathea\Admin\Api;
 
-use Magrathea2\Debugger;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\Debugger;
+use Magrathea\Exceptions\MagratheaApiException;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin Api created: 2023-04 by Paulo Martins
 ####
 #######################################################################################
-class AdminApi extends \Magrathea2\MagratheaApi {
+class AdminApi extends \Magrathea\MagratheaApi {
 
 	public function __construct(){
 		parent::__construct();
@@ -38,7 +38,7 @@ class AdminApi extends \Magrathea2\MagratheaApi {
 
 	public function Call($api, $method="Default") {
 		try {
-			$controlName = '\Magrathea2\Admin\Api\\'.$api."Api";
+			$controlName = '\Magrathea\Admin\Api\\'.$api."Api";
 			$control = new $controlName();
 	
 			$params = array_merge($_GET, array_diff_key($_POST, $_GET));

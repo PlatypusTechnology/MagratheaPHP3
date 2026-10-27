@@ -1,18 +1,18 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\Authorization\AuthApi;
-use Magrathea2\Exceptions\MagratheaApiException;
-use Magrathea2\Exceptions\MagratheaDBException;
+use Magrathea\Authorization\AuthApi;
+use Magrathea\Exceptions\MagratheaApiException;
+use Magrathea\Exceptions\MagratheaDBException;
 
 #######################################################################################
 ####
-####    MAGRATHEA API PHP2
+####    MAGRATHEA API PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 
@@ -758,7 +758,7 @@ class MagratheaApi {
 			];
 
 			if($checkDatabase) {
-				$database = \Magrathea2\DB\Database::Instance();
+				$database = \Magrathea\DB\Database::Instance();
 				$connected = false;
 				try {
 					$database->OpenConnectionPlease();

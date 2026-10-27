@@ -1,7 +1,7 @@
 # Authentication — JWT Token Generation
 
 **File:** `src/Authentication.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 
 Provides JWT token generation using the `firebase/php-jwt` library. In practice, JWT operations are also available directly on `MagratheaApiControl` (via `jwtEncode` / `jwtDecode`). This class is a standalone utility for token generation outside the API controller context.
 
@@ -15,7 +15,7 @@ Generates a signed JWT token from the given payload. Returns an array with two k
 - `"token"` — the signed JWT string
 
 ```php
-use Magrathea2\Authentication;
+use Magrathea\Authentication;
 
 $auth = new Authentication();
 $result = $auth->GenerateToken([
@@ -189,7 +189,7 @@ $token = $this->jwtEncode([
 
 ```php
 public function GetSecret(): string {
-    return \Magrathea2\Config::Instance()->Get("jwt_key");
+    return \Magrathea\Config::Instance()->Get("jwt_key");
 }
 ```
 

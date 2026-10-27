@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
 use \Firebase\JWT\JWT;
 
 #######################################################################################
 ####
-####    MAGRATHEA AUTHENTICATION PHP2
+####    MAGRATHEA AUTHENTICATION PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2023-08 by Paulo Martins
+####    Magrathea created: 2023-08 by Paulo Martins
 ####
 #######################################################################################
 

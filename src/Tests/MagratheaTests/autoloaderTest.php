@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Debugger;
-use Magrathea2\MagratheaPHP;
-use Magrathea2\Tests\TestsHelper;
-use function Magrathea2\fileDeclaresNamespace;
+use Magrathea\Debugger;
+use Magrathea\MagratheaPHP;
+use Magrathea\Tests\TestsHelper;
+use function Magrathea\fileDeclaresNamespace;
 
 class autoloaderTest extends \PHPUnit\Framework\TestCase {
 
@@ -210,7 +210,7 @@ class autoloaderTest extends \PHPUnit\Framework\TestCase {
 		TestsHelper::Print("testing LoadVendor() finds Composer's autoload.php, standalone or installed...");
 		// a separate process: a missing file was a fatal require, which would end the whole suite
 		$bootstrap = realpath(__DIR__."/../phpUnitBootstrap.php");
-		$code = 'require $argv[1]; Magrathea2\MagratheaPHP::LoadVendor(); Magrathea2\MagratheaPHP::LoadVendor(); echo "ok";';
+		$code = 'require $argv[1]; Magrathea\MagratheaPHP::LoadVendor(); Magrathea\MagratheaPHP::LoadVendor(); echo "ok";';
 		$cmd = escapeshellarg(PHP_BINARY)." -r ".escapeshellarg($code)." ".escapeshellarg($bootstrap)." 2>&1";
 		$this->assertSame("ok", (string)shell_exec($cmd));
 	}

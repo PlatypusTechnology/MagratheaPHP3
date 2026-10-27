@@ -1,18 +1,18 @@
 <?php
 
-namespace Magrathea2\Admin\Features\CrudObject;
+namespace Magrathea\Admin\Features\CrudObject;
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminFeature;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\iAdminFeature;
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\MagratheaModel;
-use Magrathea2\MagratheaModelControl;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminFeature;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\iAdminFeature;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\MagratheaModel;
+use Magrathea\MagratheaModelControl;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2 Admin Object
+####    MAGRATHEA PHP Admin Object
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -277,7 +277,7 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 		$o = $o->Assign($_POST);
 		try {
 			$success = $o->Save();
-		} catch(\Magrathea2\Exceptions\MagratheaDBException $ex) {
+		} catch(\Magrathea\Exceptions\MagratheaDBException $ex) {
 			return $this->ReturnException($ex, $_POST);
 		}
 		echo json_encode([
@@ -296,7 +296,7 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 		$o = new $this->fullObjectName($id);
 		try {
 			$success = $o->Delete();
-		} catch(\Magrathea2\Exceptions\MagratheaDBException $ex) {
+		} catch(\Magrathea\Exceptions\MagratheaDBException $ex) {
 			return $this->ReturnException($ex);
 		}
 		echo json_encode([

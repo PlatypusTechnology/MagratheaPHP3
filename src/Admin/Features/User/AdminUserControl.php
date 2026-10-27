@@ -1,15 +1,15 @@
 <?php
 
-namespace Magrathea2\Admin\Features\User;
+namespace Magrathea\Admin\Features\User;
 
 use Exception;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\MagratheaModelControl;
-use Magrathea2\DB\Query;
+use Magrathea\Admin\AdminManager;
+use Magrathea\MagratheaModelControl;
+use Magrathea\DB\Query;
 
 class AdminUserControl extends MagratheaModelControl { 
 
-	protected static $modelNamespace = "Magrathea2\Admin\Features\User";
+	protected static $modelNamespace = "Magrathea\Admin\Features\User";
 	protected static $modelName = "AdminUser";
 	protected static $dbTable = "_magrathea_users";
 
@@ -17,7 +17,7 @@ class AdminUserControl extends MagratheaModelControl {
 	 * Gets a user by e-mail
 	 * @param 	string 			$email	user e-mail
 	 * @return 	AdminUser|null	user or null if not found
-	 * @throws 	\Magrathea2\Exceptions\MagratheaDBException
+	 * @throws 	\Magrathea\Exceptions\MagratheaDBException
 	 */
 	public function GetByEmail(string $email): AdminUser|null {
 		$user = $this->GetWhere(["email" => $email]);
@@ -59,7 +59,7 @@ class AdminUserControl extends MagratheaModelControl {
 	 * Sets last_login for a user as now
 	 * @param 	AdminUser 	$user 	user to be updated
 	 * @return 	mixed 			query result
-	 * @throws 	\Magrathea2\Exceptions\MagratheaDBException
+	 * @throws 	\Magrathea\Exceptions\MagratheaDBException
 	 */
 	public function SetLoginAsNow(AdminUser $user) {
 		try {
@@ -77,7 +77,7 @@ class AdminUserControl extends MagratheaModelControl {
 	/**
 	 * Counts how many users are in the database
 	 * @return 	int 		amount of users
-	 * @throws 	\Magrathea2\Exceptions\MagratheaDBException
+	 * @throws 	\Magrathea\Exceptions\MagratheaDBException
 	 */
 	public function CountUsers(): int {
 		try {
@@ -111,7 +111,7 @@ class AdminUserControl extends MagratheaModelControl {
 	/**
 	 * Gets an array of users for using in a select
 	 * @return 	array 	users as `["id" => id, "name" => email]`
-	 * @throws 	\Magrathea2\Exceptions\MagratheaDBException
+	 * @throws 	\Magrathea\Exceptions\MagratheaDBException
 	 */
 	public function GetSelect() {
 		return array_map(function($i) {
@@ -125,7 +125,7 @@ class AdminUserControl extends MagratheaModelControl {
 	/**
 	 * Gets an array of users with their roles for using in a select
 	 * @return 	array 	users as `["id" => id, "name" => "email (role)"]`
-	 * @throws 	\Magrathea2\Exceptions\MagratheaDBException
+	 * @throws 	\Magrathea\Exceptions\MagratheaDBException
 	 */
 	public function  GetSelectWithRoles() {
 		$user = new AdminUser();

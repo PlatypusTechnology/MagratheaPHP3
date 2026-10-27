@@ -1,6 +1,6 @@
 <?php
 
-$magratheaFolder = \Magrathea2\MagratheaPHP::Instance()->GetMagratheaRoot();
+$magratheaFolder = \Magrathea\MagratheaPHP::Instance()->GetMagratheaRoot();
 $viewFile = $magratheaFolder."/Bootstrap/docs/htaccess.sample";
 
 ?>

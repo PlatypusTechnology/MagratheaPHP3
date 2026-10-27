@@ -1,13 +1,13 @@
 <?php
 
-namespace Magrathea2\Tests;
+namespace Magrathea\Tests;
 
-use function Magrathea2\p_r;
-use Magrathea2\Exceptions\MagratheaException;
+use function Magrathea\p_r;
+use Magrathea\Exceptions\MagratheaException;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -18,7 +18,7 @@ use Magrathea2\Exceptions\MagratheaException;
 /**
  * Class for handling and code generations
  */
-class TestsManager extends \Magrathea2\Singleton { 
+class TestsManager extends \Magrathea\Singleton { 
 
 	/**
 	 * tests format:

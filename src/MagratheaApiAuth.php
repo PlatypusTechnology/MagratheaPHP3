@@ -1,11 +1,11 @@
 <?php
 
-namespace Magrathea2;
-use Magrathea2\Singleton;
+namespace Magrathea;
+use Magrathea\Singleton;
 
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\Admin\Features\User\AdminUserControl;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\Exceptions\MagratheaApiException;
 
 /**
  * Class for handling API Authentication using JWT.
@@ -59,7 +59,7 @@ class MagratheaApiAuth extends MagratheaApiControl {
 	 * @return array        Array containing refresh token, token, and user data.
 	 */
 	public function ResponseUserPayload(array $user): array {
-		$expire = date('Y-m-d h:i:s', strtotime(\Magrathea2\now().' + '.$this->tokenExpire));
+		$expire = date('Y-m-d h:i:s', strtotime(\Magrathea\now().' + '.$this->tokenExpire));
 		$jwtRefresh = $this->jwtEncode($user);
 		$payload["refresh"] = $jwtRefresh;
 		$payload["expire"] = $expire;
@@ -93,7 +93,7 @@ class MagratheaApiAuth extends MagratheaApiControl {
 	 */
 	public function ResponsePayload($payload, bool $addRefreshToken=true): array {
 		try {
-			$expire = date('Y-m-d h:i:s', strtotime(\Magrathea2\now().' + '.$this->tokenExpire));
+			$expire = date('Y-m-d h:i:s', strtotime(\Magrathea\now().' + '.$this->tokenExpire));
 			$jwtRefresh = $this->jwtEncode($payload);
 			if($addRefreshToken) $payload["refresh"] = $jwtRefresh;
 			$payload["expire"] = $expire;

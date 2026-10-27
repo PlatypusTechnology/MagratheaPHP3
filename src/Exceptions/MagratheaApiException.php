@@ -1,9 +1,9 @@
 <?php
 
-namespace Magrathea2\Exceptions;
+namespace Magrathea\Exceptions;
 
 use Exception;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Exceptions\MagratheaException;
 
 /**
 * Class for Magrathea Api Errors

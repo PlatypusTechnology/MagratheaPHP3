@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\DB\Database;
-use Magrathea2\MagratheaPHP;
+use Magrathea\DB\Database;
+use Magrathea\MagratheaPHP;
 
 	MagratheaPHP::Instance()->Connect();
-	$adminInstall = new Magrathea2\Admin\Install();
+	$adminInstall = new Magrathea\Admin\Install();
 	$db = Database::Instance()->getDatabaseName();
 	$folder = MagratheaPHP::Instance()->appRoot;
 	$adminCode = $adminInstall->GetAdminCode();

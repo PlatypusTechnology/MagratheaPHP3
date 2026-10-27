@@ -1,14 +1,14 @@
 <?php
 
-use Magrathea2\Admin\AdminDatabase;
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Admin\Features\Cache\AdminFeatureCache;
-use Magrathea2\Config;
-use Magrathea2\Logger;
-use Magrathea2\MagratheaCache;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\AdminDatabase;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Admin\Features\Cache\AdminFeatureCache;
+use Magrathea\Config;
+use Magrathea\Logger;
+use Magrathea\MagratheaCache;
+use Magrathea\MagratheaPHP;
 
 $pageTitle = "Structure";
 AdminElements::Instance()->Header($pageTitle);

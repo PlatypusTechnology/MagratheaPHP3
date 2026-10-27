@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Admin\CodeManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Admin\CodeManager;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 	$obj = @$_GET["object"];
 	if(empty($obj) || !is_string($obj)) {

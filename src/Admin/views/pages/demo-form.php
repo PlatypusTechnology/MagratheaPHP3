@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use function Magrathea2\p_r;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use function Magrathea\p_r;
 
 $pageTitle = "Admin Forms and Elements";
 AdminElements::Instance()->Header($pageTitle);

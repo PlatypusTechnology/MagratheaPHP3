@@ -1,20 +1,20 @@
 <?php
 
-namespace Magrathea2\Admin\Features\Cache;
+namespace Magrathea\Admin\Features\Cache;
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminFeature;
-use Magrathea2\Admin\Features\UserLogs\AdminLog;
-use Magrathea2\Admin\Features\UserLogs\AdminLogControl;
-use Magrathea2\Admin\iAdminFeature;
-use Magrathea2\Exceptions\MagratheaException;
-use Magrathea2\Logger;
-use Magrathea2\MagratheaCache;
-use Magrathea2\MagratheaHelper;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminFeature;
+use Magrathea\Admin\Features\UserLogs\AdminLog;
+use Magrathea\Admin\Features\UserLogs\AdminLogControl;
+use Magrathea\Admin\iAdminFeature;
+use Magrathea\Exceptions\MagratheaException;
+use Magrathea\Logger;
+use Magrathea\MagratheaCache;
+use Magrathea\MagratheaHelper;
 
 #######################################################################################
 ####
-####    MAGRATHEA Admin Config PHP2
+####    MAGRATHEA Admin Config PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

@@ -2,7 +2,7 @@
 	global $stepActive;
 	$action = @$_GET["action"];
 	if(!empty($action)) {
-		$actionFile = \Magrathea2\Bootstrap\Start::Instance()->GetActionFile($action);
+		$actionFile = \Magrathea\Bootstrap\Start::Instance()->GetActionFile($action);
 		if(!$actionFile) {
 			http_response_code(404);
 			die("action not found");
@@ -14,7 +14,7 @@
 	if(empty($stepActive)) $stepActive = 1;
 
 	function linkTo($step) {
-		return \Magrathea2\Bootstrap\Start::Instance()->GetStepLink($step);
+		return \Magrathea\Bootstrap\Start::Instance()->GetStepLink($step);
 	}
 	
 ?>

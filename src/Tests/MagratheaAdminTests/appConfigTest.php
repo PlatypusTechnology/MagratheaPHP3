@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Tests\TestsHelper;
 
 class appConfigTest extends \PHPUnit\Framework\TestCase {
 	protected function setUp(): void {

@@ -235,10 +235,18 @@ grep -rnE 'magrathea_user|User not found|Password incorrect' --exclude-dir=vendo
    ```bash
    grep -rlF 'Magrathea2' --include='*.php' --exclude-dir=vendor . | while IFS= read -r f; do sed -i.bak 's/Magrathea2/Magrathea/g' "$f" && rm "$f.bak"; done
    ```
-   Review the other files from step 1 one by one.
-3. Run `composer dump-autoload`. Step 1's search must now find nothing, apart from history the
-   project chooses to keep (its own changelog, for example).
-4. In your report, note any API consumer that reads `object` from a framework model's `ToJson()`.
+   Review the other files from step 1 one by one. The exception is a serialized PHP string
+   (`O:24:"Magrathea2\…"`): its length prefix no longer matches after the substitution. Report those
+   to the human instead of editing them.
+3. The package's folder in `vendor/` changed too: `vendor/platypustechnology/magratheaphp2/` is now
+   `vendor/platypustechnology/magratheaphp/`. Find the paths that point into it (a `phpunit.xml`
+   bootstrap, deploy scripts, CI, server configs) and fix them:
+   ```bash
+   grep -rnF 'magratheaphp2' --exclude-dir=vendor --exclude-dir=node_modules --exclude-dir=.git .
+   ```
+4. Run `composer dump-autoload`. The searches of steps 1 and 3 must now find nothing, apart from
+   history the project chooses to keep (its own changelog, for example).
+5. In your report, note any API consumer that reads `object` from a framework model's `ToJson()`.
 
 ## M3. The code generator and `magrathea_objects.conf` are removed
 

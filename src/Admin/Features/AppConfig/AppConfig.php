@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2\Admin\Features\AppConfig;
+namespace Magrathea\Admin\Features\AppConfig;
 
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\iMagratheaModel;
-use Magrathea2\MagratheaModel;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\iMagratheaModel;
+use Magrathea\MagratheaModel;
 
 #######################################################################################
 ####
-####    MAGRATHEA Admin Config PHP2
+####    MAGRATHEA Admin Config PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

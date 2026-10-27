@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Tests\TestsHelper;
-use Magrathea2\Config;
+use Magrathea\Tests\TestsHelper;
+use Magrathea\Config;
 
 class configTest extends \PHPUnit\Framework\TestCase {
 

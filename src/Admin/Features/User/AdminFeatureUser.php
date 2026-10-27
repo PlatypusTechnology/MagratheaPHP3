@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\Admin\Features\User;
+namespace Magrathea\Admin\Features\User;
 
-use Magrathea2\Admin\AdminFeature;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\iAdminFeature;
+use Magrathea\Admin\AdminFeature;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\iAdminFeature;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 #######################################################################################
 ####
-####    MAGRATHEA Admin Config PHP2
+####    MAGRATHEA Admin Config PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

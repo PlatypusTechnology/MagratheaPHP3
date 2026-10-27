@@ -1,19 +1,19 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 use Exception;
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
-use Magrathea2\Admin\Features\UserLogs\AdminLog;
-use Magrathea2\Admin\Features\UserLogs\AdminLogControl;
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\DB\Database;
-use Magrathea2\Errors\ErrorManager;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Admin\Features\UserLogs\AdminLog;
+use Magrathea\Admin\Features\UserLogs\AdminLogControl;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\DB\Database;
+use Magrathea\Errors\ErrorManager;
+use Magrathea\MagratheaPHP;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -92,7 +92,7 @@ class Install {
 
 	public function SetBasicConfigs(): void {
 		$configControl = new AppConfigControl();
-		$configControl->SaveSystem("admin_install_date", \Magrathea2\now(), false);
+		$configControl->SaveSystem("admin_install_date", \Magrathea\now(), false);
 		$configControl->Save("app_name", "", false);
 		$configControl->SaveSystem("code_path", MagratheaPHP::Instance()->appRoot, false);
 		$configControl->SaveSystem("code_structure", "feature", false);
@@ -124,8 +124,8 @@ class Install {
 		<?php
 		require __DIR__."/../vendor/autoload.php";
 
-		Magrathea2\MagratheaPHP::Instance()->AppPath(realpath(dirname(__FILE__)))->Load();
-		Magrathea2\Admin\AdminManager::Instance()->StartDefault();
+		Magrathea\MagratheaPHP::Instance()->AppPath(realpath(dirname(__FILE__)))->Load();
+		Magrathea\Admin\AdminManager::Instance()->StartDefault();
 		EOD;
 	}
 

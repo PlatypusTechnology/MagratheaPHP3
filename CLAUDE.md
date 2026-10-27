@@ -1,4 +1,4 @@
-# CLAUDE.md — MagratheaPHP2
+# CLAUDE.md — MagratheaPHP3
 
 ## General Rules
 

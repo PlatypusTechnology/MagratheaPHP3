@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminFiles;
-use Magrathea2\Logger;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\AdminFiles;
+use Magrathea\Logger;
+use Magrathea\Tests\TestsHelper;
 
 class adminFilesTest extends \PHPUnit\Framework\TestCase {
 

@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\Features\User\AdminUserControl;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\MagratheaPHP;
 
 MagratheaPHP::Instance()->Connect();
 

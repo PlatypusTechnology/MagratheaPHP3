@@ -5,7 +5,7 @@
  * $cssStyleFiles (css files to be loaded, present on the parent css folder)
  */
 
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminManager;
 
 $adminManager = AdminManager::Instance();
 if(!isset($pageTitle)) $pageTitle = $adminManager->GetTitle();

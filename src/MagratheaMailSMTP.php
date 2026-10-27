@@ -1,6 +1,6 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 use PHPMailer\PHPMailer\PHPMailer;
 
 class MagratheaMailSMTP extends MagratheaMail {

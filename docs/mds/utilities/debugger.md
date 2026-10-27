@@ -1,7 +1,7 @@
 # Debugger — Debug Mode Manager
 
 **File:** `src/Debugger.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Extends:** `Singleton`
 
 Central debug management for the framework. Controls verbosity of error output, query logging, and stack trace display. Integrates with `MagratheaPHP`'s mode system.
@@ -40,7 +40,7 @@ in DEV each one is printed (or goes to `_debug`), in LOG each one is logged, onc
 Set the debug level manually.
 
 ```php
-use Magrathea2\Debugger;
+use Magrathea\Debugger;
 Debugger::Instance()->SetType(Debugger::DEV);
 ```
 
@@ -126,7 +126,7 @@ with the items stored before the call (bootstrap), since nothing is printed afte
 
 ```json
 {"success": true, "data": {...}, "_debug": [
-  {"type": "Magrathea2\\Exceptions\\MagratheaException", "message": "caught one", "code": 42, "file": "/var/www/app/Api/X.php:40", "data": {"id": 7}},
+  {"type": "Magrathea\\Exceptions\\MagratheaException", "message": "caught one", "code": 42, "file": "/var/www/app/Api/X.php:40", "data": {"id": 7}},
   "Processing user #42"
 ]}
 ```
@@ -225,7 +225,7 @@ MagratheaPHP::Instance()->Prod();
 ## Example: Request Debug Dump
 
 ```php
-use Magrathea2\Debugger;
+use Magrathea\Debugger;
 
 // At the end of a request (dev only)
 if (Debugger::Instance()->GetType() >= Debugger::DEV) {

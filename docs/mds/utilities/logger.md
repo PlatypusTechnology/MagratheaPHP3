@@ -1,7 +1,7 @@
 # Logger — File-based Logging
 
 **File:** `src/Logger.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Extends:** `Singleton`
 
 Writes log entries to files on disk. Supports custom log file names, path configuration, and error logging with stack traces.
@@ -96,7 +96,7 @@ Log the last PHP error (from `error_get_last()`).
 ## Basic Usage
 
 ```php
-use Magrathea2\Logger;
+use Magrathea\Logger;
 
 $logger = Logger::Instance();
 $logger->Log("Application started");
@@ -108,7 +108,7 @@ $logger->Log("Processing request: " . $_SERVER["REQUEST_URI"]);
 ## Logging Exceptions
 
 ```php
-use Magrathea2\Logger;
+use Magrathea\Logger;
 
 try {
     $result = Database::Instance()->Query($sql);

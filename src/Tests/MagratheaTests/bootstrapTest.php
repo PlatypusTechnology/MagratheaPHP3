@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Bootstrap\Start;
-use Magrathea2\Config;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Bootstrap\Start;
+use Magrathea\Config;
+use Magrathea\Tests\TestsHelper;
 
 class bootstrapTest extends \PHPUnit\Framework\TestCase {
 

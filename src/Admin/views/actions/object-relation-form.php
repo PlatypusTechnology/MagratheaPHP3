@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\ObjectManager;
 
 $rel_types = [
 	"belongs_to" => "belongs to", 

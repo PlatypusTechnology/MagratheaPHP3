@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\CodeCreator;
-use Magrathea2\Admin\CodeManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\CodeCreator;
+use Magrathea\Admin\CodeManager;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 $codeManager = CodeManager::Instance();
 $adminElements = AdminElements::Instance();

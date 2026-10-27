@@ -1,5 +1,5 @@
 <?php
-use Magrathea2\Uuid;
+use Magrathea\Uuid;
 
 class uuidTest extends \PHPUnit\Framework\TestCase {
 

@@ -1,12 +1,12 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\ObjectManager;
-use Magrathea2\DB\Database;
-use Magrathea2\DB\DatabaseSimulate;
-use Magrathea2\MagratheaModel;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\ObjectManager;
+use Magrathea\DB\Database;
+use Magrathea\DB\DatabaseSimulate;
+use Magrathea\MagratheaModel;
+use Magrathea\Tests\TestsHelper;
 
 class EscapingTestModel extends MagratheaModel {
 	protected $dbTable = "escaping_test";
@@ -133,7 +133,7 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 
 	function testQueryRunCardEscapes() {
 		TestsHelper::Print("testing the Queries page result card escapes the query...");
-		class_exists(\Magrathea2\DB\Query::class); // declares the QueryType enum, as the admin always has
+		class_exists(\Magrathea\DB\Query::class); // declares the QueryType enum, as the admin always has
 		$_POST = ["q" => "UPDATE x SET a = '".self::XSS."'"];
 		$output = $this->RenderAction("query-run-card");
 		$this->assertEscaped($output);

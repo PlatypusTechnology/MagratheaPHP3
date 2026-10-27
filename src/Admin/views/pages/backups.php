@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\AdminDatabase;
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
+use Magrathea\Admin\AdminDatabase;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 $adminElements = AdminElements::Instance();
 $adminDb = AdminDatabase::Instance();

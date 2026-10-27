@@ -1,7 +1,7 @@
 # MagratheaApi — RESTful API Framework
 
 **File:** `src/MagratheaApi.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 
 The central class for building RESTful APIs. Handles routing, CORS, request parsing, response formatting, JWT authorization, and caching. The recommended entry point for any API-first application.
 
@@ -13,8 +13,8 @@ The central class for building RESTful APIs. Handles routing, CORS, request pars
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
-use Magrathea2\MagratheaApi;
+use Magrathea\MagratheaPHP;
+use Magrathea\MagratheaApi;
 
 MagratheaPHP::Instance()->AppPath(__DIR__)->Prod()->Load()->Connect();
 
@@ -381,8 +381,8 @@ after a JSON response:
   "success": true,
   "data": {"id": 7},
   "_debug": [
-    {"type": "Magrathea2\\Exceptions\\MagratheaException", "message": "caught one", "code": 42, "file": "/var/www/app/Api/X.php:40", "data": {"id": 7}},
-    {"type": "Magrathea2\\Exceptions\\MagratheaDBException", "message": "Duplicate entry...", "code": 0, "file": "...", "query": "INSERT ...", "values": ["..."]},
+    {"type": "Magrathea\\Exceptions\\MagratheaException", "message": "caught one", "code": 42, "file": "/var/www/app/Api/X.php:40", "data": {"id": 7}},
+    {"type": "Magrathea\\Exceptions\\MagratheaDBException", "message": "Duplicate entry...", "code": 0, "file": "...", "query": "INSERT ...", "values": ["..."]},
     "a string passed to Debugger::Add()",
     "INFO: from Debugger::Info()"
   ]
@@ -424,8 +424,8 @@ public function GetByUser(array $params): array {
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
-use Magrathea2\MagratheaApi;
+use Magrathea\MagratheaPHP;
+use Magrathea\MagratheaApi;
 use App\Api\ProductApiControl;
 use App\Api\AuthControl;
 

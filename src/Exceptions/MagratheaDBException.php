@@ -1,7 +1,7 @@
 <?php
 
-namespace Magrathea2\Exceptions;
-use Magrathea2\Exceptions\MagratheaException;
+namespace Magrathea\Exceptions;
+use Magrathea\Exceptions\MagratheaException;
 
 /**
 * Class for Magrathea DB Errors

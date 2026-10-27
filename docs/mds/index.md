@@ -1,17 +1,17 @@
-# MagratheaPHP2 — Documentation
+# MagratheaPHP — Documentation
 
 > A full PHP framework for building APIs, web applications, and admin panels.
 >
 > **Author:** Paulo Henrique Martins / Platypus Technology
 > **License:** MIT
-> **Namespace root:** `Magrathea2`
-> **Official docs:** https://www.platypusweb.com.br/magratheaphp2
+> **Namespace root:** `Magrathea`
+> **Official docs:** https://www.platypusweb.com.br/magratheaphp3
 
 ---
 
-## What is MagratheaPHP2?
+## What is MagratheaPHP?
 
-MagratheaPHP2 is a lightweight, opinionated PHP framework designed around rapid API development. It ships with:
+MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid API development. It ships with:
 
 - An **ORM** (Model + ModelControl) for MySQL via MySQLi
 - A **fluent Query Builder** (SELECT, INSERT, UPDATE, DELETE)

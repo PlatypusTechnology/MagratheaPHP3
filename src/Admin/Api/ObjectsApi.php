@@ -1,23 +1,23 @@
 <?php
 
-namespace Magrathea2\Admin\Api;
+namespace Magrathea\Admin\Api;
 
 use Exception;
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
-use Magrathea2\Exceptions\MagratheaApiException;
-use Magrathea2\Admin\ObjectManager;
-use Magrathea2\Admin\CodeManager;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Exceptions\MagratheaApiException;
+use Magrathea\Admin\ObjectManager;
+use Magrathea\Admin\CodeManager;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin Api created: 2023-04 by Paulo Martins
 ####
 #######################################################################################
-class ObjectsApi extends \Magrathea2\MagratheaApiControl {
+class ObjectsApi extends \Magrathea\MagratheaApiControl {
 
 	public function ListObjects() {
 		$objects = ObjectManager::Instance()->GetObjectList();

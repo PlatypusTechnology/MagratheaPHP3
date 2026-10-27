@@ -1,12 +1,12 @@
 <?php
 
-use Magrathea2\Admin\AdminUsers;
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\Admin\Features\User\AdminUserControl;
-use Magrathea2\DB\Database;
-use Magrathea2\Exceptions\MagratheaApiException;
-use Magrathea2\MagratheaApiAuth;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\AdminUsers;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\DB\Database;
+use Magrathea\Exceptions\MagratheaApiException;
+use Magrathea\MagratheaApiAuth;
+use Magrathea\Tests\TestsHelper;
 
 // Database that serves admin users from an array and records writes
 class AdminLoginRecordingDatabase extends Database {
@@ -88,7 +88,7 @@ class adminLoginTest extends \PHPUnit\Framework\TestCase {
 
 	/** a new request: AdminUsers' cache of the logged user starts empty */
 	private function NextRequest(): void {
-		$instances = new \ReflectionProperty(\Magrathea2\Singleton::class, "instance");
+		$instances = new \ReflectionProperty(\Magrathea\Singleton::class, "instance");
 		$all = $instances->getValue();
 		unset($all[AdminUsers::class]);
 		$instances->setValue(null, $all);

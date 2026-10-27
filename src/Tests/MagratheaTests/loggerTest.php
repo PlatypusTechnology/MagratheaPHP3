@@ -1,15 +1,15 @@
 <?php
 
-use Magrathea2\Config;
-use Magrathea2\DB\Database;
-use Magrathea2\Debugger;
-use Magrathea2\Exceptions\MagratheaConfigException;
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\Logger;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Config;
+use Magrathea\DB\Database;
+use Magrathea\Debugger;
+use Magrathea\Exceptions\MagratheaConfigException;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\Logger;
+use Magrathea\MagratheaPHP;
 
-use function Magrathea2\Debug;
-use function Magrathea2\p_r;
+use function Magrathea\Debug;
+use function Magrathea\p_r;
 
 class loggerTest extends \PHPUnit\Framework\TestCase {
 

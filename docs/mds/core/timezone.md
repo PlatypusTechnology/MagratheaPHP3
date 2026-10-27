@@ -1,7 +1,7 @@
 # TimezoneCheck — Timezone Sync and Troubleshooter
 
 **File:** `src/TimezoneCheck.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Type:** Static utility class (all methods are `static`)
 **Since:** 2.4.0
 
@@ -65,7 +65,7 @@ It reports:
   timezone tables aren't loaded), or off and why (`INFO`).
 
 ```php
-use Magrathea2\TimezoneCheck;
+use Magrathea\TimezoneCheck;
 
 foreach (TimezoneCheck::Run() as $finding) {
     echo strtoupper($finding["level"]).": ".$finding["message"]."\n";

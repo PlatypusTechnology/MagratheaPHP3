@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\DB\Database;
-use Magrathea2\MagratheaModel;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\DB\Database;
+use Magrathea\MagratheaModel;
+use Magrathea\Tests\TestsHelper;
 
 // Database that records PrepareAndExecute() instead of running it, and answers QueryRow() with $row
 class PartialUpdateRecordingDatabase extends Database {

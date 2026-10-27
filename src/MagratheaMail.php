@@ -1,6 +1,6 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
 /**
  * MagratheaEmail:
@@ -173,6 +173,6 @@ class MagratheaMail {
 
 	public function __toString() {
 		$info = $this->GetInfo();
-		return \Magrathea2\arrToStr($info);
+		return \Magrathea\arrToStr($info);
 	}
 }

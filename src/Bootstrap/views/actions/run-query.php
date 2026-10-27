@@ -1,8 +1,8 @@
 <?php
 
-	use Magrathea2\Config;
-	use Magrathea2\DB\Database;
-	use Magrathea2\MagratheaPHP;
+	use Magrathea\Config;
+	use Magrathea\DB\Database;
+	use Magrathea\MagratheaPHP;
 
 	$config = Config::Instance();
 	MagratheaPHP::Instance()->Connect();

@@ -1,7 +1,7 @@
 # Config — Configuration Management
 
 **File:** `src/Config.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Extends:** `Singleton`
 
 Manages application configuration from an INI file. Sections are named by **environment**
@@ -188,7 +188,7 @@ Returns the full resolved path to the config file (`$path . "/" . $configFile`).
 ### Read the active environment's config
 
 ```php
-use Magrathea2\Config;
+use Magrathea\Config;
 
 $host = Config::Instance()->Get("db_host");
 $user = Config::Instance()->Get("db_user");
@@ -222,14 +222,14 @@ Config::Instance()->SetConfig([
 ## ConfigFile — arbitrary INI files
 
 **File:** `src/ConfigFile.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 
 A lower-level, non-singleton counterpart to `Config`: it reads/writes *any* INI file you
 point it at (`SetPath()` + `SetFile()`), not just the app's `magrathea.conf`. It backs
 `Admin\ObjectManager`'s `magrathea_objects.conf` handling, among other internal uses.
 
 ```php
-$fileControl = new \Magrathea2\ConfigFile();
+$fileControl = new \Magrathea\ConfigFile();
 $fileControl->SetPath($dir)->SetFile("some.conf");
 $data = $fileControl->GetConfig(); // whole file, or "section" / "section/key" like Config::GetConfig()
 ```

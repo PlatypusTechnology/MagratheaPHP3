@@ -1,10 +1,10 @@
 <?php
 
-use function Magrathea2\p_r;
-use Magrathea2\Config;
+use function Magrathea\p_r;
+use Magrathea\Config;
 
-$dbManager = Magrathea2\Admin\AdminDatabase::Instance();
-$adminElements = \Magrathea2\Admin\AdminElements::Instance();
+$dbManager = Magrathea\Admin\AdminDatabase::Instance();
+$adminElements = \Magrathea\Admin\AdminElements::Instance();
 
 $adminElements->Header("Database Connection");
 

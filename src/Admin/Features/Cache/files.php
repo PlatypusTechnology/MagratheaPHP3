@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Errors\ErrorManager;
-use Magrathea2\MagratheaCache;
-use Magrathea2\MagratheaHelper;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Errors\ErrorManager;
+use Magrathea\MagratheaCache;
+use Magrathea\MagratheaHelper;
 
 $path = MagratheaCache::Instance()->GetCachePath();
 if(!$path) {

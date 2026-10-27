@@ -1,12 +1,12 @@
 <?php
 
-use Magrathea2\Config;
-use Magrathea2\MagratheaPHP;
-use Magrathea2\DB\Database;
-use Magrathea2\Debugger;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Exceptions\MagratheaDBConnectionLostException;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Config;
+use Magrathea\MagratheaPHP;
+use Magrathea\DB\Database;
+use Magrathea\Debugger;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaDBConnectionLostException;
+use Magrathea\Tests\TestsHelper;
 
 // the CLI running the suite may not have the mysqli extension
 if(!class_exists("mysqli_sql_exception")) {
@@ -182,14 +182,14 @@ class FakeConnectionDatabase extends Database {
 class ReportsFakeConnectionDatabase extends FakeConnectionDatabase {}
 
 // a model and control, to prove model writes and control reads join the transaction
-class TransactionTestModel extends \Magrathea2\MagratheaModel {
+class TransactionTestModel extends \Magrathea\MagratheaModel {
 	protected $dbTable = "transaction_test";
 	protected $dbPk = "id";
 	protected $dbValues = ["id" => "int", "name" => "string"];
 	protected $autoload = null;
 	public $id, $name, $created_at, $updated_at;
 }
-class TransactionTestControl extends \Magrathea2\MagratheaModelControl {
+class TransactionTestControl extends \Magrathea\MagratheaModelControl {
 	protected static $modelNamespace = "";
 	protected static $modelName = "TransactionTestModel";
 	protected static $dbTable = "transaction_test";
@@ -930,7 +930,7 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 
 	function testSimulatedTransaction() {
 		TestsHelper::Print("testing DatabaseSimulate::Transaction() logs begin/commit/rollback with the same rules...");
-		$sim = \Magrathea2\DB\DatabaseSimulate::Instance();
+		$sim = \Magrathea\DB\DatabaseSimulate::Instance();
 		Debugger::Instance()->SetDebug()->LogQueries(true);
 		try {
 			$this->assertSame("ok", $sim->Transaction(fn() => $sim->Transaction(fn() => "ok")));

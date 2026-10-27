@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 $adminElements = AdminElements::Instance();
 $adminElements->Header("Change Password");

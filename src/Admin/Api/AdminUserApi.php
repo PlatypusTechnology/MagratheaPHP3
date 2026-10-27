@@ -1,12 +1,12 @@
 <?php
 
-namespace Magrathea2\Admin\Api;
+namespace Magrathea\Admin\Api;
 
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\Admin\Features\User\AdminUserControl;
-use Magrathea2\MagratheaApiAuth;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\MagratheaApiAuth;
 
-class AdminUserApi extends \Magrathea2\MagratheaApiControl {
+class AdminUserApi extends \Magrathea\MagratheaApiControl {
 	public function __construct() {
 		$this->model = get_class(new AdminUser());
 		$this->service = new AdminUserControl();

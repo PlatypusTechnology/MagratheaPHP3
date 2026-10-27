@@ -1,5 +1,5 @@
 <?php
-    use Magrathea2 as Mag2;
+    use Magrathea as Mag2;
 
     $bootstrapClass = Mag2\Bootstrap\Start::Instance();
     $bootstrapClass->CreateDefaultConfigFile();

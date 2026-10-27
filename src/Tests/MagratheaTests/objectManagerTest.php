@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\ObjectManager;
 
 class objectManagerTest extends \PHPUnit\Framework\TestCase {
 
@@ -19,7 +19,7 @@ class objectManagerTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testGetCorrectPath() {
-		Magrathea2\MagratheaPHP::Instance()->AppPath(__DIR__."/test-dump");
+		Magrathea\MagratheaPHP::Instance()->AppPath(__DIR__."/test-dump");
 		$objManager = ObjectManager::Instance();
 		$objManager->SetObjectFilePath(null);
 		$path = $objManager->GetObjectFilePath();
@@ -98,7 +98,7 @@ class objectManagerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertEquals("float", $objManager->GetType("double"));
 		$this->assertEquals("float", $objManager->GetType("float"));
 		$this->assertContains("decimal", $objManager->GetTypesArr());
-		$this->assertContains("decimal", \Magrathea2\magrathea_getTypesArr());
+		$this->assertContains("decimal", \Magrathea\magrathea_getTypesArr());
 	}
 
 	function testSQLTypeForDecimal() {

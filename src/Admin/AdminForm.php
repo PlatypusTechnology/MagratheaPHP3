@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 use Exception;
-use Magrathea2\Singleton;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Singleton;
+use Magrathea\MagratheaPHP;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2 Admin elements
+####    MAGRATHEA PHP Admin elements
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -45,7 +45,7 @@ class AdminForm {
 	private function NormalizeFormArray($arr): array {
 		$formArr = [];
 		if($arr == null)
-			throw new \Magrathea2\Exceptions\MagratheaException("Form is empty");
+			throw new \Magrathea\Exceptions\MagratheaException("Form is empty");
 		foreach($arr as $el) {
 			if(empty(@$el['key']) && !empty(@$el['id'])) {
 				$el['key'] = $el['id'];
@@ -68,10 +68,10 @@ class AdminForm {
 	 * 				array (builds a select 'id' => 'name')
 	 * 		key: object's property. can be a function (in case of a button)
 	 * @param array $elements		arary with [ name, size, key, type, class, placeholder, attributes ]
-	 * @param \Magrathea2\MagratheaModel|array 	$object  	Magrathea Model Object
+	 * @param \Magrathea\MagratheaModel|array 	$object  	Magrathea Model Object
 	 */
 	public function Build($elements, $object=[]): AdminForm {
-		if (\Magrathea2\isMagratheaModel($object)) {
+		if (\Magrathea\isMagratheaModel($object)) {
 			array_push($elements,
 				[
 					"key" => "id",
@@ -99,7 +99,7 @@ class AdminForm {
 	/**
 	 * CRUD an object, automatically getting the action and the post
 	 * -- to be used in combination with `FormObject`
-	 * @param \Magrathea2\MagratheaModel $object		Magrathea Model Object
+	 * @param \Magrathea\MagratheaModel $object		Magrathea Model Object
 	 * @return 	array		operation success
 	 */
 	public function CRUDObject($object, $printsInfo=false): array {

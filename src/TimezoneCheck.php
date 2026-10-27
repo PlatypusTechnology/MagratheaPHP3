@@ -1,12 +1,12 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\DB\Database;
+use Magrathea\DB\Database;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

@@ -1,9 +1,9 @@
 # Admin Panel System
 
 **Files:** `src/Admin/Admin.php`, `src/Admin/AdminManager.php`
-**Namespace:** `Magrathea2\Admin`
+**Namespace:** `Magrathea\Admin`
 
-MagratheaPHP2 ships with a built-in admin panel system. It provides a configurable web UI for managing application data, users, configuration, cache, files, and API exploration. The admin panel is feature-based: you enable only what you need.
+MagratheaPHP ships with a built-in admin panel system. It provides a configurable web UI for managing application data, users, configuration, cache, files, and API exploration. The admin panel is feature-based: you enable only what you need.
 
 ---
 
@@ -14,8 +14,8 @@ MagratheaPHP2 ships with a built-in admin panel system. It provides a configurab
 // admin/index.php
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Magrathea2\MagratheaPHP;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\MagratheaPHP;
+use Magrathea\Admin\AdminManager;
 
 MagratheaPHP::Instance()
     ->AppPath(__DIR__ . '/..')
@@ -327,10 +327,10 @@ files on the server, so a leaked admin password becomes code execution. Enable i
 actually need it:
 
 ```php
-class MyAppAdmin extends \Magrathea2\Admin\Admin implements \Magrathea2\Admin\iAdmin {
+class MyAppAdmin extends \Magrathea\Admin\Admin implements \Magrathea\Admin\iAdmin {
     public function SetFeatures() {
         parent::SetFeatures();
-        $this->LoadFileEditor(); // or: $this->AddFeature(new \Magrathea2\Admin\Features\FileEditor\AdminFeatureFileEditor());
+        $this->LoadFileEditor(); // or: $this->AddFeature(new \Magrathea\Admin\Features\FileEditor\AdminFeatureFileEditor());
     }
 }
 ```
@@ -379,7 +379,7 @@ The most common admin customization is adding CRUD management for your models:
 ```php
 namespace App\Product;
 
-use Magrathea2\Admin\Features\CrudObject\AdminCrudObject;
+use Magrathea\Admin\Features\CrudObject\AdminCrudObject;
 
 class ProductAdmin extends AdminCrudObject {
     public string $featureName = "Products";
@@ -411,5 +411,5 @@ See the CRUD Object Feature in Admin Features for the details.
   same message, "Invalid email or password", taking about the same time, so it doesn't tell which
   emails belong to admins. A successful login changes the session id. (Since 3.0.)
 - The built-in API Explorer reads from `MagratheaApi::GetEndpointsDetail()` — make sure your API registers descriptions via the `$description` parameter of `Add()`.
-- Every authenticated admin POST request is checked against a CSRF token (`Magrathea2\Admin\AdminCsrf`), enforced automatically — no opt-out, no config flag. Forms built with `AdminForm` and AJAX calls made through the shared `ajax()`/`callAction()`/`callApi()`/`callFeature()` JS helpers get the token attached for free. If you build a raw `<form>` or a custom AJAX call outside those helpers, add the token yourself: a hidden `magrathea_csrf_token` field (`AdminCsrf::Instance()->GetToken()`) or an `X-Magrathea-CSRF-Token` header. GET requests are never checked.
+- Every authenticated admin POST request is checked against a CSRF token (`Magrathea\Admin\AdminCsrf`), enforced automatically — no opt-out, no config flag. Forms built with `AdminForm` and AJAX calls made through the shared `ajax()`/`callAction()`/`callApi()`/`callFeature()` JS helpers get the token attached for free. If you build a raw `<form>` or a custom AJAX call outside those helpers, add the token yourself: a hidden `magrathea_csrf_token` field (`AdminCsrf::Instance()->GetToken()`) or an `X-Magrathea-CSRF-Token` header. GET requests are never checked.
 - Admin API errors (`AdminApi`, called with the `callApi()` JS helper) come with a 4xx/5xx HTTP status since 2.4.0. `callApi()` still resolves them with the `{"success": false, ...}` body, so `.then(rs => { if(!rs.success) ... })` keeps working; it rejects only on network errors or non-JSON responses. The lower-level `ajax()`/`ajaxApi()` helpers reject on any 4xx/5xx (the body is in `err.data`).

@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\MagratheaPHP;
+use Magrathea\MagratheaPHP;
 
 	$database = MagratheaPHP::Instance()->GetDB()->getDatabaseName();
 
@@ -14,7 +14,7 @@ use Magrathea2\MagratheaPHP;
 		<div class="col-12">
 			Database is not connected by default.<br/>
 			To change this behaviour, add the following code to MagratheaPHP start:
-			<pre class="code">Magrathea2\MagratheaPHP::Instance()->StartDB()->Load();</pre>
+			<pre class="code">Magrathea\MagratheaPHP::Instance()->StartDB()->Load();</pre>
 			<br/><hr/>
 		</div>
 		<?php

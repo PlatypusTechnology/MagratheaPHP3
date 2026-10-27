@@ -1,18 +1,18 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\Admin\Features\AppConfig\AppConfig;
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Admin\Features\AppConfig\AppConfig;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####		Class for controlling the App configuration (the one that are stored in a database)
 ####    v. 1.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2023-11 by Paulo Martins
+####    Magrathea created: 2023-11 by Paulo Martins
 ####
 #######################################################################################
 

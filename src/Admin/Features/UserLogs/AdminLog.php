@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2\Admin\Features\UserLogs;
+namespace Magrathea\Admin\Features\UserLogs;
 
 use Admin;
-use Magrathea2\iMagratheaModel;
-use Magrathea2\MagratheaModel;
+use Magrathea\iMagratheaModel;
+use Magrathea\MagratheaModel;
 
 #######################################################################################
 ####
-####    MAGRATHEA Admin Config PHP2
+####    MAGRATHEA Admin Config PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

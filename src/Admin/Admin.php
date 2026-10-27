@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
-use Magrathea2\Admin\Features\CrudObject\AdminCrudObject;
-use Magrathea2\Admin\iAdmin;
-use Magrathea2\Tests\TestsManager;
+use Magrathea\Admin\Features\CrudObject\AdminCrudObject;
+use Magrathea\Admin\iAdmin;
+use Magrathea\Tests\TestsManager;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -66,7 +66,7 @@ class Admin implements iAdmin {
 	 * @return 	Admin			itself
 	 */
 	public function SetPrimaryColor($color): Admin {
-		$helper = new \Magrathea2\MagratheaHelper();
+		$helper = new \Magrathea\MagratheaHelper();
 		$dec = $helper->HexToRgb($color);
 		return $this->SetPrimaryColorDecimal(implode(',', $dec));
 	}
@@ -146,20 +146,20 @@ class Admin implements iAdmin {
 	 * Loads the AppConfig feature.
 	 */
 	protected function LoadAppConfig() {
-		$this->AddFeature(new \Magrathea2\Admin\Features\AppConfig\AdminFeatureAppConfig());
+		$this->AddFeature(new \Magrathea\Admin\Features\AppConfig\AdminFeatureAppConfig());
 	}
 	/**
 	 * Loads the Cache feature.
 	 */
 	protected function LoadCache() {
-		$this->AddFeature(new \Magrathea2\Admin\Features\Cache\AdminFeatureCache());
+		$this->AddFeature(new \Magrathea\Admin\Features\Cache\AdminFeatureCache());
 	}
 	/**
 	 * Loads User and UserLog features.
 	 */
 	protected function LoadUser() {
-		$this->AddFeature(new \Magrathea2\Admin\Features\User\AdminFeatureUser());
-		$this->AddFeature(new \Magrathea2\Admin\Features\UserLogs\AdminFeatureUserLog());
+		$this->AddFeature(new \Magrathea\Admin\Features\User\AdminFeatureUser());
+		$this->AddFeature(new \Magrathea\Admin\Features\UserLogs\AdminFeatureUserLog());
 	}
 	/**
 	 * Loads the File Editor feature.
@@ -167,7 +167,7 @@ class Admin implements iAdmin {
 	 * Call it from your Admin subclass's SetFeatures() to enable it.
 	 */
 	protected function LoadFileEditor() {
-		$this->AddFeature(new \Magrathea2\Admin\Features\FileEditor\AdminFeatureFileEditor());
+		$this->AddFeature(new \Magrathea\Admin\Features\FileEditor\AdminFeatureFileEditor());
 	}
 
 	/**
@@ -303,7 +303,7 @@ class Admin implements iAdmin {
 
 	/**
 	 * Checks if a user has authorization to access the admin.
-	 * @param \Magrathea2\Admin\Features\User\AdminUser $user
+	 * @param \Magrathea\Admin\Features\User\AdminUser $user
 	 * @return bool
 	 */
 	public function Auth($user): bool {

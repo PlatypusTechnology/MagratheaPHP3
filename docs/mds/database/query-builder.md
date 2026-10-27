@@ -1,7 +1,7 @@
 # Query Builder
 
 **Files:** `src/DB/Query.php`, `src/DB/QueryInsert.php`, `src/DB/QueryUpdate.php`, `src/DB/QueryDelete.php`
-**Namespace:** `Magrathea2\DB`
+**Namespace:** `Magrathea\DB`
 
 A fluent, chainable SQL query builder. Supports SELECT, INSERT, UPDATE, and DELETE operations. Integrates with `MagratheaModel` for automatic field mapping.
 
@@ -37,7 +37,7 @@ enum QueryType {
 ### Creating a SELECT
 
 ```php
-use Magrathea2\DB\Query;
+use Magrathea\DB\Query;
 
 $query = Query::Select();
 // or
@@ -250,7 +250,7 @@ $where = Query::BuildWhere(["status" => "active", "role" => "admin"], "AND");
 ## INSERT Query
 
 ```php
-use Magrathea2\DB\Query;
+use Magrathea\DB\Query;
 
 $query = Query::Insert()
     ->Table("users")
@@ -308,8 +308,8 @@ $sql = $query->SQL();
 ## Comprehensive SELECT Example
 
 ```php
-use Magrathea2\DB\Query;
-use Magrathea2\DB\Database;
+use Magrathea\DB\Query;
+use Magrathea\DB\Database;
 
 // Build query
 $query = Query::Select()

@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\Install;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\Start;
+use Magrathea\Admin\Install;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\Start;
 
 $admin = Start::Instance();
 $title = AdminManager::Instance()->GetTitle();
@@ -29,7 +29,7 @@ $title = AdminManager::Instance()->GetTitle();
 			<!-- Page content wrapper-->
 			<div id="page-content-wrapper">
 				<div class="center">
-					<?php \Magrathea2\Admin\AdminManager::Instance()->PrintLogo(200); ?>
+					<?php \Magrathea\Admin\AdminManager::Instance()->PrintLogo(200); ?>
 				</div>
 				<div class="disclaimer">
 					This is the first setup for Magrathea Admin.<br/>

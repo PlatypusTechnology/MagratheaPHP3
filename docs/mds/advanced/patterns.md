@@ -1,4 +1,4 @@
-# Design Patterns in MagratheaPHP2
+# Design Patterns in MagratheaPHP
 
 This page documents the design patterns used across the framework, explains why they were chosen, and shows how to work with them effectively.
 

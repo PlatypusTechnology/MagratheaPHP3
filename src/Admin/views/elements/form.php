@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminCsrf;
-use Magrathea2\Admin\AdminElements;
+use Magrathea\Admin\AdminCsrf;
+use Magrathea\Admin\AdminElements;
 
 $elements = AdminElements::Instance();
 

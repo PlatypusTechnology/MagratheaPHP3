@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\DB;
+namespace Magrathea\DB;
 
 use Exception;
-use Magrathea2\Debugger;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Exceptions\MagratheaDBConnectionLostException;
-use Magrathea2\Singleton;
+use Magrathea\Debugger;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaDBConnectionLostException;
+use Magrathea\Singleton;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -18,7 +18,7 @@ use Magrathea2\Singleton;
 ####	Database Class
 ####	Database connection class
 ####	Magrathea1 created: 2012-12 by Paulo Martins
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 
@@ -61,7 +61,7 @@ class Database extends Singleton {
 	private static bool $shutdownRegistered = false;
 
 	public function Mock(): void {
-		self::MockClass(\Magrathea2\DB\DatabaseSimulate::Instance());
+		self::MockClass(\Magrathea\DB\DatabaseSimulate::Instance());
 	}
 	
 	/**

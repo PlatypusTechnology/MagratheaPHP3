@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\Bootstrap;
+namespace Magrathea\Bootstrap;
 use Exception;
-use Magrathea2\Admin\AdminDatabase;
-use Magrathea2\Config;
-use Magrathea2\Debugger;
-use Magrathea2\Logger;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\AdminDatabase;
+use Magrathea\Config;
+use Magrathea\Debugger;
+use Magrathea\Logger;
+use Magrathea\MagratheaPHP;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -21,7 +21,7 @@ use Magrathea2\MagratheaPHP;
 /**
  * Class for handling and loading Magrathea's Bootstrap system
  */
-class Start extends \Magrathea2\Singleton { 
+class Start extends \Magrathea\Singleton { 
 
 	protected $appPath;
 	private $structure = [];

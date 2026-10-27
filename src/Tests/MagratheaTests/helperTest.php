@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\MagratheaHelper;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\MagratheaHelper;
+use Magrathea\Tests\TestsHelper;
 
 class MagratheaHelperTest extends \PHPUnit\Framework\TestCase {
 

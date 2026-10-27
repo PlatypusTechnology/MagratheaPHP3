@@ -1,7 +1,7 @@
 # MagratheaCache — Response Caching
 
 **File:** `src/MagratheaCache.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Extends:** `Singleton`
 
 File-based response cache. Stores successful API responses as JSON files, so a repeated request is answered straight from disk without running the action again (no database queries, no computation).
@@ -170,7 +170,7 @@ Returns the resolved cache directory, loading it from the config if needed.
 Without `MagratheaApi`, `HandleApiCache()` has to be called by hand:
 
 ```php
-use Magrathea2\MagratheaCache;
+use Magrathea\MagratheaCache;
 
 $cache = MagratheaCache::Instance();
 

@@ -9,7 +9,7 @@ These files define procedural helper functions available globally (without `use`
 
 ## Autoloader
 
-MagratheaPHP2 uses a custom `spl_autoload_register` callback. It's registered as soon as `vendor/autoload.php` is required (Composer loads `src/_Functions.php` as a `files` autoload), and it scans all registered code folders to resolve class names.
+MagratheaPHP uses a custom `spl_autoload_register` callback. It's registered as soon as `vendor/autoload.php` is required (Composer loads `src/_Functions.php` as a `files` autoload), and it scans all registered code folders to resolve class names.
 
 ### How it works
 
@@ -80,7 +80,7 @@ Strips the namespace from a fully-qualified class name and returns just the clas
 
 ```php
 echo getClassNameOfClass("App\\Models\\User"); // "User"
-echo getClassNameOfClass("Magrathea2\\DB\\Database"); // "Database"
+echo getClassNameOfClass("Magrathea\\DB\\Database"); // "Database"
 ```
 
 ---

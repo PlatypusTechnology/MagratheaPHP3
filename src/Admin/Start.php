@@ -1,18 +1,18 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 use Exception;
-use Magrathea2\Admin\Api\AdminApi;
-use Magrathea2\Admin\Features\AppConfig\AppConfigControl;
-use Magrathea2\Debugger;
-use Magrathea2\Logger;
-use Magrathea2\Singleton;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\Api\AdminApi;
+use Magrathea\Admin\Features\AppConfig\AppConfigControl;
+use Magrathea\Debugger;
+use Magrathea\Logger;
+use Magrathea\Singleton;
+use Magrathea\MagratheaPHP;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -208,7 +208,7 @@ class Start extends Singleton {
 	public function ShouldLogout() {
 		$logout = @$_GET["magrathea_logout"];
 		if($logout == "true") {
-			\Magrathea2\Admin\AdminUsers::Instance()->Logout();
+			\Magrathea\Admin\AdminUsers::Instance()->Logout();
 			$url = strtok($_SERVER['REQUEST_URI'], '?');
 			header('Location: ' . $url);
 			exit;
@@ -220,7 +220,7 @@ class Start extends Singleton {
 	 * @return 	bool 		$isLogged 			is it?
 	 */
 	public function IsLoggedIn(): bool {
-		$user = \Magrathea2\Admin\AdminUsers::Instance()->GetLoggedUser();
+		$user = \Magrathea\Admin\AdminUsers::Instance()->GetLoggedUser();
 		return ($user !== null);
 	}
 
@@ -234,7 +234,7 @@ class Start extends Singleton {
 			$hasConfig = ($config !== null);
 			$hasUsers = $this->HasUsers();
 			return ($hasConfig && $hasUsers);
-		} catch(\Magrathea2\Exceptions\MagratheaDBException $ex) {
+		} catch(\Magrathea\Exceptions\MagratheaDBException $ex) {
 			$title = "Error on Database. Is it installed?";
 			AdminElements::Instance()->ErrorCard($ex->getMessage(), $title);
 			return false;
@@ -244,7 +244,7 @@ class Start extends Singleton {
 	}
 
 	public function HasUsers(): bool {
-		$control = new \Magrathea2\Admin\Features\User\AdminUserControl();
+		$control = new \Magrathea\Admin\Features\User\AdminUserControl();
 		return ($control->CountUsers() > 0);
 	}
 

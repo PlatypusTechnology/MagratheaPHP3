@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Config;
-use Magrathea2\MagratheaHelper;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Config;
+use Magrathea\MagratheaHelper;
 
 $logFile = @$_POST["log"];
 if(!$logFile) throw new \Exception("invalid log file");

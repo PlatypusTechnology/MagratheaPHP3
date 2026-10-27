@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
+use Magrathea\Admin\AdminElements;
 
 // $file (name) and $filePath (validated) come from AdminFeatureCache::Edit()
 $elements = AdminElements::Instance();

@@ -1,7 +1,7 @@
 # MagratheaModel — ORM Base Model
 
 **File:** `src/MagratheaModel.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Type:** Abstract Class
 **Implements:** `iMagratheaModel`
 
@@ -31,7 +31,7 @@ interface iMagratheaModel {
 <?php
 namespace App\Models;
 
-use Magrathea2\MagratheaModel;
+use Magrathea\MagratheaModel;
 
 class Product extends MagratheaModel {
 
@@ -95,7 +95,7 @@ on load, and a later `Update()` writes the rounded value back. Do the math with 
 in SQL), not with `+`/`*` on the string. Since 2.4.0, the admin's object generator detects
 `DECIMAL` columns as `decimal` and `DOUBLE` as `float` (it used to leave both as `"unknown"`);
 its "generate CREATE TABLE" helper emits `decimal(10,2)` with an `/* adjust precision */`
-comment — a starting point, not a recommendation. Requires MagratheaPHP2 `2.4.0`+.
+comment — a starting point, not a recommendation. Requires MagratheaPHP `2.4.0`+.
 
 **`uuid` generation:** on `Insert()`/`InsertWithPk()`, any field declared `"uuid"` in
 `$dbValues` that is still empty gets filled in with `Uuid::V7()` (`src/Uuid.php`) — a
@@ -130,7 +130,7 @@ string. A value that can't be cast — schema drift, e.g. a non-numeric string l
 value.
 
 `$strictTypes` defaults to `false` in the framework, so it never changes an existing model's
-behavior. Requires MagratheaPHP2 `2.3.0`+.
+behavior. Requires MagratheaPHP `2.3.0`+.
 
 **Recommended for new models**, generated or hand-written: declare `protected $strictTypes = true;`,
 and use `decimal`, not `float`, for exact numbers. Since 2.4.0 the admin's object generator does

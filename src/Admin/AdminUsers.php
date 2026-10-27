@@ -1,12 +1,12 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\Admin\Features\User\AdminUserControl;
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\Singleton;
-use Magrathea2\DB\Database;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\Singleton;
+use Magrathea\DB\Database;
 
 class AdminUsers extends Singleton {
 
@@ -17,7 +17,7 @@ class AdminUsers extends Singleton {
 	private int|null $loggedUserId = null;
 
 	public function IsUsersSet(): bool {
-		$db = \Magrathea2\Config::Instance()->GetConfigFromDefault("db_name");
+		$db = \Magrathea\Config::Instance()->GetConfigFromDefault("db_name");
 		$magdb = Database::Instance();
 		$query = "SELECT COUNT(TABLE_NAME) FROM information_schema.TABLES WHERE ".
 			"TABLE_SCHEMA = '".$db."' AND TABLE_NAME = '".$this->tableName."'";
@@ -50,7 +50,7 @@ class AdminUsers extends Singleton {
 	 * Logs out (and returns null) when the session doesn't hold a valid id,
 	 * or the user doesn't exist or isn't active anymore.
 	 * @return 	AdminUser|null 		logged user
-	 * @throws 	\Magrathea2\Exceptions\MagratheaDBException
+	 * @throws 	\Magrathea\Exceptions\MagratheaDBException
 	 */
 	public function GetLoggedUser(): AdminUser|null {
 		$id = $_SESSION[$this->sessionName] ?? null;

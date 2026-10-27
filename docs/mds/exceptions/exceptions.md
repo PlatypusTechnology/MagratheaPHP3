@@ -1,9 +1,9 @@
 # Exceptions — Error Handling
 
 **Directory:** `src/Exceptions/`
-**Namespace:** `Magrathea2\Exceptions`
+**Namespace:** `Magrathea\Exceptions`
 
-MagratheaPHP2 uses a typed exception hierarchy to make error handling precise and predictable. All framework exceptions extend `MagratheaException`.
+MagratheaPHP uses a typed exception hierarchy to make error handling precise and predictable. All framework exceptions extend `MagratheaException`.
 
 ---
 
@@ -116,7 +116,7 @@ try {
 ### Common Usage in Controllers
 
 ```php
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\Exceptions\MagratheaApiException;
 
 class ProductApiControl extends MagratheaApiControl {
 
@@ -193,7 +193,7 @@ Returns the full error message including query context.
 ### Handling DB Exceptions
 
 ```php
-use Magrathea2\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaDBException;
 
 try {
     Database::Instance()->Query($sql);
@@ -224,7 +224,7 @@ next query on the same `Database` instance opens a new connection. The framework
 "Lost connections" in the Database page for when retrying is safe.
 
 ```php
-use Magrathea2\Exceptions\MagratheaDBConnectionLostException;
+use Magrathea\Exceptions\MagratheaDBConnectionLostException;
 
 try {
     $job->Save();
@@ -262,7 +262,7 @@ Config::Instance()->GetConfigFromDefault("required_key", true);
 Thrown by the ORM layer when model operations fail (e.g., accessing undefined fields, loading a non-existent record).
 
 ```php
-use Magrathea2\Exceptions\MagratheaModelException;
+use Magrathea\Exceptions\MagratheaModelException;
 
 try {
     $product = new Product();
@@ -277,7 +277,7 @@ try {
 ## Catching All Framework Exceptions
 
 ```php
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Exceptions\MagratheaException;
 
 try {
     // any framework operation

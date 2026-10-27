@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\DB\Database;
-use Magrathea2\DB\DatabaseSimulate;
-use Magrathea2\Debugger;
-use Magrathea2\MagratheaModel;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\DB\Database;
+use Magrathea\DB\DatabaseSimulate;
+use Magrathea\Debugger;
+use Magrathea\MagratheaModel;
+use Magrathea\Tests\TestsHelper;
 
 class BindTypesIntPkModel extends MagratheaModel {
 	protected $dbTable = "bind_types_int";

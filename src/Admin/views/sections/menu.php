@@ -1,12 +1,12 @@
 <?php
 
-use Magrathea2\Admin\AdminUrls;
+use Magrathea\Admin\AdminUrls;
 
 https://startbootstrap.github.io/startbootstrap-simple-sidebar/
 
-/** @var \Magrathea2\Admin\AdminManager $manager */
-$manager = Magrathea2\Admin\AdminManager::Instance();
-$env = Magrathea2\Config::Instance()->GetEnvironment();
+/** @var \Magrathea\Admin\AdminManager $manager */
+$manager = Magrathea\Admin\AdminManager::Instance();
+$env = Magrathea\Config::Instance()->GetEnvironment();
 
 function getMainTitle($item) {
 	return '<span class="title main">'.$item['title'].'</span>';
@@ -54,7 +54,7 @@ function getItem($item) {
 	<div class="list-group list-group-flush">
 		<ul class="p-0">
 		<?php
-			/** @var  \Magrathea2\Admin\AdminManager::GetMenu */
+			/** @var  \Magrathea\Admin\AdminManager::GetMenu */
 			$menuItems = $manager->GetMenu();
 			foreach($menuItems->GetMenu() as $item) {
 				echo '<li class="list-group-item list-group-item-action list-group-item-light '.(@$item['active'] ? 'active' : '').'">';

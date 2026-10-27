@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Config;
-use Magrathea2\MagratheaCache;
-use Magrathea2\DB\Database;
-use Magrathea2\DB\DatabaseSimulate;
-use Magrathea2\Admin\Features\Cache\AdminFeatureCache;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Config;
+use Magrathea\MagratheaCache;
+use Magrathea\DB\Database;
+use Magrathea\DB\DatabaseSimulate;
+use Magrathea\Admin\Features\Cache\AdminFeatureCache;
+use Magrathea\Exceptions\MagratheaException;
 
 class adminCacheFeatureTest extends \PHPUnit\Framework\TestCase {
 

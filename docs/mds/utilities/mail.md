@@ -1,7 +1,7 @@
 # MagratheaMail — Email Functionality
 
 **Files:** `src/MagratheaMail.php`, `src/MagratheaMailSMTP.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 
 Email sending with support for both PHP's native `mail()` and SMTP via PHPMailer. Supports HTML and plain-text messages, multiple recipients, simulation mode, and fluent interface.
 
@@ -115,7 +115,7 @@ Returns a readable summary of the email object.
 ### Basic Email Example
 
 ```php
-use Magrathea2\MagratheaMail;
+use Magrathea\MagratheaMail;
 
 $mail = new MagratheaMail();
 $mail->SetTo("customer@example.com")
@@ -149,7 +149,7 @@ from     = myapp@gmail.com
 ### Usage
 
 ```php
-use Magrathea2\MagratheaMailSMTP;
+use Magrathea\MagratheaMailSMTP;
 
 $mail = new MagratheaMailSMTP();
 $mail->SetTo("customer@example.com")
@@ -186,8 +186,8 @@ $mail->SetTo("user@example.com")
 ## Development Pattern: Simulate in Non-Production
 
 ```php
-use Magrathea2\MagratheaMail;
-use Magrathea2\Config;
+use Magrathea\MagratheaMail;
+use Magrathea\Config;
 
 $mail = new MagratheaMail();
 

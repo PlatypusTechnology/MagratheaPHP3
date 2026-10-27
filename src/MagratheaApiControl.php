@@ -1,7 +1,7 @@
 <?php
 
-namespace Magrathea2;
-use Magrathea2\Exceptions\MagratheaApiException;
+namespace Magrathea;
+use Magrathea\Exceptions\MagratheaApiException;
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
 use \Firebase\JWT\ExpiredException;
@@ -10,11 +10,11 @@ use \Firebase\JWT\BeforeValidException;
 
 #######################################################################################
 ####
-####    MAGRATHEA API CONTROL PHP2
+####    MAGRATHEA API CONTROL PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2023-04 by Paulo Martins
+####    Magrathea created: 2023-04 by Paulo Martins
 ####
 #######################################################################################
 

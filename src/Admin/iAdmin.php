@@ -1,6 +1,6 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 interface iAdmin {
 	public function Initialize();

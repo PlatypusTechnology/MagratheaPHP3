@@ -1,6 +1,6 @@
 <?php
 
-namespace Magrathea2\Compressors;
+namespace Magrathea\Compressors;
 
 #######################################################################################
 ####
@@ -8,7 +8,7 @@ namespace Magrathea2\Compressors;
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2023-12 by Paulo Martins
+####    Magrathea created: 2023-12 by Paulo Martins
 ####
 #######################################################################################
 class MagratheaCompressor {

@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 use Exception;
-use Magrathea2\Singleton;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Singleton;
+use Magrathea\MagratheaPHP;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2 Admin elements
+####    MAGRATHEA PHP Admin elements
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -52,7 +52,7 @@ class AdminElements extends Singleton {
 			return;
 		}
 		$magratheaRows = array_map(function($i) {
-			if(is_a($i, "\Magrathea2\MagratheaModel")) {
+			if(is_a($i, "\Magrathea\MagratheaModel")) {
 				return $i;
 			} else if(is_string($i)) {
 				return explode(';', $i);

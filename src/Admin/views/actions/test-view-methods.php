@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Exceptions\MagratheaException;
 
-$testManager = \Magrathea2\Tests\TestsManager::Instance();
-$adminElements = \Magrathea2\Admin\AdminElements::Instance();
+$testManager = \Magrathea\Tests\TestsManager::Instance();
+$adminElements = \Magrathea\Admin\AdminElements::Instance();
 
 $file = @$_POST["file"];
 $resultContainer = (string)@$_POST["container"];

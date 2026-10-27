@@ -1,7 +1,7 @@
 # MagratheaModelControl — Static ORM Query Interface
 
 **File:** `src/MagratheaModelControl.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Type:** Abstract Class
 
 The companion to `MagratheaModel`. Provides a static, repository-style interface for querying the database and returning typed model objects. You define one `Control` class per model.
@@ -14,7 +14,7 @@ The companion to `MagratheaModel`. Provides a static, repository-style interface
 <?php
 namespace App\Controls;
 
-use Magrathea2\MagratheaModelControl;
+use Magrathea\MagratheaModelControl;
 
 class ProductControl extends MagratheaModelControl {
     protected static $modelName      = "Product";
@@ -99,7 +99,7 @@ $options = ProductControl::GetSelectArray();
 Execute a `Query` object and return typed model instances.
 
 ```php
-use Magrathea2\DB\Query;
+use Magrathea\DB\Query;
 
 $query = Query::Select()
     ->Obj(new Product())
@@ -140,11 +140,11 @@ Builds a `MagratheaPagination` object directly from a query — the recommended 
 By default (`$withTotal = false`) it avoids an extra `COUNT(*)` query: it fetches `$limit + 1` rows, and if that extra row comes back, sets `has_more = true` and trims the result back down to `$limit`. Pass `$withTotal = true` to also compute and include `total` (at the cost of a `COUNT(*)` query).
 
 ```php
-use Magrathea2\DB\Query;
+use Magrathea\DB\Query;
 use App\Controls\ProductControl;
 
 // In an API controller:
-public function List(array $params = []): \Magrathea2\MagratheaPagination {
+public function List(array $params = []): \Magrathea\MagratheaPagination {
     $query = Query::Select()->Obj(new \App\Models\Product())->Where(["active" => 1])->Order("name ASC");
     return ProductControl::GetPagination($query, page: (int)($params["page"] ?? 0), limit: 20);
 }
@@ -219,7 +219,7 @@ Dumps all records to output as an HTML table (values escaped). Debug helper.
 ## Full Example: Paginated Product List
 
 ```php
-use Magrathea2\DB\Query;
+use Magrathea\DB\Query;
 use App\Controls\ProductControl;
 
 // Build query
@@ -246,8 +246,8 @@ echo json_encode([
 ## Full Example: Search & Filter
 
 ```php
-use Magrathea2\DB\Database;
-use Magrathea2\DB\Query;
+use Magrathea\DB\Database;
+use Magrathea\DB\Query;
 use App\Controls\ProductControl;
 
 $search = Database::Instance()->Escape($_GET["q"] ?? "");

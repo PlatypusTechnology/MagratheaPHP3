@@ -1,20 +1,20 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
 use Exception;
-use Magrathea2\DB\Database;
-use Magrathea2\Errors\ErrorManager;
-use Magrathea2\Exceptions\MagratheaConfigException;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\DB\Database;
+use Magrathea\Errors\ErrorManager;
+use Magrathea\Exceptions\MagratheaConfigException;
+use Magrathea\Exceptions\MagratheaException;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 
@@ -264,7 +264,7 @@ class MagratheaPHP extends Singleton {
 	 * @return string URL for the documentation.
 	 */
 	public static function GetDocumentationLink(): string {
-		return "https://www.platypusweb.com.br/magratheaphp2";
+		return "https://www.platypusweb.com.br/magratheaphp3";
 	}
 
 	/**
@@ -292,7 +292,7 @@ class MagratheaPHP extends Singleton {
 	 * @return void
 	 */
 	public static function Test(): void { 
-		echo "MagratheaPHP2 is working!";
+		echo "MagratheaPHP is working!";
 	}
 
 }

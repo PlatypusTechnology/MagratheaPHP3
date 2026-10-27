@@ -1,9 +1,9 @@
 <?php
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
-$dbManager = Magrathea2\Admin\AdminDatabase::Instance();
-$adminElements = \Magrathea2\Admin\AdminElements::Instance();
+$dbManager = Magrathea\Admin\AdminDatabase::Instance();
+$adminElements = \Magrathea\Admin\AdminElements::Instance();
 
 $adminElements->Header("Run Query");
 

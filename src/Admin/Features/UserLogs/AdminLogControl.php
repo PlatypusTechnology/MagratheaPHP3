@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\Admin\Features\UserLogs;
+namespace Magrathea\Admin\Features\UserLogs;
 
 use Exception;
-use Magrathea2\MagratheaModelControl;
-use Magrathea2\DB\Query;
-use Magrathea2\MagratheaModel;
+use Magrathea\MagratheaModelControl;
+use Magrathea\DB\Query;
+use Magrathea\MagratheaModel;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 class AdminLogControl extends MagratheaModelControl { 
-	protected static $modelNamespace = "Magrathea2\Admin\Features\UserLogs";
+	protected static $modelNamespace = "Magrathea\Admin\Features\UserLogs";
 	protected static $modelName = "AdminLog";
 	protected static $dbTable = "_magrathea_logs";
 

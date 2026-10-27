@@ -1,7 +1,7 @@
 <?php
-use Magrathea2\DB\Query;
-use Magrathea2\DB\QueryHelper;
-use Magrathea2\DB\QueryType;
+use Magrathea\DB\Query;
+use Magrathea\DB\QueryHelper;
+use Magrathea\DB\QueryType;
 
 
 class queryTest extends \PHPUnit\Framework\TestCase {

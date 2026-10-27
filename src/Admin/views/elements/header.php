@@ -13,7 +13,7 @@
 			</div>
 			<div class="col-3 header-right">
 				<?php
-					\Magrathea2\Admin\AdminElements::Instance()->UserCard();
+					\Magrathea\Admin\AdminElements::Instance()->UserCard();
 				?>
 			</div>
 		</div>

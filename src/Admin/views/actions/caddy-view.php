@@ -1,6 +1,6 @@
 <?php
 
-$appFolder = \Magrathea2\MagratheaPHP::Instance()->appRoot;
+$appFolder = \Magrathea\MagratheaPHP::Instance()->appRoot;
 
 $htaccessFile = $appFolder."/site.caddy";
 $viewFile = $htaccessFile;

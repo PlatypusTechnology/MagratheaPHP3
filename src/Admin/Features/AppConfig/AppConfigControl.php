@@ -1,16 +1,16 @@
 <?php
 
-namespace Magrathea2\Admin\Features\AppConfig;
+namespace Magrathea\Admin\Features\AppConfig;
 
 use Exception;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\MagratheaModelControl;
-use Magrathea2\DB\Query;
-use Magrathea2\MagratheaCache;
+use Magrathea\Admin\AdminManager;
+use Magrathea\MagratheaModelControl;
+use Magrathea\DB\Query;
+use Magrathea\MagratheaCache;
 
 #######################################################################################
 ####
-####    MAGRATHEA Admin Config PHP2
+####    MAGRATHEA Admin Config PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -22,7 +22,7 @@ use Magrathea2\MagratheaCache;
  * Class for installing Magrathea's Admin
  */
 class AppConfigControl extends MagratheaModelControl { 
-	protected static $modelName = "Magrathea2\Admin\Features\AppConfig\AppConfig";
+	protected static $modelName = "Magrathea\Admin\Features\AppConfig\AppConfig";
 	protected static $dbTable = "_magrathea_config";
 
 	/**

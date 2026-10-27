@@ -1,7 +1,7 @@
 # Singleton — Base Singleton Pattern
 
 **File:** `src/Singleton.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Type:** Abstract Class
 
 The base class for all manager/service classes in the framework. Ensures a class can only have one instance per process. Most framework classes (`Config`, `Database`, `Logger`, `Debugger`, `MagratheaCache`, etc.) extend `Singleton`.
@@ -22,7 +22,7 @@ The base class for all manager/service classes in the framework. Ensures a class
 Returns the single shared instance of the calling class. Creates it on the first call.
 
 ```php
-use Magrathea2\Config;
+use Magrathea\Config;
 
 $config = Config::Instance();
 // Always the same object
@@ -63,7 +63,7 @@ This ensures that only `Instance()` can create the object.
 <?php
 namespace App\Services;
 
-use Magrathea2\Singleton;
+use Magrathea\Singleton;
 
 class MyService extends Singleton {
     private string $data = "";

@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Config;
-use Magrathea2\Errors\ErrorManager;
-use Magrathea2\MagratheaCache;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Config;
+use Magrathea\Errors\ErrorManager;
+use Magrathea\MagratheaCache;
 
 $elements = AdminElements::Instance();
 

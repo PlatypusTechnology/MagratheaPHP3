@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\ObjectManager;
 
 $pageTitle = "Objects Config File";
-\Magrathea2\Admin\AdminElements::Instance()->Header($pageTitle);
+\Magrathea\Admin\AdminElements::Instance()->Header($pageTitle);
 
 $objControl = ObjectManager::Instance();
 $viewFile = $objControl->GetObjectFilePath();

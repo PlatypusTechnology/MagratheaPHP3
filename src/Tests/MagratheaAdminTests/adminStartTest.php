@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\Start;
-use Magrathea2\DB\Database;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\Start;
+use Magrathea\DB\Database;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Tests\TestsHelper;
 
 // Admin Start with a controllable user count (int, or an exception to throw)
 class FakeAdminStart extends Start {
@@ -26,7 +26,7 @@ class FakeAdminStartRealInstallDate extends Start {
 }
 
 // Records every call made to the database (a Singleton, so MockClass() accepts it)
-class RecordingDatabase extends \Magrathea2\Singleton {
+class RecordingDatabase extends \Magrathea\Singleton {
 	public $calls = [];
 	public $row = [];
 	public function Escape($s) { return addslashes($s); }

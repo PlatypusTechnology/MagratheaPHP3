@@ -1,5 +1,5 @@
 <?php
-	use Magrathea2\Config;
+	use Magrathea\Config;
 
 	$config = Config::Instance();
 	$env = $config->GetEnvironment();
@@ -36,7 +36,7 @@
 		Debugging:
 <pre class="code">
 
-use Magrathea2\Debugger;
+use Magrathea\Debugger;
 
 Debugger::Instance()->SetType(Debugger::DEV);
 		// Will print the debugs as it appears in the code

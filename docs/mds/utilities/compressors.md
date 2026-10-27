@@ -1,7 +1,7 @@
 # Compressors — CSS & JavaScript Compression
 
 **Files:** `src/Compressors/MagratheaCompressor.php`, `src/Compressors/CssCompressor.php`, `src/Compressors/JavascriptCompressor.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 
 File bundling and minification utilities for CSS and JavaScript assets. Used primarily by the Admin panel but available to application code as well.
 
@@ -35,7 +35,7 @@ Bundles and minifies CSS files using `scssphp` (supports both SCSS and plain CSS
 ### Usage
 
 ```php
-use Magrathea2\Compressors\CssCompressor;
+use Magrathea\Compressors\CssCompressor;
 
 $css = new CssCompressor();
 $css->AddFile("/assets/bootstrap.css")
@@ -57,7 +57,7 @@ Bundles and minifies JavaScript files using `tedivm/jshrink`.
 ### Usage
 
 ```php
-use Magrathea2\Compressors\JavascriptCompressor;
+use Magrathea\Compressors\JavascriptCompressor;
 
 $js = new JavascriptCompressor();
 $js->AddFile("/assets/jquery.min.js")
@@ -73,7 +73,7 @@ echo "<script>" . $js->GetOutput() . "</script>";
 The Admin panel uses both compressors internally via `AdminManager`:
 
 ```php
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminManager;
 
 $manager = AdminManager::Instance();
 
@@ -93,8 +93,8 @@ echo $manager->GetCss(); // all CSS bundled & minified
 ## Example: Asset Pipeline for a Custom Page
 
 ```php
-use Magrathea2\Compressors\CssCompressor;
-use Magrathea2\Compressors\JavascriptCompressor;
+use Magrathea\Compressors\CssCompressor;
+use Magrathea\Compressors\JavascriptCompressor;
 
 $appRoot = MagratheaPHP::Instance()->GetAppRoot();
 

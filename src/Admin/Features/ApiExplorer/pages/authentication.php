@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\AdminManager;
 
 $elements = AdminElements::Instance();
 

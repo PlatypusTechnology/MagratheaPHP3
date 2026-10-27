@@ -116,7 +116,7 @@ class DocMap {
 	/** FQCN from a src-relative path like "Admin/AdminManager.php" */
 	public static function FqcnFromSrc(string $relative): string {
 		$noExt = preg_replace('/\.php$/', '', $relative);
-		return "Magrathea2\\" . str_replace("/", "\\", $noExt);
+		return "Magrathea\\" . str_replace("/", "\\", $noExt);
 	}
 
 	/**

@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Tests\TestsManager;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Tests\TestsManager;
+use Magrathea\Exceptions\MagratheaException;
 
 $testManager = TestsManager::Instance();
 

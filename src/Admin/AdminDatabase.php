@@ -1,22 +1,22 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 use Exception;
-use Magrathea2\Config;
-use Magrathea2\Exceptions\MagratheaConfigException;
-use Magrathea2\Exceptions\MagratheaException;
-use Magrathea2\Singleton;
-use Magrathea2\DB\Database;
-use Magrathea2\MagratheaHelper;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Config;
+use Magrathea\Exceptions\MagratheaConfigException;
+use Magrathea\Exceptions\MagratheaException;
+use Magrathea\Singleton;
+use Magrathea\DB\Database;
+use Magrathea\MagratheaHelper;
+use Magrathea\MagratheaPHP;
 
-use function Magrathea2\now;
-use function Magrathea2\p_r;
+use function Magrathea\now;
+use function Magrathea\p_r;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

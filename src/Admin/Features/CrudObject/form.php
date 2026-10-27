@@ -1,6 +1,6 @@
 <?php
 //print_r($formData); die;
-$form = new \Magrathea2\Admin\AdminForm();
+$form = new \Magrathea\Admin\AdminForm();
 
 ?>
 

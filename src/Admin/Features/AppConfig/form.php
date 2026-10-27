@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\Features\AppConfig\AppConfig;
-use Magrathea2\MagratheaCache;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\Features\AppConfig\AppConfig;
+use Magrathea\MagratheaCache;
 
 $adminForm = new AdminForm();
 $adminForm->SetName("data-form");

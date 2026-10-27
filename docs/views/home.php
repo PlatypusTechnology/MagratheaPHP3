@@ -3,8 +3,8 @@ use AiDocs\MarkdownParser;
 $pageTitle = null;
 ?>
 <div class="hero" style="margin: -2rem -2.5rem 0; border-radius: 0;">
-	<img src="<?= $baseUrl ?>/assets/img/logo.svg" alt="MagratheaPHP2">
-	<h1>Magrathea<span>PHP2</span> Documentation</h1>
+	<img src="<?= $baseUrl ?>/assets/img/logo.svg" alt="MagratheaPHP">
+	<h1>Magrathea<span>PHP</span> Documentation</h1>
 	<p>A full PHP framework for building APIs, web applications, and admin panels — ORM, fluent query builder,
 	JWT-secured REST framework, and a pluggable admin panel. This reference is generated live from the source
 	via reflection, so method signatures never drift out of date.</p>

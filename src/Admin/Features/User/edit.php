@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Admin\Features\User\AdminUser;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Admin\Features\User\AdminUser;
 
 if(@$_POST["magrathea-submit"] === "delete") {
 	die;

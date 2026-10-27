@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminFiles;
-use Magrathea2\Logger;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminFiles;
+use Magrathea\Logger;
 
 // a log file: a plain name of a file inside the logs folder
 $viewFile = AdminFiles::ResolveInFolder(Logger::Instance()->GetLogPath(), @$_POST["file"]);

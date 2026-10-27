@@ -1,9 +1,9 @@
 <?php
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
-$testManager = \Magrathea2\Tests\TestsManager::Instance();
-$adminElements = \Magrathea2\Admin\AdminElements::Instance();
+$testManager = \Magrathea\Tests\TestsManager::Instance();
+$adminElements = \Magrathea\Admin\AdminElements::Instance();
 
 $pageTitle = "Tests";
 $adminElements->Header($pageTitle);

@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminForm;
+use Magrathea\Admin\AdminForm;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 $formData = [];
 foreach ($configFormData as $item => $value) {

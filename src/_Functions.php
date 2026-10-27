@@ -1,16 +1,16 @@
 <?php
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\DB\Database;
+use Magrathea\DB\Database;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####	Magrathea1 created: 2012-12 by Paulo Martins
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 
@@ -46,7 +46,7 @@ function p_r($debugme){
  * Gets an object and returns if it is a Magrathea Model
  */
 function isMagratheaModel($object): bool {
-	return is_a($object, "\Magrathea2\MagratheaModel");
+	return is_a($object, "\Magrathea\MagratheaModel");
 }
 
 /**

@@ -1,19 +1,19 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 use Exception;
-use Magrathea2\Admin\Features\User\AdminUser;
-use Magrathea2\Admin\Features\UserLogs\AdminLogControl;
-use Magrathea2\Compressors\CssCompressor;
-use Magrathea2\Compressors\JavascriptCompressor;
-use Magrathea2\Singleton;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\UserLogs\AdminLogControl;
+use Magrathea\Compressors\CssCompressor;
+use Magrathea\Compressors\JavascriptCompressor;
+use Magrathea\Singleton;
 
-use function Magrathea2\isMagratheaModel;
+use function Magrathea\isMagratheaModel;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -234,7 +234,7 @@ class AdminManager extends Singleton {
 	 * Return logged user
 	 */
 	public function GetLoggedUser(): AdminUser | null {
-		return \Magrathea2\Admin\AdminUsers::Instance()->GetLoggedUser();
+		return \Magrathea\Admin\AdminUsers::Instance()->GetLoggedUser();
 	}
 
 	/**

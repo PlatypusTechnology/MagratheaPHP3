@@ -1,7 +1,7 @@
 # Admin Features System
 
 **Directory:** `src/Admin/Features/`
-**Namespace:** `Magrathea2\Admin\Features`
+**Namespace:** `Magrathea\Admin\Features`
 
 The admin panel is organized around pluggable **features**. Each feature is a self-contained module that adds a section to the admin menu, manages its own routes, and renders its own views.
 
@@ -96,7 +96,7 @@ The most powerful built-in feature. Automatically generates a full CRUD interfac
 // features/Product/ProductAdmin.php (what the admin's code generator writes)
 namespace App\Product;
 
-use Magrathea2\Admin\Features\CrudObject\AdminCrudObject;
+use Magrathea\Admin\Features\CrudObject\AdminCrudObject;
 
 class ProductAdmin extends AdminCrudObject {
     // Optional: title in the menu and page header (default: "Product CRUD")
@@ -213,7 +213,7 @@ Renders a [Swagger UI](https://swagger.io/tools/swagger-ui/) page inside the adm
 **Feature ID:** `AdminOpenApi`
 
 ```php
-use Magrathea2\Admin\Features\OpenApi\OpenApiAdmin;
+use Magrathea\Admin\Features\OpenApi\OpenApiAdmin;
 
 // $fileUrl is passed straight to Swagger UI's `url` option — defaults to "swagger.yaml"
 $this->AddFeature(new OpenApiAdmin("swagger.yaml"));
@@ -229,8 +229,8 @@ If the `app_url` config key is set (`Config::Instance()->Get("app_url")`), the f
 <?php
 namespace App\Admin;
 
-use Magrathea2\Admin\AdminFeature;
-use Magrathea2\Admin\iAdminFeature;
+use Magrathea\Admin\AdminFeature;
+use Magrathea\Admin\iAdminFeature;
 
 class ReportsFeature extends AdminFeature implements iAdminFeature {
 

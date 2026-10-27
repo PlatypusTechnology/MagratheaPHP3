@@ -1,5 +1,5 @@
 <?php
-namespace Magrathea2;
+namespace Magrathea;
 
 class Uuid {
 

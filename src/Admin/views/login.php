@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\AdminUsers;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\AdminUsers;
 
 $admin = AdminManager::Instance();
 

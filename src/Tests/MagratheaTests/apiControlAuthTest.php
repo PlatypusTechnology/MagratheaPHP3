@@ -1,6 +1,6 @@
 <?php
 
-namespace Magrathea2 {
+namespace Magrathea {
 	// Intercepts setcookie() calls made from within MagratheaApiControl (which is
 	// in this namespace) so SetAuthCookie()/ClearAuthCookie() can be asserted on
 	// without a real SAPI response — PHP CLI reports headers_sent() === true
@@ -15,11 +15,11 @@ namespace Magrathea2 {
 
 namespace {
 
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\MagratheaApiAuth;
-use Magrathea2\Tests\TestsHelper;
-use Magrathea2\Config;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\MagratheaApiControl;
+use Magrathea\MagratheaApiAuth;
+use Magrathea\Tests\TestsHelper;
+use Magrathea\Config;
+use Magrathea\Exceptions\MagratheaApiException;
 
 class CookieEnabledApiControl extends MagratheaApiControl {
 	protected ?string $cookieName = "test_session";

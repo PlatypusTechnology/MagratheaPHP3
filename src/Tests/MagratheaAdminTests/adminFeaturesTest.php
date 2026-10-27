@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\Admin;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\Admin;
+use Magrathea\Tests\TestsHelper;
 
 // Admin that opts in to the File Editor, as the docs tell apps to do
 class FileEditorOptInAdmin extends Admin {

@@ -1,7 +1,7 @@
 # MagratheaHelper — Utility Functions
 
 **File:** `src/MagratheaHelper.php`
-**Namespace:** `Magrathea2`
+**Namespace:** `Magrathea`
 **Type:** Static utility class (all methods are `static`)
 
 A collection of general-purpose helper functions used throughout the framework and available to application code.
@@ -14,7 +14,7 @@ A collection of general-purpose helper functions used throughout the framework a
 Generates a cryptographically random alphanumeric string of the given length.
 
 ```php
-use Magrathea2\MagratheaHelper;
+use Magrathea\MagratheaHelper;
 
 $token = MagratheaHelper::RandomString(32);
 // e.g. "aB3xK9mQp2..."
@@ -74,7 +74,7 @@ echo MagratheaHelper::FormatSize(1_073_741_824, 1);
 ### Generating an API key for a new user
 
 ```php
-use Magrathea2\MagratheaHelper;
+use Magrathea\MagratheaHelper;
 
 $apiKey = MagratheaHelper::RandomString(40);
 $user->Set("api_key", $apiKey);

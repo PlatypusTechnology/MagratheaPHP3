@@ -1,6 +1,6 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
 trait Magrathea_Enum {
 	public static function presentValue(string $str): string {

@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\DB\Database;
-use Magrathea2\DB\Query;
-use Magrathea2\Debugger;
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\MagratheaModel;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\DB\Database;
+use Magrathea\DB\Query;
+use Magrathea\Debugger;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\MagratheaModel;
+use Magrathea\Tests\TestsHelper;
 
 class SqlInjectionTestModel extends MagratheaModel {
 	protected $dbTable = "sql_injection_test";
@@ -53,7 +53,7 @@ class sqlInjectionTest extends \PHPUnit\Framework\TestCase {
 		// Database::Escape() needs a connection; the mock provides a connection-free equivalent.
 		// Mock() replaces the singleton instance itself, so only call it once - a second call
 		// would land on the DatabaseSimulate instance, which has no Mock() method of its own.
-		if (!(Database::Instance() instanceof \Magrathea2\DB\DatabaseSimulate)) {
+		if (!(Database::Instance() instanceof \Magrathea\DB\DatabaseSimulate)) {
 			Database::Instance()->Mock();
 		}
 	}

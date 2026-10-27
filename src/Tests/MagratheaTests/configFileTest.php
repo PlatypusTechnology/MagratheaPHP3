@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Tests\TestsHelper;
-use Magrathea2\ConfigFile;
+use Magrathea\Tests\TestsHelper;
+use Magrathea\ConfigFile;
 
 class configFileTest extends \PHPUnit\Framework\TestCase {
 
@@ -58,7 +58,7 @@ class configFileTest extends \PHPUnit\Framework\TestCase {
 		 );
 		$this->magConfig->setConfig($confs);
 //			$this->expectException(new PatternExpectation("/section/i"));
-		$this->expectException(\Magrathea2\Exceptions\MagratheaConfigException::class);
+		$this->expectException(\Magrathea\Exceptions\MagratheaConfigException::class);
 		$this->magConfig->Save(true);
 	}
 

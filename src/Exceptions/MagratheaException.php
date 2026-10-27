@@ -1,11 +1,11 @@
 <?php
 
-namespace Magrathea2\Exceptions;
-use Magrathea2\Debugger;
+namespace Magrathea\Exceptions;
+use Magrathea\Debugger;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -15,7 +15,7 @@ use Magrathea2\Debugger;
 ####    Error Class
 ####    Error handling 
 ####    Magrathea1 created: 2012-12 by Paulo Martins
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 

@@ -1,8 +1,8 @@
 <?php
 
 namespace ShowAllTestModels {
-	use Magrathea2\MagratheaModel;
-	use Magrathea2\MagratheaModelControl;
+	use Magrathea\MagratheaModel;
+	use Magrathea\MagratheaModelControl;
 
 	// lives in a namespace, so a bare "ShowAllItem" doesn't resolve to it
 	class ShowAllItem extends MagratheaModel {
@@ -29,7 +29,7 @@ namespace ShowAllTestModels {
 }
 
 namespace {
-	use Magrathea2\DB\Database;
+	use Magrathea\DB\Database;
 	use ShowAllTestModels\ShowAllItemControl;
 
 	// Database that answers QueryAll() with $rows

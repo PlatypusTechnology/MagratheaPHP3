@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Tests\TestsManager;
-use Magrathea2\Tests\TestsHelper;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Tests\TestsManager;
+use Magrathea\Tests\TestsHelper;
+use Magrathea\Exceptions\MagratheaException;
 
 // records the shell commands instead of running PHPUnit from inside PHPUnit
 class RecordingTestsManager extends TestsManager {

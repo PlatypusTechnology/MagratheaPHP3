@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
 
 $elements = AdminElements::Instance();
 $elements->Header("Create Objects");

@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\ObjectManager;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
-$tables = Magrathea2\Admin\AdminDatabase::Instance()->GetTables(false);
+$tables = Magrathea\Admin\AdminDatabase::Instance()->GetTables(false);
 
 ?>
 

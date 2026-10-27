@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Config;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Config;
 
 $elements = AdminElements::Instance();
 $elements->Header("Swagger");

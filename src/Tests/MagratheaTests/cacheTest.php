@@ -1,12 +1,12 @@
 <?php
 
-use Magrathea2\Config;
-use Magrathea2\Debugger;
-use Magrathea2\Logger;
-use Magrathea2\MagratheaApi;
-use Magrathea2\MagratheaApiControl;
-use Magrathea2\MagratheaCache;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Config;
+use Magrathea\Debugger;
+use Magrathea\Logger;
+use Magrathea\MagratheaApi;
+use Magrathea\MagratheaApiControl;
+use Magrathea\MagratheaCache;
+use Magrathea\Tests\TestsHelper;
 
 class CachedRawModeControl extends MagratheaApiControl {
 	public int $calls = 0;

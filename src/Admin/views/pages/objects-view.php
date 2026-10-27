@@ -1,6 +1,6 @@
 <?php
 
-\Magrathea2\Admin\AdminElements::Instance()->Header("Objects");
+\Magrathea\Admin\AdminElements::Instance()->Header("Objects");
 
 ?>
 

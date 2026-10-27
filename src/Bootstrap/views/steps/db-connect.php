@@ -1,5 +1,5 @@
 <?php
-	use Magrathea2\Config;
+	use Magrathea\Config;
 
 	$config = Config::Instance();
 	$env = $config->GetEnvironment();
@@ -27,7 +27,7 @@
 <div class="row">
   <div class="col-12 actions">
 		<button class="btn btn-primary" onclick="testConnection();">Test Connection</button>
-		<button class="btn btn-danger" onclick="window.location.href='<?=\Magrathea2\Bootstrap\Start::Instance()->GetStepLink(2)?>'">Change Database Data</button>
+		<button class="btn btn-danger" onclick="window.location.href='<?=\Magrathea\Bootstrap\Start::Instance()->GetStepLink(2)?>'">Change Database Data</button>
 	</div>
 </div>
 

@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Tests\TestsHelper;
 
 class shortOpenTagTest extends \PHPUnit\Framework\TestCase {
 

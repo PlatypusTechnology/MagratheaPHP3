@@ -1,10 +1,10 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -12,14 +12,14 @@ namespace Magrathea2\Admin;
 ####
 #######################################################################################
 
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Exceptions\MagratheaException;
 use Exception;
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\ObjectManager;
 
 /**
  * Class for handling automatically generated files
  */
-class CodeManager extends \Magrathea2\Singleton { 
+class CodeManager extends \Magrathea\Singleton { 
 
 	/**
 	 * @param string $object 	object name

@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\AdminElements;
+use Magrathea\MagratheaPHP;
 
 $adminElements = AdminElements::Instance();
 $adminElements->Header("File Editor");

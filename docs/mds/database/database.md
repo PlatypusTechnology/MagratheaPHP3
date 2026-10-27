@@ -1,7 +1,7 @@
 # Database — MySQLi Connection Wrapper
 
 **File:** `src/DB/Database.php`
-**Namespace:** `Magrathea2\DB`
+**Namespace:** `Magrathea\DB`
 **Extends:** `Singleton`
 
 The primary database access layer. Wraps a `mysqli` connection and provides query execution methods, transaction support, prepared statements, and file import.
@@ -51,7 +51,7 @@ So session state lasts the whole request: `SET @var`, `GET_LOCK()`, temporary ta
   instance has its own connection:
 
   ```php
-  class ReportsDb extends \Magrathea2\DB\Database {}
+  class ReportsDb extends \Magrathea\DB\Database {}
 
   ReportsDb::Instance()->SetConnection("reports.host", "reports", "user", "pass");
   $rows = ReportsDb::Instance()->QueryAll("SELECT * FROM daily_totals");
@@ -108,8 +108,8 @@ In an API, a `MagratheaDBException` (or a `mysqli_sql_exception`) is always answ
 its code is an errno, not a status (`4031` would otherwise map to 403).
 
 ```php
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Exceptions\MagratheaApiException;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaApiException;
 
 try {
     $user->Insert();
@@ -139,8 +139,8 @@ and only the app knows that:
 A reconnect is also a new MySQL session: locks, `@vars` and temporary tables from before are gone.
 
 ```php
-use Magrathea2\DB\Database;
-use Magrathea2\Exceptions\MagratheaDBConnectionLostException;
+use Magrathea\DB\Database;
+use Magrathea\Exceptions\MagratheaDBConnectionLostException;
 
 while (true) {
     Database::Instance()->Disconnect(); // fresh connection for every job
@@ -371,7 +371,7 @@ Runs `$fn` inside a transaction and returns what `$fn` returns. Everything `$fn`
 `QueryRow("SELECT … FOR UPDATE")`) is committed together when `$fn` returns, or rolled back if it throws.
 
 ```php
-use Magrathea2\DB\Database;
+use Magrathea\DB\Database;
 
 $orderId = Database::Instance()->Transaction(function() use ($cart) {
     $stock = Database::Instance()->QueryOne("SELECT stock FROM products WHERE id = 5 FOR UPDATE");
@@ -436,7 +436,7 @@ Database::Instance()->Mock();
 ### Basic SELECT
 
 ```php
-use Magrathea2\DB\Database;
+use Magrathea\DB\Database;
 
 $db = Database::Instance();
 $rows = $db->QueryAll("SELECT id, name, email FROM users WHERE active = 1");

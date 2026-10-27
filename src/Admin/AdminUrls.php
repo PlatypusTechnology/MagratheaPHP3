@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
-use Magrathea2\Admin\Models\AdminConfig;
-use Magrathea2\MagratheaPHP;
-use Magrathea2\Singleton;
+use Magrathea\Admin\Models\AdminConfig;
+use Magrathea\MagratheaPHP;
+use Magrathea\Singleton;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

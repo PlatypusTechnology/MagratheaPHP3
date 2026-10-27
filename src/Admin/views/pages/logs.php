@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Debugger;
-use Magrathea2\Logger;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Debugger;
+use Magrathea\Logger;
 
 $adminElements = AdminElements::Instance();
 

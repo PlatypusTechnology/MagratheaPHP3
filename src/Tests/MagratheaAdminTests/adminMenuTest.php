@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminMenu;
-use Magrathea2\Admin\Start;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\AdminMenu;
+use Magrathea\Admin\Start;
+use Magrathea\Tests\TestsHelper;
 
 // Admin Start without session/CSRF setup
 class MenuTestAdminStart extends Start {

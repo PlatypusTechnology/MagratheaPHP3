@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminForm;
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Admin\CodeCreator;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminForm;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Admin\CodeCreator;
 
 $pageTitle = "Generate Code";
 AdminElements::Instance()->Header($pageTitle);

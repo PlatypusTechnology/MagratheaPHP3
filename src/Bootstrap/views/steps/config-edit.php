@@ -1,5 +1,5 @@
 <?php
-	use Magrathea2\Config;
+	use Magrathea\Config;
 
 	$config = Config::Instance();
 	$env = $config->GetEnvironment();
@@ -14,7 +14,7 @@
 		</div>
 		<?php
 	}
-	$appPath = \Magrathea2\MagratheaPHP::Instance()->appRoot;
+	$appPath = \Magrathea\MagratheaPHP::Instance()->appRoot;
 ?>
 <h3>[<?=$env?>] environment</h3>
 <div class="form">
@@ -26,7 +26,7 @@
 	printField("db_pass", "Database Password");
 	printField("logs_path", "Logs path", $appPath."/logs");
 	printField("app_url", "Application URL");
-	printField("jwt_key", "Random Hash", Magrathea2\MagratheaHelper::RandomString(20));
+	printField("jwt_key", "Random Hash", Magrathea\MagratheaHelper::RandomString(20));
 	
 	?>
 	</form>
@@ -41,17 +41,17 @@
 <div class="timezone-check">
 	<?php
 	$levelClass = [
-		\Magrathea2\TimezoneCheck::OK => "success",
-		\Magrathea2\TimezoneCheck::INFO => "secondary",
-		\Magrathea2\TimezoneCheck::WARNING => "warning",
-		\Magrathea2\TimezoneCheck::ERROR => "danger",
+		\Magrathea\TimezoneCheck::OK => "success",
+		\Magrathea\TimezoneCheck::INFO => "secondary",
+		\Magrathea\TimezoneCheck::WARNING => "warning",
+		\Magrathea\TimezoneCheck::ERROR => "danger",
 	];
 	try {
 		// the database may not be configured yet: TimezoneCheck::Run() reports that as a finding
-		\Magrathea2\MagratheaPHP::Instance()->Connect();
-		$findings = \Magrathea2\TimezoneCheck::Run();
+		\Magrathea\MagratheaPHP::Instance()->Connect();
+		$findings = \Magrathea\TimezoneCheck::Run();
 	} catch(\Throwable $ex) {
-		$findings = [["level" => \Magrathea2\TimezoneCheck::WARNING, "message" => "Could not run the timezone check: ".$ex->getMessage()]];
+		$findings = [["level" => \Magrathea\TimezoneCheck::WARNING, "message" => "Could not run the timezone check: ".$ex->getMessage()]];
 	}
 	foreach($findings as $finding) {
 		$message = preg_replace('/`([^`]+)`/', '<code>$1</code>', htmlspecialchars($finding["message"]));

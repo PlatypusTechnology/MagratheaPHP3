@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea2\MagratheaPHP;
+use Magrathea\MagratheaPHP;
 
 	$documentation = MagratheaPHP::GetDocumentationLink();
 

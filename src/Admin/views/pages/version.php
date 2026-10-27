@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Config;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Config;
+use Magrathea\MagratheaPHP;
 
-use function Magrathea2\now;
+use function Magrathea\now;
 
 AdminElements::Instance()->Header("Version");
 

@@ -2,10 +2,10 @@
 
 namespace CrudTest;
 
-use Magrathea2\MagratheaModel;
-use Magrathea2\MagratheaModelControl;
-use Magrathea2\Admin\Features\CrudObject\AdminCrudObject;
-use Magrathea2\Exceptions\MagratheaModelException;
+use Magrathea\MagratheaModel;
+use Magrathea\MagratheaModelControl;
+use Magrathea\Admin\Features\CrudObject\AdminCrudObject;
+use Magrathea\Exceptions\MagratheaModelException;
 
 class Gadget extends MagratheaModel {
 	protected $dbTable = "gadgets";

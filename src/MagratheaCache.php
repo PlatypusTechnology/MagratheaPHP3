@@ -1,10 +1,10 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Exceptions\MagratheaConfigException;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Exceptions\MagratheaConfigException;
+use Magrathea\Exceptions\MagratheaException;
 
 /**
  * MagratheaCache:

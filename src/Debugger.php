@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\Errors\ErrorManager;
-use Magrathea2\Exceptions\MagratheaDBException;
-use Magrathea2\Exceptions\MagratheaException;
+use Magrathea\Errors\ErrorManager;
+use Magrathea\Exceptions\MagratheaDBException;
+use Magrathea\Exceptions\MagratheaException;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -16,7 +16,7 @@ use Magrathea2\Exceptions\MagratheaException;
 #######################################################################################
 ####
 ####    Class for debugging and logging Control
-####    Magrathea2 created: 2022-11 by Paulo Martins
+####    Magrathea created: 2022-11 by Paulo Martins
 ####
 #######################################################################################
 
@@ -160,7 +160,7 @@ class Debugger extends Singleton {
 			case self::NONE:
 				return;
 			case self::LOG:
-				if($debug instanceof \Magrathea2\Exceptions\MagratheaConfigException) {
+				if($debug instanceof \Magrathea\Exceptions\MagratheaConfigException) {
 					if($debug->killerError) {
 						ErrorManager::Instance()->DisplayException($debug);
 					}
@@ -360,7 +360,7 @@ class Debugger extends Singleton {
 	 */	
 	private function printsDebug($deb){
 		$html = "";
-		if(is_a($deb, "Magrathea2\Exceptions\MagratheaException")){
+		if(is_a($deb, "Magrathea\Exceptions\MagratheaException")){
 			$html .= "<div style='padding: 10px; border: 1px dotted black; margin-bottom: 5px; line-height: 120%;'>";
 			$html .= "<span style='color: red; font-weight: bold;'>".get_class($deb)."</span><br/><br/>";
 			$html .= "<span><pre style='width: 100%; overflow-x: scroll;'>".$deb."\n\n</pre></span><br/>";
@@ -371,11 +371,11 @@ class Debugger extends Singleton {
 			$html .= "</div>";
 		} else if (is_array($deb)) {
 			$html .= "<div style='padding: 10px; border: 1px dotted black; margin-bottom: 5px; line-height: 120%;'>";
-			$html .= "<span>".\Magrathea2\p_r($deb)."</span><br/>";
+			$html .= "<span>".\Magrathea\p_r($deb)."</span><br/>";
 			$html .= "</div>";
 		} else {
 			$html .= "<div style='padding: 10px; border: 1px dotted black; margin-bottom: 5px; line-height: 120%;'>";
-			$html .= "<pre>".\Magrathea2\p_r($deb)."</pre><br/>";
+			$html .= "<pre>".\Magrathea\p_r($deb)."</pre><br/>";
 			$html .= "</div>";
 		}
 		return $html;

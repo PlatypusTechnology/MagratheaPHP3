@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\MagratheaPHP;
+use Magrathea\Admin\AdminElements;
+use Magrathea\MagratheaPHP;
 
 $base = MagratheaPHP::Instance()->appRoot;
 
@@ -11,7 +11,7 @@ if(isset($viewFile)) {
 	$file = @$_POST["file"];
 }
 if(empty($file)) {
-	\Magrathea2\Admin\AdminElements::Instance()->Alert("file can't be empty", "danger");
+	\Magrathea\Admin\AdminElements::Instance()->Alert("file can't be empty", "danger");
 	die;
 }
 
@@ -19,7 +19,7 @@ $file = $base."/".$file;
 
 if(!file_exists($file)) {
 	$msg = "file [".$file."] does not exist";
-	\Magrathea2\Admin\AdminElements::Instance()->Alert($msg, "danger");
+	\Magrathea\Admin\AdminElements::Instance()->Alert($msg, "danger");
 	die;
 }
 

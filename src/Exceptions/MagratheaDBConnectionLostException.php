@@ -1,7 +1,7 @@
 <?php
 
-namespace Magrathea2\Exceptions;
-use Magrathea2\Exceptions\MagratheaDBException;
+namespace Magrathea\Exceptions;
+use Magrathea\Exceptions\MagratheaDBException;
 
 /**
 * Thrown when the MySQL connection is gone (errno 2006, 2013 or 4031).

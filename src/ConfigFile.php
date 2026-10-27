@@ -1,11 +1,11 @@
 <?php
 
-namespace Magrathea2;
+namespace Magrathea;
 
-use Magrathea2\Admin\Admin;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Errors\ErrorManager;
-use Magrathea2\Exceptions\MagratheaConfigException;
+use Magrathea\Admin\Admin;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Errors\ErrorManager;
+use Magrathea\Exceptions\MagratheaConfigException;
 
 /**
 * Magrathea Config loads and saves information in config files.

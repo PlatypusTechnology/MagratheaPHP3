@@ -1,10 +1,10 @@
 <?php
 
-use Magrathea2\Admin\AdminDatabase;
-use Magrathea2\Admin\Api\DatabaseApi;
-use Magrathea2\Config;
-use Magrathea2\Exceptions\MagratheaException;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\AdminDatabase;
+use Magrathea\Admin\Api\DatabaseApi;
+use Magrathea\Config;
+use Magrathea\Exceptions\MagratheaException;
+use Magrathea\Tests\TestsHelper;
 
 // AdminDatabase with a recorded RunProcess(): no mysqldump needed
 class FakeBackupAdminDatabase extends AdminDatabase {

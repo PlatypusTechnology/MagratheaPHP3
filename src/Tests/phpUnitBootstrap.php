@@ -1,5 +1,5 @@
 <?php
-use Magrathea2\Debugger;
+use Magrathea\Debugger;
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1');

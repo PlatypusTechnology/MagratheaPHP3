@@ -1,6 +1,6 @@
 <?php
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
 
 $adminElements = AdminElements::Instance();
 $adminManager = AdminManager::Instance();
@@ -12,6 +12,6 @@ $adminElements->Header($pageTitle);
 
 <div id="wrapper" class="container setup-wrapper center">
 	<?php
-		Magrathea2\Admin\AdminManager::Instance()->PrintLogo(400);
+		Magrathea\Admin\AdminManager::Instance()->PrintLogo(400);
 	?>
 </div>

@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\ObjectManager;
-use Magrathea2\Errors\ErrorManager;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\ObjectManager;
+use Magrathea\Errors\ErrorManager;
 
 $elements = AdminElements::Instance();
 $control = ObjectManager::Instance();

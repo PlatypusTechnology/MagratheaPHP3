@@ -1,10 +1,10 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2 Admin features
+####    MAGRATHEA PHP Admin features
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology

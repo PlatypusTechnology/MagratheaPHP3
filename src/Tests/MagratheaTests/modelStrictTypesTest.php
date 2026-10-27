@@ -1,8 +1,8 @@
 <?php
 
-use Magrathea2\MagratheaModel;
-use Magrathea2\Exceptions\MagratheaModelException;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\MagratheaModel;
+use Magrathea\Exceptions\MagratheaModelException;
+use Magrathea\Tests\TestsHelper;
 
 class StrictTypesTestModel extends MagratheaModel {
 	protected $dbTable = "strict_types_test";

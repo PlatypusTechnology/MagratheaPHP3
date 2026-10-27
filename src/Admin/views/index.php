@@ -1,9 +1,9 @@
 <?php
 
-use Magrathea2\Admin\AdminCsrf;
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminManager;
-use Magrathea2\Admin\Start;
+use Magrathea\Admin\AdminCsrf;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminManager;
+use Magrathea\Admin\Start;
 
 // only plain names of files in views/actions/ and views/pages/
 $magrathea_subpage = @$_GET["magrathea_subpage"];

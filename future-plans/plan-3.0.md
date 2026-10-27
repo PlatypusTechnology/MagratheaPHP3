@@ -33,7 +33,9 @@ under the new names.
 ## Rules for the implementing agent
 
 1. **Conventions.** Load the `magrathea-php2` skill for the framework's conventions. It describes
-   2.4.0, so where it disagrees with `src/`, `src/` wins. Use tabs, the existing naming and PHPDoc
+   2.4.0, so where it disagrees with `src/`, `src/` wins. Its examples use the 2.x namespace,
+   `Magrathea2`: since item 2, 3.0 code uses `Magrathea` (`use Magrathea\…`, `\Magrathea\p_r()`),
+   and so does every file you write or touch. Use tabs, the existing naming and PHPDoc
    style, and the changelog prefixes `**new:**`, `**fix:**`, `**note:**` and `**removed:**`.
 2. **Order.** Work group by group and item by item, in number order: later items build on earlier
    ones. For each item:
@@ -42,7 +44,12 @@ under the new names.
    3. run the full suite: `php phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests`.
       Record the baseline before the first change. On 2026-10-25 it was 400 tests, 1546
       assertions and 3 deprecations, all from `firebase/php-jwt`. Every item ends with the suite
-      green;
+      green. From item 3 on, also run item 2's check, which catches the old names in files no test
+      loads (views, docs):
+      `grep -rnE "Magrathea2|magratheaphp2|MagratheaPHP2" src docs skills.MD instructions.MD README.md composer.json`.
+      It must find only what item 2 leaves alone, the `### 3.0.0` changelog lines that name the old
+      namespace on purpose and, after item 34, `docs/mds/migrations/migrate-3.0.md`. Drop
+      `instructions.MD` from the command once item 31 deletes it;
    4. update the narrative docs in `docs/mds/`. Signatures are read live from `src/`; only the
       prose needs care;
    5. fix any `skills.MD` section the item makes wrong (item 30 then rewrites the whole file).
@@ -209,7 +216,7 @@ Changelog: `**fix:**`.
 ## Group R — The rename
 
 ### 2. `Magrathea2` → `Magrathea`
-- [ ] done
+- [x] done
 
 **Error.** The version number got into the names: the namespace `Magrathea2`, the package
 `platypustechnology/magratheaphp2`, the product name "MagratheaPHP2". Every major version after 2
@@ -1414,6 +1421,12 @@ The wizard has no favicon at all.
 - [ ] `src/version` → `3.0.0` (Paulo).
 - [ ] The `### 3.0.0` changelog section has its date line, the migration `**note:**` first, and every
       `**removed:**` line.
+- [ ] Remove the version line from the `####` file banners in `src/` (`####    v. 2.0`, one
+      `v. 1.0`, tab or spaces after `####`): nobody keeps those numbers up to date, and they'd be
+      wrong again from 3.1. Leave the rest of each banner. This is a release step, not an item,
+      because deleting lines would break the line numbers the items cite, and a new item would
+      shift the item and **M\<n\>** numbering. Check:
+      `grep -rnE "^####[[:space:]]+v\. " src` finds nothing. No changelog line.
 - [ ] Full suite green; record the counts here.
 - [ ] After Paulo commits: `git archive HEAD | tar -t` matches item 32.
 - [ ] Split the local skill in two:

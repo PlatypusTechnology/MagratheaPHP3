@@ -1,9 +1,9 @@
 <?php
 
-use function Magrathea2\now;
+use function Magrathea\now;
 
 $pageTitle = "Server & Info";
-\Magrathea2\Admin\AdminElements::Instance()->Header($pageTitle);
+\Magrathea\Admin\AdminElements::Instance()->Header($pageTitle);
 
 ?>
 
@@ -26,12 +26,12 @@ $pageTitle = "Server & Info";
 		<div class="card-body">
 			<?php
 			$levelClass = [
-				\Magrathea2\TimezoneCheck::OK => "success",
-				\Magrathea2\TimezoneCheck::INFO => "secondary",
-				\Magrathea2\TimezoneCheck::WARNING => "warning",
-				\Magrathea2\TimezoneCheck::ERROR => "danger",
+				\Magrathea\TimezoneCheck::OK => "success",
+				\Magrathea\TimezoneCheck::INFO => "secondary",
+				\Magrathea\TimezoneCheck::WARNING => "warning",
+				\Magrathea\TimezoneCheck::ERROR => "danger",
 			];
-			foreach(\Magrathea2\TimezoneCheck::Run() as $finding) {
+			foreach(\Magrathea\TimezoneCheck::Run() as $finding) {
 				$message = preg_replace('/`([^`]+)`/', '<code>$1</code>', htmlspecialchars($finding["message"]));
 				echo '<div class="alert alert-'.$levelClass[$finding["level"]].' py-1 mb-1">'.$message.'</div>';
 			}

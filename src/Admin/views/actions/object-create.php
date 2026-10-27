@@ -1,11 +1,11 @@
 <?php
 
-use Magrathea2\Admin\AdminDatabase;
-use Magrathea2\Admin\AdminElements;
-use Magrathea2\Admin\AdminUrls;
-use Magrathea2\Admin\ObjectManager;
+use Magrathea\Admin\AdminDatabase;
+use Magrathea\Admin\AdminElements;
+use Magrathea\Admin\AdminUrls;
+use Magrathea\Admin\ObjectManager;
 
-use function Magrathea2\p_r;
+use function Magrathea\p_r;
 
 $table = @$_GET["table"];
 if(empty($table) || !is_string($table)) {

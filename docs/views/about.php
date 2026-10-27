@@ -2,7 +2,7 @@
 
 <h1>About</h1>
 
-<p><strong>MagratheaPHP2</strong> is a full PHP framework for building APIs, web applications,
+<p><strong>MagratheaPHP</strong> is a full PHP framework for building APIs, web applications,
 and admin panels — an ORM, a fluent query builder, a JWT-secured REST framework, and a
 pluggable admin panel, built and maintained by <strong>Paulo Henrique Martins</strong>
 (Platypus Technology) and released under the MIT license.</p>
@@ -37,8 +37,8 @@ from-scratch replacement for the previous phpDocumentor-generated site.</p>
 
 <h2>Links</h2>
 <div class="cards-grid" style="margin:1rem 0 0; padding:0;">
-	<a class="card" href="https://github.com/PlatypusTechnology/MagratheaPHP2" target="_blank" rel="noopener">
-		<h3>MagratheaPHP2 on GitHub</h3>
+	<a class="card" href="https://github.com/PlatypusTechnology/MagratheaPHP3" target="_blank" rel="noopener">
+		<h3>MagratheaPHP on GitHub</h3>
 		<p>Source code, issues, and releases</p>
 	</a>
 	<a class="card" href="https://github.com/paulovelho" target="_blank" rel="noopener">

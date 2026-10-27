@@ -1,14 +1,14 @@
 <?php
 
-namespace Magrathea2\Admin;
+namespace Magrathea\Admin;
 
-use Magrathea2\ConfigFile;
-use Magrathea2\MagratheaPHP;
+use Magrathea\ConfigFile;
+use Magrathea\MagratheaPHP;
 
 
 #######################################################################################
 ####
-####    MAGRATHEA PHP2
+####    MAGRATHEA PHP
 ####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
@@ -19,7 +19,7 @@ use Magrathea2\MagratheaPHP;
 /**
 * This class will help you deal with objects
 */
-class ObjectManager extends \Magrathea2\Singleton {
+class ObjectManager extends \Magrathea\Singleton {
 
 	public $fileName = "magrathea_objects.conf";
 	private $filePath;

@@ -1,7 +1,7 @@
 <?php
 
-use Magrathea2\Admin\Install;
-use Magrathea2\Tests\TestsHelper;
+use Magrathea\Admin\Install;
+use Magrathea\Tests\TestsHelper;
 
 class adminInstallTest extends \PHPUnit\Framework\TestCase {
 
