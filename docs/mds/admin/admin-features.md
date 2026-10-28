@@ -93,7 +93,7 @@ The most powerful built-in feature. Automatically generates a full CRUD interfac
 
 ```php
 <?php
-// features/Product/ProductAdmin.php (what the admin's code generator writes)
+// features/Product/ProductAdmin.php
 namespace App\Product;
 
 use Magrathea\Admin\Features\CrudObject\AdminCrudObject;
@@ -133,27 +133,6 @@ There are no properties to choose columns or form fields: the list shows every f
 `featureId`); `magrathea_feature_subpage` selects `List`, `Form` (with `id`), `Save` or `Delete`
 (both POST, with `id`; since 2.4.0 a GET gets 405, it saved an empty object). `HasPermission($action)` receives that subpage name (`null` for the main
 page): override it to restrict, e.g. `return $action !== "Delete";`.
-
----
-
-### File Editor Feature
-
-**Path:** `src/Admin/Features/FileEditor/`
-
-Provides a browser-based file viewer and editor for server-side files. Useful for editing config files, templates, or scripts without SSH access.
-
-**Feature ID:** `AdminFeatureFileEditor`
-
-**Not loaded by default** (since 2.4.0). Enable it from your `Admin` subclass:
-
-```php
-public function SetFeatures() {
-    parent::SetFeatures();
-    $this->LoadFileEditor();
-}
-```
-
-> **Security note:** any logged-in admin user can use it (`HasEditPermission()` only checks that someone is logged in), and it grants write access to files on the server. A leaked admin password becomes code execution. Don't enable it in production unless you have to.
 
 ---
 
@@ -289,10 +268,6 @@ AdminElements::Instance()->Table($products, [
 
 So: don't pass HTML as a value (a link, a badge, a button): it shows as text. Move it into a callable. And
 don't escape values before passing them, or they show the entities (`&amp;lt;`).
-
-A function name taken from the query string (e.g. an `onclose` callback) goes through
-`AdminElements::JsCallback($fn, $args)`, which returns `"fn(args);"` only for a plain JS function name and `""`
-for anything else.
 
 ---
 

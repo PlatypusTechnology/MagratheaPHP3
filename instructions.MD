@@ -75,9 +75,6 @@ src/
     ├── AdminDatabase.php
     ├── AdminUrls.php
     ├── AdminUsers.php
-    ├── ObjectManager.php
-    ├── CodeCreator.php
-    ├── CodeManager.php
     ├── iAdmin.php
     ├── Install.php
     ├── Start.php
@@ -85,7 +82,6 @@ src/
         ├── AppConfig/         ← Manage DB-stored config in admin
         ├── Cache/             ← Cache management
         ├── CrudObject/        ← Auto-generated CRUD UI
-        ├── FileEditor/        ← Server-side file editor
         ├── User/              ← Admin user management
         ├── UserLogs/          ← Admin action log
         └── ApiExplorer/       ← API endpoint browser
@@ -171,10 +167,10 @@ public function List(): array {
 | Rule | Reason |
 |------|--------|
 | Never instantiate Singletons with `new` | Framework guarantees one instance |
-| Always call `Query::Clean()` or use `PrepareAndExecute()` for user input | SQL injection prevention |
+| Always use `Database::Instance()->Escape()` or `PrepareAndExecute()` for user input | SQL injection prevention |
 | Config secrets use `$=ENV_VAR` in the conf file | Keep secrets out of version control |
 | Models return `ToJson()` in API responses (not raw `ToArray()`) | `ToJson()` handles relations recursively |
-| Call `MagratheaPHP::LoadVendor()` before anything else | Registers the autoloader |
+| Require `vendor/autoload.php` before anything else | Registers the autoloader |
 | Use `->Prod()` in production, `->Dev()` in development | Controls error display and debug verbosity |
 | API controllers throw `MagratheaApiException` | Automatically converted to structured JSON error |
 

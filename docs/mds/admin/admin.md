@@ -317,58 +317,10 @@ Not registered by default, opt-in from your `Admin` subclass:
 
 | Feature ID | Description | How to enable |
 |-----------|-------------|---------------|
-| `AdminFeatureFileEditor` | View/edit files on the server | `$this->LoadFileEditor()` in `SetFeatures()` (see below) |
 | `ApiExplorer` | Browse registered API endpoints | `new ApiExplorer()`, `SetApi(...)`, `AddFeature(...)` |
 
-### Enabling the File Editor
-
-Since 2.4.0 the File Editor is **off by default**. Any logged-in admin user can use it to edit
-files on the server, so a leaked admin password becomes code execution. Enable it only where you
-actually need it:
-
-```php
-class MyAppAdmin extends \Magrathea\Admin\Admin implements \Magrathea\Admin\iAdmin {
-    public function SetFeatures() {
-        parent::SetFeatures();
-        $this->LoadFileEditor(); // or: $this->AddFeature(new \Magrathea\Admin\Features\FileEditor\AdminFeatureFileEditor());
-    }
-}
-```
-
-When it's loaded, the Magrathea menu gets a "Tools → File Editor" entry, and the code generator's
-"File already exists" note links to the file. Without it, both are hidden, and a direct
-`?magrathea_feature=AdminFeatureFileEditor` URL shows "Feature not available".
-
-### Objects and the code generator: "Strict types"
-
-The object form (create an object from a table, or edit an existing one) has a **Strict types**
-select, saved as `strict_types` in the object's section of `magrathea_objects.conf`. When it's
-`true`, the generated Base class declares `protected $strictTypes = true;` (typed values on load,
-see "Strict typing" in the MagratheaModel docs); when it's `false` or missing, the line is left out and
-the model keeps the framework default (`false`).
-
-Since 2.4.0, the select defaults to `true` for a **new** object. An existing object saved before
-2.4.0 has no `strict_types` key: the form shows `false` for it, so re-saving or regenerating it
-doesn't change its Base class or its JSON. Turn it on deliberately, after checking the model's API
-consumers (numbers stop being strings in the JSON).
-
-### Code structure: `feature` or `mvc`
-
-The "Generate Code" page sets where generated files go and their namespaces (`App` below is the
-configured namespace):
-
-| File | `feature` (default) | `mvc` |
-|------|---------------------|-------|
-| Model | `features/Product/Product.php`, `App\Product` | `Models/Product.php`, `App\Models` |
-| Model Base | `features/Product/Base/ProductBase.php`, `App\Product\Base` | `Models/Base/ProductBase.php`, `App\Models\Base` |
-| Control | `features/Product/ProductControl.php`, `App\Product` | `Controls/ProductControl.php`, `App\Controls` |
-| Control Base | `features/Product/Base/ProductControlBase.php`, `App\Product\Base` | `Controls/Base/ProductControlBase.php`, `App\Controls\Base` |
-| CRUD admin | `features/Product/ProductAdmin.php`, `App\Product` | `Controls/ProductAdmin.php`, `App\Controls` |
-| API | `features/Product/ProductApi.php`, `App\Product` | `Controls/ProductApi.php`, `App\Controls` |
-
-The generated CRUD admin and API classes use fully qualified model and control names, so they
-work in both structures. Before 2.4.0, the `mvc` CRUD admin, API and the Base model's
-`GetControl()` pointed at classes that don't exist.
+The File Editor (`AdminFeatureFileEditor`, opt-in since 2.4.0 through `LoadFileEditor()`) was
+removed in 3.0: the admin no longer edits files on the server.
 
 ---
 

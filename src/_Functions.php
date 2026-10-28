@@ -64,15 +64,6 @@ function getClassNameOfClass($fullClassName) {
 }
 
 /**
- * Array of types available at Magrathea
- * @return  	array
- */
-function magrathea_getTypesArr() : array{
-	$types = array("int", "boolean", "string", "text", "float", "decimal", "datetime", "date");
-	return $types;
-}
-
-/**
  * Function that will be executed after script is complete!
  * in Magrathea, will print debug, if available...
  * 	@todo  print debug in a beautifull way in the end of the page...

@@ -94,9 +94,6 @@ class Install {
 		$configControl = new AppConfigControl();
 		$configControl->SaveSystem("admin_install_date", \Magrathea\now(), false);
 		$configControl->Save("app_name", "", false);
-		$configControl->SaveSystem("code_path", MagratheaPHP::Instance()->appRoot, false);
-		$configControl->SaveSystem("code_structure", "feature", false);
-		$configControl->SaveSystem("code_namespace", "", false);
 	}
 
 	/**
@@ -104,7 +101,7 @@ class Install {
 	 * @return 		bool 		true if is installed
 	 */
 	public function CheckIfDBInstalled(): bool {
-		MagratheaPHP::Instance()->StartDB();
+		MagratheaPHP::Instance()->Connect();
 		$query = "SHOW TABLES LIKE '_magrathea_config'";
 		$rs = Database::Instance()->QueryRow($query);
 		return (count($rs) > 0);

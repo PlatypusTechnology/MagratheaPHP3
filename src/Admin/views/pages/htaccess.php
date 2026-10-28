@@ -1,7 +1,6 @@
 <?php
 
 use Magrathea\Admin\AdminElements;
-use Magrathea\Admin\ObjectManager;
 
 $pageTitle = ".htaccess file";
 $elements = AdminElements::Instance();

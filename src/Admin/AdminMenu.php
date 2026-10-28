@@ -102,24 +102,7 @@ class AdminMenu {
 			$this->CreateTitle("Database"),
 			$this->GetItem("connect"),
 			$this->GetItem("query"),
-			$this->GetItem("backups"),
-			$this->GetItem("objects-create")
-		);
-		return $rs;
-	}
-	/**
-	 * Get object items array
-	 * @return array		items
-	 */
-	public function GetObjectSection(): array {
-		$rs = [];
-		array_push($rs,
-			$this->CreateTitle("Magrathea Objects"),
-			$this->GetItem("objects-conf"),
-			$this->GetItem("objects-create"),
-			$this->GetItem("objects"),
-			$this->GetItem("objects-edit"),
-			$this->GetItem("code-gen")
+			$this->GetItem("backups")
 		);
 		return $rs;
 	}
@@ -279,15 +262,9 @@ class AdminMenu {
 			"query" => $this->SimpleItem("Queries", "db-query"),
 			"connect" => $this->SimpleItem("Connect", "db-connect"),
 			"backups" => $this->SimpleItem("Backups", "backups"),
-			"objects-create" => $this->SimpleItem("Create Objects", "objects-create"),
-			"objects-conf" => $this->SimpleItem("Objects Config", "objects-config"),
-			"objects" => $this->SimpleItem("View Objects", "objects-view"),
-			"objects-edit" => $this->SimpleItem("Edit Objects", "objects-edit"),
-			"code-gen" => $this->SimpleItem("Generate Code", "generate-code"),
 			"logs" => $this->SimpleItem("Logs", "logs"),
 			"structure" => $this->SimpleItem("Structure", "structure"),
 			"server" => $this->SimpleItem("Server", "server"),
-			"tools-file-editor" => $this->FeatureItem("File Editor", "AdminFeatureFileEditor"),
 			"help-admin-demos" => $this->SimpleItem("Admin Elements", "demo-form"),
 			"help-admin-scripts" => $this->SimpleItem("Admin Scripts", "demo-scripts"),
 		];	

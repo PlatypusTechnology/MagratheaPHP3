@@ -3,14 +3,6 @@
 use Magrathea\Admin\Admin;
 use Magrathea\Tests\TestsHelper;
 
-// Admin that opts in to the File Editor, as the docs tell apps to do
-class FileEditorOptInAdmin extends Admin {
-	public function SetFeatures() {
-		parent::SetFeatures();
-		$this->LoadFileEditor();
-	}
-}
-
 class adminFeaturesTest extends \PHPUnit\Framework\TestCase {
 
 	private function menuJson(Admin $admin): string {
@@ -36,12 +28,12 @@ class adminFeaturesTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringNotContainsString("File Editor", $this->menuJson($admin));
 	}
 
-	public function testFileEditorOptIn() {
-		TestsHelper::Print("Testing the File Editor opt-in through LoadFileEditor()");
-		$admin = new FileEditorOptInAdmin();
-		$admin->SetFeatures();
-		$this->assertArrayHasKey("AdminFeatureFileEditor", $admin->GetFeatures());
-		$this->assertStringContainsString("File Editor", $this->menuJson($admin));
+	public function testFileEditorIsGone() {
+		TestsHelper::Print("Testing the File Editor is gone");
+		$this->assertFalse(method_exists(Admin::class, "LoadFileEditor"));
+		$this->assertFalse(class_exists("\\Magrathea\\Admin\\Features\\FileEditor\\AdminFeatureFileEditor"));
+		$this->assertNull((new \Magrathea\Admin\AdminMenu())->GetItem("tools-file-editor"));
+		$this->assertFalse(method_exists(\Magrathea\Admin\AdminUrls::class, "FileViewUrl"));
 	}
 
 }

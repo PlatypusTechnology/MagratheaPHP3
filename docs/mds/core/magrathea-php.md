@@ -21,16 +21,6 @@ The central bootstrap class for any MagratheaPHP application. Manages the app ro
 
 ## Static Methods
 
-### `LoadVendor(): void`
-**Deprecated since 2.4.0, removed in 3.0.** Require `vendor/autoload.php` yourself instead.
-
-Requires Composer's `vendor/autoload.php` (`require_once`): the framework's own in a standalone
-checkout, the project's when the framework is installed as a dependency; throws `MagratheaException`
-if neither exists. Before 2.4.0 it only looked for the second one, so it failed with a fatal error in a
-standalone checkout. Since `MagratheaPHP` itself is only loadable after `vendor/autoload.php` has been
-required, calling it never does anything useful; it's not what registers Magrathea's autoloader
-(Composer's `files` autoload of `src/_Functions.php` does that).
-
 ### `Version(): string`
 Returns the current framework version string.
 
@@ -111,20 +101,22 @@ invalid name is ignored and PHP stays on php.ini's default. The key is `timezone
 ### `GetConfigRoot(): string`
 Returns the path to the configuration directory: `configs/` in `AppPath()`'s parent folder (`<magRoot>/configs`).
 
-### `StartDB(): MagratheaPHP` / `Connect(): MagratheaPHP`
+### `Connect(): MagratheaPHP`
 Sets the database connection from the active environment's config keys `db_host`, `db_name`, `db_user`,
 `db_pass` and `db_port` (optional; without it, mysqli's default port is used. Before 2.4.0, `db_port`
-was ignored). `StartDB` is an alias for `Connect`. Nothing is opened yet: the connection opens on the
-first query and stays open for the rest of the request (see the Database page).
+was ignored). Nothing is opened yet: the connection opens on the first query and stays open for the
+rest of the request (see the Database page).
 
 With a `timezone` in the config, it also turns on the MySQL timezone sync (`Database::SetTimezoneSync()`):
 each new connection sets MySQL's session `time_zone` to PHP's. `db_sync_timezone = false` turns it off.
 
 ```php
 $app->Connect();
-// or
-$app->StartDB();
 ```
+
+### `StartDB(): MagratheaPHP`
+**Deprecated since 3.0, removed in 4.0: use `Connect()`.** An alias for `Connect()`; in DEV it also adds a
+deprecation notice to the Debugger.
 
 ### `GetDB(): Database`
 Returns the active `Database` singleton instance.

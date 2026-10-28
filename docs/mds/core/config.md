@@ -225,8 +225,8 @@ Config::Instance()->SetConfig([
 **Namespace:** `Magrathea`
 
 A lower-level, non-singleton counterpart to `Config`: it reads/writes *any* INI file you
-point it at (`SetPath()` + `SetFile()`), not just the app's `magrathea.conf`. It backs
-`Admin\ObjectManager`'s `magrathea_objects.conf` handling, among other internal uses.
+point it at (`SetPath()` + `SetFile()`), not just the app's `magrathea.conf`. The admin's
+Configuration File page and the Bootstrap wizard's config editor use it.
 
 ```php
 $fileControl = new \Magrathea\ConfigFile();

@@ -185,10 +185,6 @@ Opens this instance's connection if it isn't open yet (it reuses it otherwise). 
 calls it, so you don't need to. Throws `MagratheaDBException` on failure; a failed connection isn't
 kept, so the next call tries again.
 
-### `CloseConnectionThanks(): void`
-Does nothing since 2.4.0; kept for compatibility. The connection stays open until the end of the
-request. Use `Disconnect()` to close it.
-
 ### `Disconnect(): void`
 Closes this instance's connection now. The next query opens a new one. Use it at the start of each
 job in long-running workers, or before `pcntl_fork()` (a child must never share its parent's connection).

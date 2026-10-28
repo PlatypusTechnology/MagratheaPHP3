@@ -237,6 +237,36 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 		}
 	}
 
+	function testStartDBIsADeprecatedConnect() {
+		TestsHelper::Print("testing StartDB() still connects, with a deprecation notice in DEV only...");
+		$previousDb = Database::Instance();
+		$debugType = Debugger::Instance()->GetType();
+		$db = FakeConnectionDatabase::Fresh();
+		Database::MockClass($db);
+		try {
+			$dev = ["db_host" => "db.host", "db_name" => "test_db", "db_user" => "user", "db_pass" => "pass", "db_port" => "3307"];
+			Config::Instance()->SetConfig(["general" => ["use_environment" => "dev"], "dev" => $dev])->SetEnvironment(null);
+
+			Debugger::Instance()->SetDev()->StartCapture();
+			$this->assertSame(MagratheaPHP::Instance(), MagratheaPHP::Instance()->StartDB());
+			$this->assertStringContainsString("[db_host]=db.host:3307\n", (string)$db);
+			$captured = Debugger::Instance()->GetCaptured();
+			$this->assertCount(1, $captured);
+			$this->assertStringContainsString("StartDB() is deprecated", $captured[0]);
+			Debugger::Instance()->StopCapture();
+
+			Debugger::Instance()->SetType(Debugger::LOG);
+			Debugger::Instance()->StartCapture();
+			MagratheaPHP::Instance()->StartDB();
+			$this->assertSame([], Debugger::Instance()->GetCaptured());
+		} finally {
+			while(Debugger::Instance()->IsCapturing()) Debugger::Instance()->StopCapture();
+			Debugger::Instance()->SetType($debugType);
+			Database::MockClass($previousDb);
+			Config::Instance()->SetConfig(null)->SetEnvironment(null);
+		}
+	}
+
 	function testOneConnectionForEveryCall() {
 		TestsHelper::Print("testing every query reuses the same connection...");
 		$db = FakeConnectionDatabase::Fresh();
@@ -248,7 +278,6 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 		$db->QueryOne("SELECT COUNT(*) FROM t");
 		$db->PrepareAndExecute("INSERT INTO t (a) VALUES (?)", ["int"], [1]);
 		$db->QueryMulti(["UPDATE t SET a = 2", "UPDATE t SET a = 3"]);
-		$db->CloseConnectionThanks();
 		$db->QueryAll("SELECT * FROM t");
 
 		$this->assertCount(1, $db->created);
@@ -257,7 +286,7 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 		$this->assertCount(7, $conn->Called("query"));
 		$this->assertCount(1, $conn->Called("prepare"));
 		$this->assertCount(1, $conn->Called("real_escape_string"));
-		$this->assertFalse($conn->closed, "CloseConnectionThanks() doesn't close anymore");
+		$this->assertFalse($conn->closed);
 	}
 
 	function testDisconnect() {

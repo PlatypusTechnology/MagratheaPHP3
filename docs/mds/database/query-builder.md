@@ -227,10 +227,8 @@ Returns an array with internal state for debugging.
 
 ## Static Helpers
 
-### `Query::Clean(string $query): string` (deprecated)
-**Deprecated since 2.4.0: use `Database::Instance()->Escape()`.** Since 2.4.0 it just calls `Escape()`,
-so it needs a configured database. Before 2.4.0 it escaped quotes but **not backslashes**, so it didn't
-protect against SQL injection (`\'` came out as `\\'`, where the quote closes the string).
+`Query::Clean()` (deprecated in 2.4.0) was removed in 3.0: escape a hand-built fragment with
+`Database::Instance()->Escape()`, or use a prepared statement.
 
 ```php
 $safe = Database::Instance()->Escape($_GET["search"]);

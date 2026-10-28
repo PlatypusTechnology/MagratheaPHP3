@@ -35,7 +35,6 @@ interface iMagratheaModel {
 	
 abstract class MagratheaModel{
 	protected $dbTable;
-	protected $autoLoad = null;
 	protected $dbValues = array();
 	protected $dbAlias = array();
 	protected $relations = array();
@@ -114,14 +113,6 @@ abstract class MagratheaModel{
 		$pk = $this->dbPk;
 		return $this->$pk;
 	}
-	/**
-	 * Gets autoload objects
-	 * @return 	array 		auto load objects or null if none
-	 */
-	public function GetAutoLoad(){
-		return $this->autoLoad;
-	}
-
 	/**
 	 * Receives an array with the columns and values and associates then internally into the object.
 	 * When `$strictTypes` is enabled, values are cast to their declared `$dbValues` PHP type
@@ -282,16 +273,6 @@ abstract class MagratheaModel{
 			$splitResult = Query::SplitArrayResult($result);
 			$this->LoadObjectFromTableRow($splitResult[$this->GetDbTable()]);
 		}
-	}
-
-	/**
-	 * Gets the next auto increment id for this object
-	 * @return  int 	next auto-increment value
-	 */
-	public function GetNextID(){
-		$sql = "SHOW TABLE STATUS LIKE '".$this->dbTable."'";
-		$data = Database::Instance()->QueryRow($sql);
-		return $data['auto_increment'];
 	}
 
 	/**
@@ -604,24 +585,6 @@ abstract class MagratheaModel{
 			return $matches[1];
 		}
 		throw new MagratheaModelException("Invalid date value for field [".$field."]: [".$value."]");
-	}
-
-	/**
-	 * Include all classes presents on `Models` folder
-	 */
-	public static function IncludeAllModels(){
-		$modelsFolder = Config::Instance()->GetConfigFromDefault("site_path")."/Models";
-		if($handle = @opendir($modelsFolder)){
-			while (false !== ($file = readdir($handle))) {
-				$filename = explode('.', $file);
-				$ext = array_pop($filename);
-				if(empty($ext)) continue;
-				if($ext == "php"){
-					include_once($modelsFolder."/".$file);
-				}
-			}
-			closedir($handle);
-		}
 	}
 
 	public function ToArray() {

@@ -2,7 +2,6 @@
 
 use Magrathea\Admin\AdminElements;
 use Magrathea\Admin\AdminForm;
-use Magrathea\Admin\ObjectManager;
 use Magrathea\DB\Database;
 use Magrathea\DB\DatabaseSimulate;
 use Magrathea\MagratheaModel;
@@ -31,9 +30,6 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		parent::setUp();
 		$this->previousDb = Database::Instance();
 		Database::MockClass(DatabaseSimulate::Instance());
-		ObjectManager::Instance()
-			->SetObjectFilePath(__DIR__."/test-dump")
-			->fileName = "magrathea-object-test.conf";
 		$_GET = [];
 		$_POST = [];
 	}
@@ -137,43 +133,6 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		$_POST = ["q" => "UPDATE x SET a = '".self::XSS."'"];
 		$output = $this->RenderAction("query-run-card");
 		$this->assertEscaped($output);
-	}
-
-	function testJsCallback() {
-		TestsHelper::Print("testing JsCallback() accepts only a plain JS function name...");
-		$elements = AdminElements::Instance();
-		$this->assertSame("closeViewCard(this);", $elements->JsCallback("closeViewCard", "this"));
-		$this->assertSame("\$_close2();", $elements->JsCallback("\$_close2"));
-		foreach(["alert(1)//", "a.b", "a b", "1abc", "", "x;y", null, ["closeViewCard"]] as $fn) {
-			$this->assertSame("", $elements->JsCallback($fn, "this"), var_export($fn, true));
-		}
-	}
-
-	function testObjectDetailGetParams() {
-		TestsHelper::Print("testing object-detail ignores a hostile onclose and escapes the object...");
-		$_GET = ["object" => "Movie", "onclose" => "alert(1)//"];
-		$output = $this->RenderAction("object-detail");
-		$this->assertStringContainsString("Movie Data", $output);
-		$this->assertStringNotContainsString("alert(1)", $output);
-		$_GET = ["object" => "Movie", "onclose" => "closeViewCard"];
-		$this->assertStringContainsString("closeCard(this); closeViewCard(this);", $this->RenderAction("object-detail"));
-		$_GET = ["object" => self::XSS];
-		$output = $this->RenderAction("object-detail");
-		$this->assertStringContainsString("object not found", $output);
-		$this->assertStringNotContainsString("<script>", $output);
-	}
-
-	function testObjectEditGetParams() {
-		TestsHelper::Print("testing object-edit (and its relation views) escapes the object from the query string...");
-		$_GET = ["object" => self::XSS, "onclose" => "x);alert(1);//"];
-		$output = $this->RenderAction("object-edit");
-		$this->assertEscaped($output);
-		$this->assertStringNotContainsString("alert(1);", $output);
-		$this->assertStringContainsString("toggleAddRelation(&quot;\\&quot;&gt;&lt;script&gt;", $output);
-		$_GET = ["object" => "Movie"];
-		$output = $this->RenderAction("object-edit");
-		$this->assertStringContainsString('id="editCard-Movie"', $output);
-		$this->assertStringContainsString("viewObject(&quot;Movie&quot;)", $output);
 	}
 
 }

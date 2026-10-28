@@ -53,25 +53,6 @@ class MagratheaApiAuth extends MagratheaApiControl {
 	}
 
 	/**
-	 * Creates a response payload for a user.
-	 * @param array $user   User data to be encoded in the token.
-	 * @deprecated
-	 * @return array        Array containing refresh token, token, and user data.
-	 */
-	public function ResponseUserPayload(array $user): array {
-		$expire = date('Y-m-d h:i:s', strtotime(\Magrathea\now().' + '.$this->tokenExpire));
-		$jwtRefresh = $this->jwtEncode($user);
-		$payload["refresh"] = $jwtRefresh;
-		$payload["expire"] = $expire;
-		$jwt = $this->jwtEncode($payload);
-		return [
-			"refresh_token" => $jwtRefresh,
-			"token" => $jwt,
-			"user" => $user,
-		];
-	}
-
-	/**
 	 * Creates a login response for an AdminUser.
 	 * @param AdminUser $user The user object.
 	 * @return array          Array with token and user data.

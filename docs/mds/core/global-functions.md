@@ -94,18 +94,6 @@ fileDeclaresNamespace(__DIR__."/models/User.php", "App\\Models"); // true
 
 ---
 
-### `magrathea_getTypesArr(): array`
-Returns the array of data types supported by the ORM field system:
-
-```php
-$types = magrathea_getTypesArr();
-// ["int", "boolean", "string", "text", "float", "decimal", "datetime", "date"]
-```
-
-Used internally by `MagratheaModel` when validating `$dbValues` field type declarations.
-
----
-
 ## Debug Functions (`_FunctionsDebug.php`)
 
 These are additional debug helpers loaded alongside the main functions file.

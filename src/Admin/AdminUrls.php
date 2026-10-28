@@ -3,7 +3,6 @@
 namespace Magrathea\Admin;
 
 use Magrathea\Admin\Models\AdminConfig;
-use Magrathea\MagratheaPHP;
 use Magrathea\Singleton;
 
 #######################################################################################
@@ -72,19 +71,6 @@ class AdminUrls extends Singleton {
 
 	public function GetConfigUrl($env="") {
 		return $this->GetPageUrl("config", null, ["env" => $env]);
-	}
-
-	/**
-	 * Gets a file view url
-	 * @param 	string 		$file		file name
-	 * @return 	string		file view url
-	 */
-	public function FileViewUrl($file=null) {
-		$base = MagratheaPHP::Instance()->appRoot;
-		if (str_starts_with($file, $base)) {
-			$file = substr($file, strlen($base)+1);
-		}
-		return $this->GetFeatureUrl("AdminFeatureFileEditor", null, ["file" => $file]);
 	}
 
 }

@@ -193,9 +193,13 @@ class MagratheaPHP extends Singleton {
 
 	/**
 	 * Connects to the database. Alias for `Connect()`.
+	 * @deprecated 3.0 	use Connect(), will be removed in 4.0
 	 * @return MagratheaPHP
 	 */
 	public function StartDB() {
+		if($this->IsDev()) {
+			Debugger::Instance()->Add("MagratheaPHP::StartDB() is deprecated since 3.0 and will be removed in 4.0: use Connect()");
+		}
 		return $this->Connect();
 	}
 
@@ -240,23 +244,6 @@ class MagratheaPHP extends Singleton {
 			session_start();
 		}
 		return $this;
-	}
-
-	/**
-	 * Includes the Composer autoloader: the framework's own `vendor/autoload.php` in a standalone checkout,
-	 * the project's when the framework is installed as a dependency.
-	 * Redundant: this class can only be loaded after that autoloader is registered.
-	 * @deprecated 2.4.0 	require vendor/autoload.php directly, will be removed in 3.0
-	 * @throws MagratheaException	when no autoload.php is found
-	 * @return void
-	 */
-	public static function LoadVendor(): void {
-		$vendorLoad = realpath(__DIR__."/../vendor/autoload.php")	// standalone checkout
-			?: realpath(__DIR__."/../../../autoload.php");			// installed as a dependency
-		if(!$vendorLoad) {
-			throw new MagratheaException("Composer's autoload.php not found");
-		}
-		require_once($vendorLoad);
 	}
 
 	/**

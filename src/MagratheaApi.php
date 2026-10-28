@@ -83,21 +83,6 @@ class MagratheaApi {
 		return $this->apiAddress;
 	}
 
-	/**
-	 * @deprecated This method is deprecated. Initialization is now handled differently.
-	 * Start the server, getting base calls
-	 * @return 	MagratheaApi	itself
-	 */
-	public function Start(): MagratheaApi {
-		if(!@empty($_GET["magrathea_control"])) self::$inst->control = $_GET["magrathea_control"];
-		if(!@empty($_GET["magrathea_action"])) self::$inst->action = $_GET["magrathea_action"];
-		if(!@empty($_GET["magrathea_params"])) self::$inst->params = $_GET["magrathea_params"];
-		header('Access-Control-Allow-Headers: Access-Control-Allow-Origin, Content-Type, Authorization');
-		header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-		header('Access-Control-Max-Age: 1000');
-		header('Content-Type: application/json, charset=utf-8');
-		return $this;
-	}
 
 	/**
 	 * Includes CORS headers to allow requests from any origin.
@@ -759,16 +744,11 @@ class MagratheaApi {
 
 			if($checkDatabase) {
 				$database = \Magrathea\DB\Database::Instance();
-				$connected = false;
 				try {
 					$database->OpenConnectionPlease();
-					$connected = true;
 					$response["database"] = "ok";
 				} catch (\Throwable $e) {
 					$response["database"] = "fail";
-				}
-				if($connected) {
-					$database->CloseConnectionThanks();
 				}
 			}
 

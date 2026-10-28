@@ -11,7 +11,6 @@
 	$success = false;
 	try {
 		$success = $magDb->OpenConnectionPlease();
-		$magDb->CloseConnectionThanks();
 	} catch(Exception $ex){
 		$success = $ex->getMessage();
 	}

@@ -60,8 +60,8 @@ class Product extends MagratheaModel {
         "title" => "name",   // $product->title is the same as $product->name
     ];
 
-    // Optional: eager-loaded relations (loaded on construct)
-    protected $autoLoad = null;
+    // Optional: relations GetById() loads with a join
+    protected $autoload = null;
 }
 ```
 
@@ -92,10 +92,8 @@ exact string the driver returns (`"12345678901234567.89"`), with `$strictTypes` 
 it's bound as a string on `Insert()`/`Update()`, so it never goes through a PHP float. A
 `float` field under `$strictTypes` is cast with `(float)`, which rounds a large `DECIMAL`
 on load, and a later `Update()` writes the rounded value back. Do the math with `bcmath` (or
-in SQL), not with `+`/`*` on the string. Since 2.4.0, the admin's object generator detects
-`DECIMAL` columns as `decimal` and `DOUBLE` as `float` (it used to leave both as `"unknown"`);
-its "generate CREATE TABLE" helper emits `decimal(10,2)` with an `/* adjust precision */`
-comment — a starting point, not a recommendation. Requires MagratheaPHP `2.4.0`+.
+in SQL), not with `+`/`*` on the string. `DB\Schema::MagratheaType()` suggests `decimal` for
+`DECIMAL`/`NUMERIC` columns and `float` for `FLOAT`/`DOUBLE`/`REAL`. Requires MagratheaPHP `2.4.0`+.
 
 **`uuid` generation:** on `Insert()`/`InsertWithPk()`, any field declared `"uuid"` in
 `$dbValues` that is still empty gets filled in with `Uuid::V7()` (`src/Uuid.php`) — a
@@ -132,12 +130,9 @@ value.
 `$strictTypes` defaults to `false` in the framework, so it never changes an existing model's
 behavior. Requires MagratheaPHP `2.3.0`+.
 
-**Recommended for new models**, generated or hand-written: declare `protected $strictTypes = true;`,
-and use `decimal`, not `float`, for exact numbers. Since 2.4.0 the admin's object generator does
-this by default for new objects (a "Strict types" select on the object form, saved as
-`strict_types` in `magrathea_objects.conf`); objects created before 2.4.0 have no such key and
-keep generating without the line. For an **existing** model, turn it on only after checking its
-API consumers: the JSON changes from `"42"` to `42` and from `"1"` to `true`.
+**Recommended for new models**: declare `protected $strictTypes = true;`, and use `decimal`, not
+`float`, for exact numbers. For an **existing** model, turn it on only after checking its API
+consumers: the JSON changes from `"42"` to `42` and from `"1"` to `true`.
 
 ---
 
@@ -151,7 +146,7 @@ API consumers: the JSON changes from `"42"` to `42` and from `"1"` to `true`.
 | `$dbAlias` | `array` | Alias → column mappings |
 | `$relations` | `array` | Related object definitions |
 | `$dirtyValues` | `array` | Fields set through `Set()`/`Assign()` since the last save (cleared after `Insert()`/`Update()`) |
-| `$autoLoad` | `array\|null` | Relations loaded in constructor |
+| `$autoload` | `array\|null` | Relations `GetById()` loads with a join (declared by the model) |
 | `$strictTypes` | `bool` | Typed hydration on load — see [Strict typing](#strict-typing-stricttypes) above (default `false`; recommended `true` for new models) |
 
 ---
@@ -437,20 +432,6 @@ Takes a field's **type** (a `$dbValues` value like `"int"`, not the field name) 
 `"decimal"` (`float`, `double`), `"text"` (`string`, `text`, `uuid`, `decimal`) or `"date"` (`date`, `datetime`);
 `null` for an unknown type. `"integer"` is bound as an integer, the others as strings. Mind the names:
 the `decimal` **field type** maps to `"text"`; the `"decimal"` **category** is the float one.
-
-### `IncludeAllModels(): void`
-Manually includes all model files (if needed outside the autoloader).
-
----
-
-## Getting the Next Available ID
-
-### `GetNextID(): int`
-Returns `MAX(pk) + 1` for the table. Useful when you need to know the next ID before inserting.
-
-```php
-$nextId = $product->GetNextID();
-```
 
 ---
 

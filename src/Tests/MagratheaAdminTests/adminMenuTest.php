@@ -34,16 +34,15 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testFeatureItems() {
-		TestsHelper::Print("testing app-conf and tools-file-editor point to their features...");
+		TestsHelper::Print("testing app-conf points to its feature...");
 		$menu = new AdminMenu();
 		$this->assertSame(
 			["title" => "App Configuration", "feature" => "AdminFeatureAppConfig", "active" => false],
 			$menu->GetItem("app-conf")
 		);
-		$this->assertSame("AdminFeatureFileEditor", $menu->GetItem("tools-file-editor")["feature"]);
-		$_GET["magrathea_feature"] = "AdminFeatureFileEditor";
+		$_GET["magrathea_feature"] = "AdminFeatureCache";
 		try {
-			$this->assertTrue($menu->FeatureItem("File Editor", "AdminFeatureFileEditor")["active"]);
+			$this->assertTrue($menu->FeatureItem("Cache", "AdminFeatureCache")["active"]);
 			$this->assertFalse($menu->FeatureItem("App Configuration", "AdminFeatureAppConfig")["active"]);
 		} finally {
 			unset($_GET["magrathea_feature"]);
@@ -75,11 +74,27 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		foreach($links as $link) {
 			$this->assertNotSame("query-creator", $this->PageFromLink($link));
 		}
-		$this->assertCount(4, $links);
+		$this->assertCount(3, $links);
 		$start = MenuTestAdminStart::Instance();
 		$this->assertNull($start->GetViewFile("pages", "query-creator"));
 		$this->assertNull($start->GetViewFile("actions", "query-creator"));
 		$this->assertFileDoesNotExist(__DIR__."/../../Admin/views/javascript/query.js");
+	}
+
+	function testCodeGeneratorIsGone() {
+		TestsHelper::Print("testing the code generator is gone from the menu and the views...");
+		$menu = new AdminMenu();
+		foreach(["objects-create", "objects-conf", "objects", "objects-edit", "code-gen"] as $key) {
+			$this->assertNull($menu->GetItem($key), $key);
+		}
+		$this->assertFalse(method_exists($menu, "GetObjectSection"));
+		$start = MenuTestAdminStart::Instance();
+		foreach(["objects-config", "objects-create", "objects-edit", "objects-view", "generate-code"] as $page) {
+			$this->assertNull($start->GetViewFile("pages", $page), $page);
+		}
+		$this->assertNull($start->GetViewFile("actions", "object-detail"));
+		$this->assertFalse(class_exists("\\Magrathea\\Admin\\ObjectManager"));
+		$this->assertFalse(class_exists("\\Magrathea\\Admin\\CodeCreator"));
 	}
 
 	function testAddIgnoresNull() {

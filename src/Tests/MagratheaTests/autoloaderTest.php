@@ -206,13 +206,4 @@ class autoloaderTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame([], Debugger::Instance()->GetCaptured());
 	}
 
-	function testLoadVendorFindsAutoload() {
-		TestsHelper::Print("testing LoadVendor() finds Composer's autoload.php, standalone or installed...");
-		// a separate process: a missing file was a fatal require, which would end the whole suite
-		$bootstrap = realpath(__DIR__."/../phpUnitBootstrap.php");
-		$code = 'require $argv[1]; Magrathea\MagratheaPHP::LoadVendor(); Magrathea\MagratheaPHP::LoadVendor(); echo "ok";';
-		$cmd = escapeshellarg(PHP_BINARY)." -r ".escapeshellarg($code)." ".escapeshellarg($bootstrap)." 2>&1";
-		$this->assertSame("ok", (string)shell_exec($cmd));
-	}
-
 }

@@ -248,14 +248,6 @@ class Database extends Singleton {
 		}
 	}
 	/**
-	* Already used you.. but I'll need you again!
-	* Does nothing since 2.4.0: the connection stays open until the end of the request.
-	* Use Disconnect() to close it.
-	*/
-	public function CloseConnectionThanks(){
-	}
-
-	/**
 	* Closes this instance's connection now. The next query opens a new one.
 	* Long-running workers should call it at the start of each job.
 	*/

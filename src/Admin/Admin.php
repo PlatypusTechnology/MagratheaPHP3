@@ -134,7 +134,6 @@ class Admin implements iAdmin {
 
 	/**
 	 * Sets the default features for the admin panel.
-	 * The File Editor is not a default feature: see LoadFileEditor().
 	 */
 	public function SetFeatures() {
 		$this->LoadAppConfig();
@@ -160,14 +159,6 @@ class Admin implements iAdmin {
 	protected function LoadUser() {
 		$this->AddFeature(new \Magrathea\Admin\Features\User\AdminFeatureUser());
 		$this->AddFeature(new \Magrathea\Admin\Features\UserLogs\AdminFeatureUserLog());
-	}
-	/**
-	 * Loads the File Editor feature.
-	 * Opt-in (not loaded by SetFeatures()): it lets any logged admin user edit server files.
-	 * Call it from your Admin subclass's SetFeatures() to enable it.
-	 */
-	protected function LoadFileEditor() {
-		$this->AddFeature(new \Magrathea\Admin\Features\FileEditor\AdminFeatureFileEditor());
 	}
 
 	/**
@@ -260,8 +251,7 @@ class Admin implements iAdmin {
 			->Add($adminMenu->GetItem("htaccess"))
 			->Add($adminMenu->GetItem("caddy"))
 
-			->Add($adminMenu->GetDatabaseSection())
-			->Add($adminMenu->GetObjectSection());
+			->Add($adminMenu->GetDatabaseSection());
 
 		if(@$this->adminFeatures["AdminFeatureCache"])
 			$adminMenu
@@ -279,11 +269,6 @@ class Admin implements iAdmin {
 					$this->adminFeatures["AdminFeatureUserLog"],
 				], "Users"));
 
-		if(@$this->adminFeatures["AdminFeatureFileEditor"])
-			$adminMenu
-				->Add("Tools")
-				->Add($this->adminFeatures["AdminFeatureFileEditor"]->GetMenuItem());
-		
 		$adminMenu->Add($adminMenu->GetHelpSection());
 		return $adminMenu;
 	}

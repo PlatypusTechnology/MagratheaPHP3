@@ -140,12 +140,6 @@ class DatabaseSimulate extends Singleton {
 		return null;
 	}
 	/**
-	* Already used you.. Bye.
-	*/
-	public function CloseConnectionThanks(){
-		return $this->Simulate("closeConnection", "mysqli_close()", $this->connDetails);
-	}
-	/**
 	* Closes this instance's connection now (simulated)
 	*/
 	public function Disconnect(): void {
@@ -250,7 +244,6 @@ class DatabaseSimulate extends Singleton {
 	public function Query($sql){
 		$this->OpenConnectionPlease();
 		$this->Simulate("query", $sql);
-		$this->CloseConnectionThanks();
 		return null;
 	}
 	
@@ -263,7 +256,6 @@ class DatabaseSimulate extends Singleton {
 		$arrRetorno = array();
 		$this->OpenConnectionPlease();
 		$this->Simulate("query", $sql);
-		$this->CloseConnectionThanks();
 		return $arrRetorno;
 	}
 	
@@ -276,7 +268,6 @@ class DatabaseSimulate extends Singleton {
 		$arrRetorno = array();
 		$this->OpenConnectionPlease();
 		$this->Simulate("query", $sql);
-		$this->CloseConnectionThanks();
 		return $arrRetorno;
 	}
 	
@@ -288,7 +279,6 @@ class DatabaseSimulate extends Singleton {
 	public function QueryOne($sql){
 		$this->OpenConnectionPlease();
 		$this->Simulate("query", $sql);
-		$this->CloseConnectionThanks();
 		return null;
 	}
 
@@ -305,7 +295,6 @@ class DatabaseSimulate extends Singleton {
 		foreach( $query_array as $query ){
 			$this->Simulate("query", $query);
 		}
-		$this->CloseConnectionThanks();
 		return true;
 	}
 	
@@ -385,7 +374,6 @@ class DatabaseSimulate extends Singleton {
 		$args = $arrValues;
 		array_unshift($args, $params);
 		$this->Simulate("PrepareAndExecute", $query, $args);
-		$this->CloseConnectionThanks();
 		return 42; // simulated insert id
 	}
 

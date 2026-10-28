@@ -275,7 +275,7 @@ remove lines.
 ## Group A — Removals
 
 ### 3. The code generator
-- [ ] done
+- [x] done
 
 **Error.** 3.0 doesn't generate code. The object editor and the code generator are a whole
 subsystem built around `magrathea_objects.conf`.
@@ -351,7 +351,7 @@ subsystem built around `magrathea_objects.conf`.
   removed key returns `null`, which `AdminMenu::Add()` ignores.
 
 ### 4. The File Editor
-- [ ] done
+- [x] done
 
 **Error.** 3.0 doesn't edit files from the browser. The File Editor is already opt-in
 (`Admin::LoadFileEditor()`).
@@ -373,7 +373,7 @@ subsystem built around `magrathea_objects.conf`.
 undefined method" when the admin loads.
 
 ### 5. Deprecated and dead APIs
-- [ ] done
+- [x] done
 
 **Error.** Deprecated or dead methods still in the code:
 

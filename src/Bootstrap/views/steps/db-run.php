@@ -15,8 +15,4 @@
 	<div class="col-12">
 		<?php include(__DIR__."/db-query.php"); ?>
 	</div>
-	<div class="col-12"><hr/></div>
-	<div class="col-12">
-	<?php include(__DIR__."/db-load-magrathea-objects.php"); ?>
-	</div>
 </div>
