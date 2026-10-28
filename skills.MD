@@ -179,10 +179,9 @@ Each feature is **split into a `Base` class and a concrete class**:
 // app/features/Article/Base/ArticleBase.php
 namespace App\Article\Base;
 
-use Magrathea\iMagratheaModel;
 use Magrathea\MagratheaModel;
 
-class ArticleBase extends MagratheaModel implements iMagratheaModel {
+class ArticleBase extends MagratheaModel {
 
     public $id, $title, $body, $author_id, $published, $views;
     public $created_at, $updated_at;

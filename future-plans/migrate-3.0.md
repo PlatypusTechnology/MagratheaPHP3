@@ -39,7 +39,7 @@ project, without the rest of the docs.
 | M3 | Code generator and `magrathea_objects.conf` removed | Only for code that calls the generator | Delete the conf, strip the "generated" headers | |
 | M4 | File Editor removed | Yes, if `LoadFileEditor()` is called | Remove the call | |
 | M5 | Deprecated and dead methods removed (`ShowAll()`, `LoadVendor()`, `Clean()`, `CloseConnectionThanks()`, …) | Yes, where they're called | Replace each call | |
-| M6 | `MagratheaModel` provides a constructor, `$autoload`, `$created_at`/`$updated_at` and `GetControl()` | Rarely: redeclarations PHP now refuses (non-public, typed, static), constructor-less models called with an argument | Fix those | |
+| M6 | `MagratheaModel` provides a constructor, `$autoload`, `$created_at`/`$updated_at` and `GetControl()`; `iMagratheaModel` deprecated; the framework models' `Start()` is `MagratheaStart()` | Rarely: redeclarations PHP now refuses (non-public, typed, static), constructor-less models called with an argument, calls to `Start()` on framework models | Fix those | |
 | M7 | Unknown `$dbValues` types throw | Yes, for models with invalid types (`"bool"`, …) | Fix the types | |
 | M8 | Controls can declare `$model = X::class` | No | None | |
 | M9 | `$strictTypes` defaults to `true` | **Yes**: int/bool/float fields become native types, in PHP and in JSON | Pin `false` on every existing model | ⚠ |
@@ -345,9 +345,26 @@ class:
 - a no-op `MagratheaStart()`;
 - `protected $autoload = null`;
 - `public $created_at, $updated_at`;
-- a default `GetControl()`, which returns a new `<model class>Control`.
+- a default `GetControl()`, which returns a new `<model class>Control`, or throws
+  `MagratheaModelException` naming that class when it doesn't exist.
 
 A model's own constructor, `GetControl()` and declarations override these, as before.
+
+The framework's models (`AdminUser`, `AppConfig`, `AdminLog`) use them too: their `Start()` is now
+`MagratheaStart()`, they have no constructor or timestamp/`$autoload` declarations of their own, and
+they no longer implement `iMagratheaModel`. Code that called `->Start()` on one of them gets "Call
+to undefined method", and a subclass's own `Start()` no longer runs. List the candidates, then check
+which ones are on these models:
+```bash
+grep -rnE -- '->Start\(|function +Start *\(' --include='*.php' --exclude-dir=vendor .
+```
+
+`iMagratheaModel` is deprecated, and goes in 4.0. Nothing breaks in 3.0, but drop
+`implements iMagratheaModel` (and its `use` line) from models when you touch them; with the
+interface gone, a model's constructor can have any signature:
+```bash
+grep -rn 'iMagratheaModel' --include='*.php' --exclude-dir=vendor .
+```
 
 **Applies if** either of these is true:
 1. A model **redeclares** one of them in a way PHP now refuses, which is a fatal error when the
@@ -694,7 +711,7 @@ For a feature `Article`:
    pin) and the relation methods from `Base/ArticleBase.php` into `Article.php`, and change
    `extends Base\ArticleBase` to `extends \Magrathea\MagratheaModel`. Drop the generated
    constructors, the `public $created_at, $updated_at;` line and `GetControl()`: `MagratheaModel`
-   provides them (M6). The default `GetControl()` returns `ArticleControl`, so the CRUD admin also
+   provides them (M6). Drop `implements iMagratheaModel` too (deprecated, M6). The default `GetControl()` returns `ArticleControl`, so the CRUD admin also
    stops skipping `ArticleControl`'s overrides.
 3. Point has_many relations at `ArticleControl::GetWhere()`.
 4. Make `ArticleControl` extend `\Magrathea\MagratheaModelControl` directly, with

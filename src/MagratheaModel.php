@@ -23,7 +23,11 @@ use Magrathea\Exceptions\MagratheaModelException;
 ####
 #######################################################################################
 
-	
+
+/**
+ * @deprecated 3.0 nothing implements it: `MagratheaModel` provides its methods (with `__construct($id = 0)`), and implementing
+ * it forces `__construct($id)` on the model. Kept so 2.x generated Base classes still load; removed in 4.0.
+ */
 interface iMagratheaModel {
 	public function __construct($id);
 	
@@ -42,6 +46,43 @@ abstract class MagratheaModel{
 	protected $dirtyValues = array();
 	protected $loadedValues = null;
 	protected $strictTypes = false;
+	protected $autoload = null;
+	public $created_at = null, $updated_at = null;
+
+	/**
+	 * Runs `MagratheaStart()` and, if an id is given, loads that row
+	 * @param 	int|string 		$id 		primary key of the row to load (empty: nothing is loaded)
+	 * @throws 	MagratheaModelException 	row not found, or (code 400) the id is invalid for an int PK
+	 */
+	public function __construct($id = 0) {
+		$this->MagratheaStart();
+		if( !empty($id) ){
+			$pk = $this->dbPk;
+			$this->$pk = $id;
+			$this->GetById($id);
+		}
+	}
+
+	/**
+	 * Hook run by the constructor: models set `$dbTable`, `$dbPk` and `$dbValues` here (or as property defaults)
+	 */
+	public function MagratheaStart() {}
+
+	/**
+	 * Gets the model's control: a new "<model full class name>Control".
+	 * Declare `GetControl()` in the model when its control is named otherwise.
+	 * @return 	MagratheaModelControl 		model's control
+	 * @throws 	MagratheaModelException 	if that control class doesn't exist
+	 */
+	public function GetControl() {
+		$controlName = static::class."Control";
+		if(!class_exists($controlName)) {
+			throw new MagratheaModelException(
+				"Control [".$controlName."] not found for ".static::class.": declare GetControl() in the model"
+			);
+		}
+		return new $controlName();
+	}
 
 	/**
 	 * Checks if the object exists (id not null)

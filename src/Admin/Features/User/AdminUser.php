@@ -3,7 +3,6 @@
 namespace Magrathea\Admin\Features\User;
 
 use Magrathea\Admin\AdminManager;
-use Magrathea\iMagratheaModel;
 use Magrathea\MagratheaModel;
 
 #######################################################################################
@@ -19,23 +18,12 @@ use Magrathea\MagratheaModel;
 /**
  * Class for installing Magrathea's Admin
  */
-class AdminUser extends MagratheaModel implements iMagratheaModel { 
+class AdminUser extends MagratheaModel { 
 
 	public $id;
 	public $email, $password, $last_login, $role_id, $active;
-	public $created_at, $updated_at;
-	protected $autoload = null;
 
-	public function __construct($id=null) {
-		$this->Start();
-		if( !empty($id) ){
-			$pk = $this->dbPk;
-			$this->$pk = $id;
-			$this->GetById($id);
-		}
-	}
-
-	public function Start() {
+	public function MagratheaStart() {
 		$this->dbTable = "_magrathea_users";
 		$this->dbPk = "id";
 		$this->dbValues = [

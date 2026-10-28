@@ -3,15 +3,12 @@
 **File:** `src/MagratheaModel.php`
 **Namespace:** `Magrathea`
 **Type:** Abstract Class
-**Implements:** `iMagratheaModel`
 
 The base class for all database-backed domain models. Provides field mapping, automatic CRUD operations, property access via `__get`/`__set`, serialization, and relationship definitions.
 
 ---
 
 ## Interface: iMagratheaModel
-
-Every model must satisfy:
 
 ```php
 interface iMagratheaModel {
@@ -22,6 +19,12 @@ interface iMagratheaModel {
     public function GetID();
 }
 ```
+
+**Deprecated since 3.0, removed in 4.0.** Nothing in the framework implements it: `MagratheaModel`
+provides these methods, and implementing the interface forces the `__construct($id)` signature on
+the model's constructor (a `__construct()` with no parameter is a fatal error when the class loads).
+It's kept only so 2.x generated Base classes, which declare `implements iMagratheaModel`, still
+load. New models don't implement it.
 
 ---
 
@@ -60,10 +63,43 @@ class Product extends MagratheaModel {
         "title" => "name",   // $product->title is the same as $product->name
     ];
 
-    // Optional: relations GetById() loads with a join
-    protected $autoload = null;
+    // every $dbValues field as an untyped public property
+    public $id, $name, $description, $price, $stock, $active;
 }
 ```
+
+The table settings can also be set in `MagratheaStart()`, which the constructor runs first:
+
+```php
+class Product extends MagratheaModel {
+    public $id, $name;
+
+    public function MagratheaStart() {
+        $this->dbTable = "products";
+        $this->dbPk = "id";
+        $this->dbValues = [ "id" => "int", "name" => "string" ];
+    }
+}
+```
+
+### What `MagratheaModel` already provides
+
+A model doesn't declare these (2.x's generator wrote them into every Base class):
+
+| Member | Default |
+|--------|---------|
+| `__construct($id = 0)` | runs `MagratheaStart()`, then, if `$id` isn't empty, sets the PK and loads that row (`GetById()`) |
+| `MagratheaStart()` | does nothing: a hook for the model's table settings |
+| `protected $autoload` | `null`: relations `GetById()` loads with a join |
+| `public $created_at, $updated_at` | `null`; loaded with the row, returned by `ToJson()` and `json_encode()` |
+| `GetControl()` | a new `<model full class name>Control` (`App\Article\Article` → `App\Article\ArticleControl`); throws `MagratheaModelException` naming that class if it doesn't exist |
+
+A model can still declare its own, as generated models do. A redeclaration must keep the base's
+shape, or PHP refuses the class when it loads: `$created_at`/`$updated_at` public, `$autoload`
+protected or public, none of the three typed (`public ?string $created_at` is a fatal error), and
+`MagratheaStart()`/`GetControl()` public and non-static. Declare `GetControl()` when the control
+isn't named `<model class>Control`; the admin CRUD (`AdminCrudObject::GetField()`) calls it for
+every relation field.
 
 ### Supported Field Types
 
@@ -146,7 +182,8 @@ consumers: the JSON changes from `"42"` to `42` and from `"1"` to `true`.
 | `$dbAlias` | `array` | Alias → column mappings |
 | `$relations` | `array` | Related object definitions |
 | `$dirtyValues` | `array` | Fields set through `Set()`/`Assign()` since the last save (cleared after `Insert()`/`Update()`) |
-| `$autoload` | `array\|null` | Relations `GetById()` loads with a join (declared by the model) |
+| `$autoload` | `array\|null` | Relations `GetById()` loads with a join (default `null`) |
+| `$created_at`, `$updated_at` | `string\|null` | Public row timestamps (default `null`) — see [Timestamps](#timestamps-created-at-updated-at) |
 | `$strictTypes` | `bool` | Typed hydration on load — see [Strict typing](#strict-typing-stricttypes) above (default `false`; recommended `true` for new models) |
 
 ---
@@ -161,6 +198,9 @@ $product = new Product();
 $product = new Product(42);
 // Equivalent to: SELECT * FROM products WHERE id = 42
 ```
+
+`new Product(42)` throws `MagratheaModelException` when the row doesn't exist, or (code 400) when
+`42` isn't a valid id for an int PK. An empty id (`0`, `""`, `null`) loads nothing and runs no query.
 
 ---
 

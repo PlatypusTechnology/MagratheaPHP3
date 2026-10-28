@@ -3,7 +3,6 @@
 namespace Magrathea\Admin\Features\AppConfig;
 
 use Magrathea\Exceptions\MagratheaModelException;
-use Magrathea\iMagratheaModel;
 use Magrathea\MagratheaModel;
 
 #######################################################################################
@@ -19,21 +18,10 @@ use Magrathea\MagratheaModel;
 /**
  * Class for installing Magrathea's Admin
  */
-class AppConfig extends MagratheaModel implements iMagratheaModel { 
+class AppConfig extends MagratheaModel { 
 
 	public $id;
 	public $name, $value, $is_system;
-	public $created_at, $updated_at;
-	protected $autoload = null;
-
-	public function __construct($id=null) {
-		$this->Start();
-		if( !empty($id) ){
-			$pk = $this->dbPk;
-			$this->$pk = $id;
-			$this->GetById($id);
-		}
-	}
 
 	public function Validate() {
 		if($this->key == null || $this->key == "") {
@@ -53,7 +41,7 @@ class AppConfig extends MagratheaModel implements iMagratheaModel {
 		parent::Update();
 	}
 
-	public function Start() {
+	public function MagratheaStart() {
 		$this->dbTable = "_magrathea_config";
 		$this->dbPk = "id";
 		$this->dbValues = [

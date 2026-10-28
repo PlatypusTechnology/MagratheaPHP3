@@ -3,7 +3,6 @@
 namespace Magrathea\Admin\Features\UserLogs;
 
 use Admin;
-use Magrathea\iMagratheaModel;
 use Magrathea\MagratheaModel;
 
 #######################################################################################
@@ -19,23 +18,12 @@ use Magrathea\MagratheaModel;
 /**
  * Class for installing Magrathea's Admin
  */
-class AdminLog extends MagratheaModel implements iMagratheaModel { 
+class AdminLog extends MagratheaModel { 
 
 	public $id;
 	public $user_id, $action, $victim, $info;
-	public $created_at, $updated_at;
-	protected $autoload = null;
 
-	public function __construct($id=null) {
-		$this->Start();
-		if( !empty($id) ){
-			$pk = $this->dbPk;
-			$this->$pk = $id;
-			$this->GetById($id);
-		}
-	}
-
-	public function Start() {
+	public function MagratheaStart() {
 		$this->dbTable = "_magrathea_logs";
 		$this->dbPk = "id";
 		$this->dbValues = [

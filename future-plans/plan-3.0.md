@@ -419,7 +419,7 @@ New code uses **one class per model and one per control**, extending `MagratheaM
 wouldn't overwrite hand-written code. Existing Base-split code keeps working.
 
 ### 6. `MagratheaModel` defaults
-- [ ] done
+- [x] done
 
 **Error.** A hand-written model has to repeat the generator's boilerplate, or it breaks in ways
 that don't explain themselves (all four verified):
@@ -454,10 +454,14 @@ that don't explain themselves (all four verified):
 - **`MagratheaModel` doesn't implement `iMagratheaModel`.** The interface declares
   `__construct($id)`, so implementing it would force that signature on every subclass constructor:
   a hand-written `__construct()` would be a fatal error at class load. Nothing in `src/` checks
-  `instanceof iMagratheaModel`, and the interface stays for the classes that implement it.
+  `instanceof iMagratheaModel`. The interface gets `@deprecated 3.0` (removed in 4.0): nothing in
+  the framework implements it any more, and it stays only so 2.x generated Base classes, which
+  declare `implements iMagratheaModel`, still load.
 - The framework models `AdminUser`, `AppConfig` and `AdminLog` rename `Start()` to
   `MagratheaStart()` and drop their constructors (`AdminUser.php:29-36`, `AppConfig.php:29-36`,
-  `AdminLog.php:29-36`).
+  `AdminLog.php:29-36`), their `$created_at`/`$updated_at`/`$autoload` declarations and
+  `implements iMagratheaModel`: they're the reference models, so they declare only what the base
+  class doesn't provide.
 
 **Tests** (new `modelDefaultsTest.php`, with a recording database):
 - a model with only properties and `MagratheaStart()` (no constructor, `$autoload`, timestamps or
@@ -578,6 +582,8 @@ values.
 - uuid PK: when the PK's type is `uuid`, `CreateInsertQuery()` sends it (generating it when it's
   empty, as today), and `Insert()` keeps it instead of assigning the insert id. `Insert()` returns
   the PK.
+- `AppConfig::Insert()` returns `parent::Insert()`: it calls it and discards the result, so it
+  returns `null` instead of the id.
 - `MagratheaApiControl::Create()`:
   - drops `created_at` and `updated_at` from the request data, as it already drops `id`
     (`MagratheaApiControl.php:363`). Otherwise API clients could set them, now that `Insert()`
@@ -618,6 +624,9 @@ values.
 - When a query ran, set `$this->updated_at = null` before `SavedState()`, so the object never
   reports the stale value. `created_at` stays as it is (an update doesn't change it). When no query
   ran, `updated_at` stays too: the row didn't change.
+- `AppConfig::Update()` returns `parent::Update()` (it returns `null`, as `Insert()` does in item 10).
+- Docs: once this item and item 10 are done, `created_at`/`updated_at` are safe to leave out of
+  `$dbValues`, so `database/orm-model.md`'s examples drop them (item 6 left them in).
 - `MagratheaApiControl::Update()` checks the id with item 0's rule **before** writing (int-PK models),
   so a malformed id fails with 400 instead of updating the row its integer cast points to. After
   the write, it returns a freshly loaded object (`new $this->model($id)`), so the response carries
@@ -743,7 +752,9 @@ is just not saved.
     isn't mistaken for a clean one.
 - `CheckModel($class)`:
   - the table is missing: ERROR;
-  - a `$dbValues` field is missing from the table: ERROR (writes fail);
+  - a `$dbValues` field is missing from the table: ERROR (writes fail). `created_at` and
+    `updated_at` are skipped here, even when `$dbValues` lists them: the timestamp finding below
+    owns them, so a legacy model doesn't get two ERRORs for one missing column;
   - a table column is missing from `$dbValues`: INFO (`created_at` and `updated_at` excluded: they
     don't belong in `$dbValues`);
   - `$dbPk` isn't the table's primary key: WARNING;
@@ -1237,7 +1248,8 @@ generated code. It still:
   3.x (`platypustechnology/magratheaphp`, namespace `Magrathea`). The frozen 2.x skill keeps
   `magrathea-php2` (see Release).
 - Models and controls:
-  - single-class models and controls (items 6 and 8), with relations as explicit methods;
+  - single-class models and controls (items 6 and 8), with relations as explicit methods, and no
+    `implements iMagratheaModel` (deprecated in item 6);
   - `MagratheaModel::TYPES`;
   - strict types by default;
   - the table contract and the timestamp rules: the database owns `created_at` and `updated_at`,
