@@ -31,6 +31,7 @@ class DocMap {
 					"magrathea-php" => ["title" => "MagratheaPHP", "md" => "core/magrathea-php.md", "src" => ["MagratheaPHP.php"]],
 					"config" => ["title" => "Config", "md" => "core/config.md", "src" => ["Config.php", "ConfigApp.php", "ConfigFile.php"]],
 					"timezone" => ["title" => "TimezoneCheck", "md" => "core/timezone.md", "src" => ["TimezoneCheck.php"]],
+					"project-check" => ["title" => "ProjectCheck", "md" => "core/project-check.md", "src" => ["ProjectCheck.php"]],
 					"singleton" => ["title" => "Singleton", "md" => "core/singleton.md", "src" => ["Singleton.php"]],
 					"helper" => ["title" => "MagratheaHelper", "md" => "core/helper.md", "src" => ["MagratheaHelper.php"]],
 					"global-functions" => ["title" => "Global Functions", "md" => "core/global-functions.md", "src" => ["_Functions.php"]],
@@ -44,6 +45,8 @@ class DocMap {
 					"query-builder" => ["title" => "Query Builder", "md" => "database/query-builder.md", "src" => ["DB/Query.php"]],
 					"orm-model" => ["title" => "MagratheaModel", "md" => "database/orm-model.md", "src" => ["MagratheaModel.php"]],
 					"orm-control" => ["title" => "MagratheaModelControl", "md" => "database/orm-control.md", "src" => ["MagratheaModelControl.php"]],
+					"schema" => ["title" => "Schema", "md" => "database/schema.md", "src" => ["DB/Schema.php", "DB/SchemaCheck.php"]],
+					"dump" => ["title" => "Dump", "md" => "database/dump.md", "src" => ["DB/Dump.php", "DB/SqlSplitter.php"]],
 				],
 			],
 			"api" => [

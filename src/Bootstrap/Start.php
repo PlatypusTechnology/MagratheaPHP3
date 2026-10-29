@@ -2,7 +2,7 @@
 
 namespace Magrathea\Bootstrap;
 use Exception;
-use Magrathea\Admin\AdminDatabase;
+use Magrathea\DB\Dump;
 use Magrathea\Config;
 use Magrathea\Debugger;
 use Magrathea\Logger;
@@ -178,7 +178,7 @@ class Start extends \Magrathea\Singleton {
 			'Logs' => Logger::Instance()->GetLogPath(),
 			// 'Models' => $this->appPath."/../Models",
 			// 'Models-Base' => $this->appPath."/../Models/Base",
-			'Backups' => AdminDatabase::Instance()->GetBackupFolder(),
+			'Backups' => Dump::Folder(),
 		);
 	}
 

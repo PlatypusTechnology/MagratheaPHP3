@@ -1,6 +1,6 @@
 <?php
 
-use Magrathea\Admin\AdminDatabase;
+use Magrathea\DB\Dump;
 use Magrathea\Admin\AdminElements;
 use Magrathea\Admin\AdminManager;
 use Magrathea\Admin\AdminUrls;
@@ -58,7 +58,7 @@ $table = [
 	],
 	[
 		"name" => "Database backups",
-		"value" => AdminDatabase::Instance()->GetBackupFolder(),
+		"value" => Dump::Folder(),
 		"action" => fn() => "<a href='".AdminUrls::Instance()->GetPageUrl("backups")."'>Backups</a>",
 		"check" => function($r) { return checkPathIsOk($r["value"]); }
 	],

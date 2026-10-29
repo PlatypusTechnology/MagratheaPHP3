@@ -53,19 +53,15 @@ class TimezoneCheck {
 	* @return 	array 		list of findings: ["level" => OK|INFO|WARNING|ERROR, "message" => string]
 	*/
 	public static function Run(): array {
-		// in this order: ClockFindings() opens the connection, which is when the sync runs
-		return array_merge(
-			self::ConfigFindings(),
-			self::ClockFindings(),
-			self::SyncFindings(self::SyncedTimezone()),
-		);
+		return array_merge(self::ConfigFindings(), self::DatabaseFindings());
 	}
 
 	/**
-	* Findings about the config's `timezone` key
+	* Findings about the config's `timezone` key. Doesn't connect.
+	* Missing: INFO (WARNING with the old `time_zone` key). Not a valid timezone: ERROR.
 	* @return 	array 		findings
 	*/
-	private static function ConfigFindings(): array {
+	public static function ConfigFindings(): array {
 		$timezone = Config::Instance()->Get("timezone");
 		if(empty($timezone)) {
 			if(self::HasOldKey()) {
@@ -77,6 +73,19 @@ class TimezoneCheck {
 			return [self::Finding(self::ERROR, "`timezone = \"".$timezone."\"` is not a valid timezone: PHP ignores it and stays on its default (".date_default_timezone_get().").")];
 		}
 		return [];
+	}
+
+	/**
+	* Findings that need the database: MySQL's timezones, PHP's clock against MySQL's (out of sync: ERROR),
+	* and the state of the sync (`db_sync_timezone`). Never throws: a database that can't be reached is a finding.
+	* @return 	array 		findings
+	*/
+	public static function DatabaseFindings(): array {
+		// in this order: ClockFindings() opens the connection, which is when the sync runs
+		return array_merge(
+			self::ClockFindings(),
+			self::SyncFindings(self::SyncedTimezone()),
+		);
 	}
 
 	/**

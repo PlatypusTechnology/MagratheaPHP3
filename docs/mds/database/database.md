@@ -30,7 +30,6 @@ Rows come back as **associative arrays** unless `SetFetchMode("object")` was cal
 | `$mysqli` | `mysqli` | This instance's connection (`null` until the first query) |
 | `$connDetails` | `array` | Connection parameters |
 | `$fetchmode` | `int` | Current fetch mode (`null` until `SetFetchMode()`, which reads as `FETCH_ASSOC`) |
-| `$count` | `int` | Number of rows returned by the last SELECT |
 | `$affectedRows` | `int` | Rows affected by the last query (see `LastAffectedRows()`) |
 
 ---
@@ -101,8 +100,11 @@ reporting mode:
 
 Before 2.4.0, with PHP 8.1+'s default reporting, most methods let mysqli's `mysqli_sql_exception` out
 as is: code that catches `mysqli_sql_exception` around framework calls must catch `MagratheaDBException`
-now. The exceptions are `QueryTransaction()` and `Query()` with mysqli reporting off: they still return
-`false`.
+now. Before 3.0, with mysqli reporting off, `Query()` and `QueryTransaction()` returned `false` instead
+of throwing.
+
+`Query()`, `QueryAll()`, `QueryRow()`, `QueryOne()` and `QueryStream()` share one execution path: they log
+the query, open the connection, run it and throw the same way. Only what they fetch differs.
 
 In an API, a `MagratheaDBException` (or a `mysqli_sql_exception`) is always answered with HTTP **500**:
 its code is an errno, not a status (`4031` would otherwise map to 403).
@@ -228,7 +230,15 @@ Database::Instance()->SetFetchMode("object"); // rows as stdClass from now on
 ## Query Methods
 
 ### `Query(string $sql): object`
-Executes a raw SQL query. Returns a `mysqli_result` or throws `MagratheaDBException`.
+Executes a raw SQL query. Returns a `mysqli_result` (`true` for statements that return no rows) or
+throws `MagratheaDBException`, whatever mysqli's reporting mode (before 3.0, it returned `false` with
+reporting off).
+
+The SQL is split into statements first, with [`SqlSplitter`](dump.md#sqlsplitter-sql-into-statements)
+(quotes, backticks, comments and `DELIMITER` lines are respected). More than one statement runs through
+`QueryMulti()`, and `Query()` returns its results array. A single statement runs as the splitter gives
+it: comments removed (except `/*!…*/` and `/*+…*/`), no trailing delimiter, so a `DELIMITER ;;` block
+with one `CREATE TRIGGER` works.
 
 ```php
 $result = Database::Instance()->Query("SELECT * FROM users WHERE active = 1");
@@ -264,14 +274,12 @@ echo $count; // "42"
 
 ### `QueryTransaction(array $query_array): bool`
 Executes an array of SQL statements as a single transaction. It stops at the first failing statement
-(the rest aren't sent), rolls everything back and turns autocommit back on. How the failure reaches
-you depends on mysqli's error reporting, as with every other query method:
+(the rest aren't sent), rolls everything back, turns autocommit back on and throws `MagratheaDBException`
+(code = MySQL errno, `query` = the failed statement), whatever mysqli's reporting mode. Before 3.0, with
+reporting off, it returned `false` instead.
 
-- **PHP 8.1+ default** (mysqli throws): it throws `MagratheaDBException` (code = MySQL errno) after the
-  rollback;
-- **reporting off** (mysqli returns errors): it returns `false` (the error is logged to the Debugger).
-
-It returns `true` once the commit succeeds. A failed `COMMIT` is handled like a failed statement. A
+It returns `true` once the commit succeeds. A failed `COMMIT` is handled like a failed statement, and so
+is a failed `SET autocommit = 0` or `START TRANSACTION` (no statement is sent). A
 lost connection, on a statement or on the `COMMIT`, throws `MagratheaDBConnectionLostException` without
 a rollback attempt (MySQL discards the transaction with the connection). If the rollback itself fails,
 the connection is dropped, and the error you get is still the original one.
@@ -290,8 +298,8 @@ try {
 It only takes fixed SQL strings. DDL (`CREATE`, `ALTER`, `TRUNCATE`) commits implicitly in MySQL, so a
 DDL statement in the list ends the transaction early.
 
-### `QueryMulti(array|string $queries, bool $killable = true): array`
-Executes multiple SQL statements, in order, on the same connection. If `$queries` is a string, it's split on `;` followed by a newline. Returns one entry per statement: `["query" => …, "success" => bool, "result" => …]`, where `result` holds the rows (as assoc arrays) for a SELECT, `["success" => true]` for a `CREATE`, an empty array for other statements, or the error message when `success` is false. (Before 2.4.0, `result` was always empty for SELECTs.) `Query()` calls it when its SQL holds more than one statement.
+### `QueryMulti(iterable|string $queries, bool $killable = true): array`
+Executes multiple SQL statements, in order, on the same connection. If `$queries` is a string, it's split with [`SqlSplitter`](dump.md#sqlsplitter-sql-into-statements) (before 3.0, on `;` followed by a newline, so a value containing `;\n` broke its statement). Any other iterable (an array, `SqlSplitter::FromFile()`) runs one statement per item, without splitting again. Returns one entry per statement: `["query" => …, "success" => bool, "result" => …]`, where `result` holds the rows (as assoc arrays) for a SELECT, `["success" => true]` for a `CREATE`, an empty array for other statements, or the error message when `success` is false. (Before 2.4.0, `result` was always empty for SELECTs.) `Query()` calls it when its SQL holds more than one statement.
 
 With `$killable = true` (the default), the first failing statement throws `MagratheaDBException` and the rest aren't sent. With `false`, a failing statement is recorded (`success => false`, the error message in `result`) and the next statements still run, whatever the reporting mode (before 2.4.0, it only worked with reporting off). A lost connection (`MagratheaDBConnectionLostException`) always throws, even with `false`: the next statements can't run without it.
 
@@ -303,10 +311,25 @@ $results = Database::Instance()->QueryMulti([
 ```
 
 ### `ImportFile(string $file_path, bool $killable = true): array`
-Reads a `.sql` file and executes all statements within it.
+Executes every statement of a `.sql` file: `QueryMulti(SqlSplitter::FromFile($file_path), $killable)`.
+The file is read in chunks, not loaded whole, but every statement's result is returned, so it's meant
+for small files such as migrations; dumps go through [`Dump::Import()`](dump.md#import). A file that
+can't be read throws `MagratheaDBException`.
 
 ```php
 Database::Instance()->ImportFile("/migrations/001_create_users.sql");
+```
+
+### `QueryStream(string $sql): \Generator`
+Runs a query unbuffered (`MYSQLI_USE_RESULT`) and yields its rows one at a time, as associative arrays
+with lowercase keys: a big result never sits in memory. Until every row is read (or the generator is
+destroyed, which frees the result), nothing else can run on the connection. A failed query throws
+`MagratheaDBException` when the generator starts. `Dump`'s php driver reads tables with it.
+
+```php
+foreach(Database::Instance()->QueryStream("SELECT id, email FROM users") as $row) {
+	fputcsv($out, $row);
+}
 ```
 
 ---

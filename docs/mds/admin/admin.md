@@ -180,16 +180,17 @@ Your own pages belong in admin features (`?magrathea_feature=`), not in these fo
 
 #### Backups, logs, and the removed Query Tester
 
-- **Backups** (Database → Backups) run `mysqldump` through `AdminDatabase::DoBackup($fileName)`. The name must be
-  a plain file name (`AdminDatabase::ValidateBackupFileName()`: `.sql` is appended when it's missing, then only
+- **Backups** (Database → Backups) run [`Dump::Export($fileName)`](../database/dump.md). The name must be
+  a plain file name (`Dump::ValidateBackupFileName()`: `.sql` is appended when it's missing, then only
   `^[A-Za-z0-9][A-Za-z0-9._-]*\.sql$` without `..` is accepted; anything else throws
   `MagratheaException("invalid file name")`), and an existing file is never overwritten (`"file already
-  exists"`). `mysqldump` runs through `proc_open()` with an argument array (no shell), and the database
-  credentials go in a temporary `[client]` defaults file (`0600`, deleted afterwards), never on the command line:
-  other server users can't read the password in `ps`, and the page never shows the command. A failed dump
-  removes the partial file and throws with mysqldump's error. The host's PHP needs `proc_open()`; a DB user or
-  password that contains both quote characters or a line break can't go in the defaults file and throws.
-  Viewing a backup accepts only a `.sql` file that exists in the backups folder. (Since 2.4.0. Before that, the
+  exists"`). With `mysqldump` available, it runs through `proc_open()` with an argument array (no shell), and the
+  database credentials go in a temporary `[client]` defaults file (`0600`, deleted afterwards), never on the
+  command line: other server users can't read the password in `ps`, and the page never shows the command.
+  Without it (no `proc_open()`, or no `mysqldump`), the php driver dumps through the connection, without
+  routines. A failed dump removes the partial file and throws. A DB user or password that contains both quote
+  characters or a line break can't go in the defaults file and throws. The API answers the file, its size and
+  the driver. Viewing a backup accepts only a `.sql` file that exists in the backups folder. (Since 2.4.0. Before that, the
   file name was put in a `system()` command, so any admin could run shell commands, the password was on the
   command line and in the page, and `../` read any file.)
 - **Logs** (Debugging → Logs) are read through the `log-view` action, which takes a file name inside the logs

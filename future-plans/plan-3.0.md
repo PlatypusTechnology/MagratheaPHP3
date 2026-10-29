@@ -739,7 +739,7 @@ The admin (Group E), the CLI (Group F) and the Setup Wizard (Group G) are thin l
 classes. They return arrays and findings (see "Shared conventions") and never print.
 
 ### 14. `DB\Schema`: introspection
-- [ ] done
+- [x] done
 
 **Error.** The admin's table helpers are thin and duplicated: `AdminDatabase::GetTables()` and
 `GetTableColumns()` (`AdminDatabase.php:44-60`, `:104-120`), plus a third copy in the Bootstrap's
@@ -767,7 +767,7 @@ Values in the `information_schema` queries go through `Database::Escape()`. An u
 `Schema`.
 
 ### 15. `DB\SchemaCheck`: model discovery, drift and timestamps
-- [ ] done
+- [x] done
 
 **Error.** The generator was the only thing that kept a model in sync with its table. Without it, a
 typo in `$dbValues` surfaces as a SQL error at runtime, or never: a column missing from `$dbValues`
@@ -807,6 +807,23 @@ is just not saved.
 
   The fix is an `ALTER TABLE … MODIFY …` that keeps the column's type and nullability and only adds
   `DEFAULT` or `ON UPDATE`.
+- **Decided while implementing** (Paulo's calls):
+  - `string`, `text` and `uuid` count as one type in the mismatch check: they bind and load the
+    same. The exception is a `char(36)` PK not declared `uuid`, a WARNING, because `Insert()` then
+    sends no PK.
+  - `updated_at` without `DEFAULT CURRENT_TIMESTAMP` follows `created_at`'s rule (ERROR if
+    `NOT NULL`, WARNING if nullable): `Insert()` never sends a `null` timestamp, so the default is
+    what sets it.
+  - `created_at` **with** `on update CURRENT_TIMESTAMP` is an ERROR (MySQL 5.7's first bare
+    `TIMESTAMP`).
+  - One finding per column, listing every problem. Its fix brings the column to the contract
+    (`created_at` without `ON UPDATE`; both with `DEFAULT CURRENT_TIMESTAMP`, with the column's
+    fractional-seconds precision).
+  - There's no guard for timestamp columns that aren't `DATETIME`/`TIMESTAMP` (the 2.x admin's
+    "add created_at" made them `varchar(255) NULL`). Their fix is invalid SQL, and MySQL rejects it
+    when someone runs it. The docs and M11 say so.
+  - `FindModels()` returns `["models" => […], "findings" => […]]`. A class that fails to load is a
+    WARNING (it may not be a model). A model that fails to instantiate is an ERROR.
 - `CheckAll()`: `CheckModel()` and `CheckTimestamps()` for every model found, plus an INFO for each
   table that no model maps (except the framework's `_magrathea_*` tables).
 - Tests: fixture models in a temporary code folder; fake schema rows; each finding; the
@@ -816,7 +833,7 @@ is just not saved.
 **Impact.** None: it's new. The migration runs it (M11).
 
 ### 16. `ProjectCheck`: configuration and environment
-- [ ] done
+- [x] done
 
 **Error.** The structure and configuration checks are scattered. The Bootstrap's `Structurate()`
 and `ValidateStructure()` echo HTML (`Bootstrap/Start.php:171-200`), the admin's Structure page
@@ -837,13 +854,28 @@ findings carry a `group`:
 `$withDatabase = false` skips everything that connects: the `database`, `timezone` and `schema`
 groups. The admin's Checks page (item 22), `magrathea check` (item 26) and the wizard (item 28) use
 `Run()`.
+- **Decided while implementing** (Paulo's calls):
+  - The `timezone` key is checked once, in `config`: `TimezoneCheck::ConfigFindings()` and
+    `DatabaseFindings()` are public, and `Run()` returns both. The `timezone` group gets only
+    `DatabaseFindings()`. A missing `timezone` stays INFO. Clocks out of sync stay ERROR.
+  - A project may have no database: `db_host`, `db_name` and `db_user` all empty is one INFO, and the
+    `database`, `timezone` and `schema` groups are skipped (`mysqli` isn't checked). Some of them set
+    is an ERROR per missing key. A failed connection is one ERROR and skips `timezone` and `schema`.
+  - Folders: logs ERROR, cache and backups WARNING (only their feature breaks), on the path runtime
+    uses. `logs_path` and `backups_path` have defaults (`<magRoot>/logs`, `<magRoot>/backups`), so a
+    missing key isn't a finding; an empty `cache_path` is a WARNING (no default).
+  - Every passing check is an OK finding. An unreadable config (file, parse, `use_environment`, the
+    active section) stops at `config`.
+  - Levels not set above: PHP < 8.1, no `mysqli` (with a database), no config: ERROR;
+    `configs/` under the web root: WARNING; no `_magrathea_config`: WARNING; `SchemaCheck` throwing:
+    one ERROR.
 - Tests: each finding, with `Config::SetConfig()` fixtures, temporary folders and a fake database.
 - Docs: new `docs/mds/core/project-check.md` (DocMap `core`; src `ProjectCheck.php`).
 
 **Impact.** None: it's new.
 
 ### 17. `DB\Dump` and `DB\SqlSplitter`: export and import
-- [ ] done
+- [x] done
 
 **Error.**
 - Backups are export-only: `AdminDatabase::DoBackup()` runs `mysqldump`, and nothing imports.
@@ -908,6 +940,43 @@ groups. The admin's Checks page (item 22), `magrathea check` (item 26) and the w
 **Impact** (M17). Code calling `AdminDatabase::DoBackup()` moves to `Dump::Export()`. `Query()`,
 `QueryMulti()` and `ImportFile()` now split SQL correctly, so statements that broke at a `;` inside
 a value or a comment run whole.
+
+### 17a. `Database`: one execution path for the query methods
+- [x] done
+
+Added 2026-10-29 (Paulo's call), after item 17 on purpose: item 17 rewrites `Query()`'s splitting,
+and this item would collide with it. Numbered `17a` so items 18 to 35 and their **M** sections keep
+their numbers.
+
+**Error.**
+- `Query()`, `QueryAll()`, `QueryRow()` and `QueryOne()` (`DB/Database.php:481-560`) each repeat the
+  same steps: `LogControl()`, `OpenConnectionPlease()`, `RunQuery()`, throw on `false`, set
+  `$this->count`. Only the fetch differs. A fix to error handling has to be made four times.
+- They disagree on failure: when `RunQuery()` returns `false` (only possible with mysqli reporting
+  turned off: the framework never calls `mysqli_report()`, so PHP 8.1+'s default throws), `QueryAll()`,
+  `QueryRow()` and `QueryOne()` throw `MagratheaDBException`, but `Query()` returns `false`.
+- `$count` is written by all four and read by nothing.
+
+**Solution.**
+- A private `Execute(string $sql)` does the shared steps and returns the mysqli result. Each public
+  method keeps only its own part (`Query()`'s splitting from item 17, and the fetch). Their signatures,
+  return values and fetch modes don't change. `QueryMulti()`, `QueryTransaction()` and `Transaction()`
+  stay as they are: they have their own stop/rollback rules.
+- **Decide before implementing (Paulo):** does `Query()` throw on `false` like the other three?
+  Recommended: yes. Otherwise `Execute()` needs a flag to skip the throw.
+- Remove `$count` (dead), unless implementing finds a reader that `grep` missed.
+- Added while implementing (Paulo's call): `QueryTransaction()` throws on a returned error too, and
+  checks `SET autocommit = 0`/`START TRANSACTION` through `TransactionStep()`. No query method
+  returns `false` any more.
+- Tests: through a fake mysqli connection (`FakeConnectionDatabase` in `databaseConnectionTest.php`):
+  each method's return value is unchanged; a `false` result throws `MagratheaDBException` with the SQL
+  from each of them; each method logs the query once.
+- Docs: `database/database.md`'s "Query errors" section, if `Query()` changes.
+
+**Impact** (M17a). None with mysqli's default reporting. If `Query()` throws: projects that turned
+mysqli reporting off (`mysqli_report(MYSQLI_REPORT_OFF)`) and check `Query()`'s result for `false`
+get an exception instead. Detect with
+`grep -rn "mysqli_report" --include='*.php' --exclude-dir=vendor .`.
 
 ---
 

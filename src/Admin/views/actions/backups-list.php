@@ -1,12 +1,11 @@
 <?php
 
-use Magrathea\Admin\AdminDatabase;
 use Magrathea\Admin\AdminElements;
+use Magrathea\DB\Dump;
 
 use function Magrathea\p_r;
 
-$adminDb = AdminDatabase::Instance();
-$folder = $adminDb->GetBackupFolder();
+$folder = Dump::Folder();
 
 /* as given by ChatGPT */
 function getSqlFilesInFolder($folderPath) {

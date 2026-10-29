@@ -1,13 +1,12 @@
 <?php
 
-use Magrathea\Admin\AdminDatabase;
 use Magrathea\Admin\AdminElements;
 use Magrathea\Admin\AdminForm;
+use Magrathea\DB\Dump;
 
 use function Magrathea\p_r;
 
 $adminElements = AdminElements::Instance();
-$adminDb = AdminDatabase::Instance();
 
 $adminElements->Header("Database backups");
 
@@ -34,8 +33,8 @@ $el = [
 	],
 ];
 $val = [
-	"location" => $adminDb->GetBackupFolder(),
-	"filename" => $adminDb->GetDefaultFileName(),
+	"location" => Dump::Folder(),
+	"filename" => Dump::GetDefaultFileName(),
 ];
 $form = new AdminForm();
 $form->SetName("bkp");

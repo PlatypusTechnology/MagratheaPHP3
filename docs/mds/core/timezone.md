@@ -74,3 +74,15 @@ foreach (TimezoneCheck::Run() as $finding) {
 
 Run it after `Load()` and `Connect()`: it uses `Database::Instance()`, and its query opens the
 connection (which is when the sync runs).
+
+`Run()` is the two halves below, in this order. [`ProjectCheck`](project-check.md) uses them apart:
+the config half in its `config` group, which runs without a database, and the database half in its
+`timezone` group. That way an invalid `timezone` is reported once.
+
+### `ConfigFindings(): array`
+The findings about the `timezone` key: missing (`INFO`), the old `time_zone` key (`WARNING`), not a
+valid timezone (`ERROR`). It doesn't connect.
+
+### `DatabaseFindings(): array`
+The rest: PHP's and MySQL's clocks, the comparison of their offsets (`OK` or `ERROR`), and the sync
+state. It opens the connection, and never throws.

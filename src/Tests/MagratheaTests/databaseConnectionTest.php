@@ -68,6 +68,7 @@ class FakeMysqli {
 	public $insert_id = 0;
 	public $rows = [];
 	public $results = [];
+	public $resultModes = [];
 	public $closed = false;
 	private $failures = [];
 
@@ -89,8 +90,9 @@ class FakeMysqli {
 		$this->calls[] = ["set_charset", $charset];
 		return true;
 	}
-	public function query($sql) {
+	public function query($sql, $resultMode = 0) {
 		$this->calls[] = ["query", $sql];
+		$this->resultModes[] = $resultMode;
 		$this->errno = 0;
 		$this->error = "";
 		$fail = $this->TakeFailure("query", $sql);
@@ -445,12 +447,11 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 
 	public static function queryErrorCases(): array {
 		$cases = [];
-		foreach(["QueryAll", "QueryRow", "QueryOne"] as $method) {
+		// all four share Execute(): Query() throws on a returned error too (it returned false before 3.0)
+		foreach(["Query", "QueryAll", "QueryRow", "QueryOne"] as $method) {
 			$cases[$method." thrown"] = [$method, "exception"];
 			$cases[$method." returned"] = [$method, "return"];
 		}
-		// Query() returns false on a returned error (mysqli reporting off)
-		$cases["Query thrown"] = ["Query", "exception"];
 		return $cases;
 	}
 
@@ -475,6 +476,60 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 			}
 		}
 		$this->assertFalse($db->Conn()->closed);
+	}
+
+	function testQueryMethodsReturnValues() {
+		TestsHelper::Print("testing Query(), QueryAll(), QueryRow() and QueryOne() return values, for rows and for writes...");
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$conn = $db->Conn();
+		$conn->rows = [["ID" => "1", "Name" => "a"], ["ID" => "2", "Name" => "b"]];
+
+		$result = $db->Query("SELECT id, name FROM t");
+		$this->assertInstanceOf(FakeMysqliResult::class, $result);
+		$this->assertFalse($result->closed, "Query() hands the open result to the caller");
+		$this->assertTrue($db->Query("UPDATE t SET a = 1"));
+
+		$this->assertSame([["id" => "1", "name" => "a"], ["id" => "2", "name" => "b"]], $db->QueryAll("SELECT id, name FROM t"));
+		$this->assertSame([], $db->QueryAll("UPDATE t SET a = 1"));
+		$this->assertSame(["id" => "1", "name" => "a"], $db->QueryRow("SELECT id, name FROM t"));
+		$this->assertSame([], $db->QueryRow("UPDATE t SET a = 1"));
+		$this->assertSame("1", $db->QueryOne("SELECT id FROM t"));
+		$this->assertNull($db->QueryOne("UPDATE t SET a = 1"));
+		$conn->rows = [];
+		$this->assertNull($db->QueryOne("SELECT id FROM t WHERE 0"));
+
+		$this->assertSame([true, true, true, true], array_map(fn($r) => $r->closed, array_slice($conn->results, 1)), "the fetching methods free their results");
+	}
+
+	public static function queryMethods(): array {
+		return [
+			"Query" => ["Query"],
+			"QueryAll" => ["QueryAll"],
+			"QueryRow" => ["QueryRow"],
+			"QueryOne" => ["QueryOne"],
+			"QueryStream" => ["QueryStream"],
+		];
+	}
+
+	/**
+	 * @dataProvider queryMethods
+	 */
+	function testQueryMethodsLogTheQueryOnce(string $method) {
+		TestsHelper::Print("testing ".$method."() logs its query once...");
+		$debugType = Debugger::Instance()->GetType();
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$db->Conn()->rows = [["id" => "1"]];
+		Debugger::Instance()->SetDev()->LogQueries(true)->StartCapture();
+		try {
+			$rs = $db->$method("SELECT id FROM t");
+			if($rs instanceof \Generator) iterator_to_array($rs);
+			$this->assertSame(["query run: [SELECT id FROM t]"], array_values(array_filter(Debugger::Instance()->GetCaptured(), "is_string")));
+		} finally {
+			while(Debugger::Instance()->IsCapturing()) Debugger::Instance()->StopCapture();
+			Debugger::Instance()->LogQueries(false)->SetType($debugType);
+		}
 	}
 
 	function testLastAffectedRows() {
@@ -664,13 +719,48 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 		$this->assertFalse($db->Conn()->closed);
 	}
 
-	function testQueryTransactionReturnedErrorRollsBack() {
-		TestsHelper::Print("testing a returned error (mysqli reporting off) rolls back and returns false...");
+	function testQueryTransactionReturnedErrorRollsBackAndThrows() {
+		TestsHelper::Print("testing a returned error (mysqli reporting off) rolls back and throws, with its errno (it returned false before 3.0)...");
 		$db = $this->OpenTransactionDb();
 		$db->Conn()->FailNext("query", 1146, "return", "Table doesn't exist", "nope");
-		$this->assertFalse($db->QueryTransaction($this->transaction));
+		try {
+			$db->QueryTransaction($this->transaction);
+			$this->fail("expected MagratheaDBException");
+		} catch(MagratheaDBException $ex) {
+			$this->assertSame(1146, $ex->getCode());
+			$this->assertSame("Table doesn't exist", $ex->getMessage());
+			$this->assertSame($this->transaction[1], $ex->query);
+		}
 		$this->assertSame(["autocommit:off", "begin_transaction", $this->transaction[0], $this->transaction[1], "rollback", "autocommit:on"], $this->TransactionCalls($db->Conn()), "stops at the first failure");
 		$this->assertFalse($db->Conn()->closed, "connection is clean, so it's kept");
+	}
+
+	public static function transactionStartSteps(): array {
+		$cases = [];
+		foreach(["autocommit:off" => "SET autocommit = 0", "begin_transaction" => "START TRANSACTION"] as $step => $sql) {
+			foreach(self::errorReportingModes() as $label => [$mode]) {
+				$cases[$step." ".$label] = [$step, $sql, $mode];
+			}
+		}
+		return $cases;
+	}
+
+	/**
+	 * @dataProvider transactionStartSteps
+	 */
+	function testQueryTransactionFailedStartRunsNothing(string $step, string $sql, string $mode) {
+		TestsHelper::Print("testing a failed ".$sql." throws before any query runs...");
+		$db = $this->OpenTransactionDb();
+		$db->Conn()->FailNext($step, 1205, $mode, "Lock wait timeout exceeded");
+		try {
+			$db->QueryTransaction($this->transaction);
+			$this->fail("expected MagratheaDBException");
+		} catch(MagratheaDBException $ex) {
+			$this->assertSame(1205, $ex->getCode());
+			$this->assertSame($sql, $ex->query);
+		}
+		$this->assertSame([], array_intersect($this->transaction, $this->TransactionCalls($db->Conn())), "no query was sent");
+		$this->assertSame("autocommit:on", array_slice($this->TransactionCalls($db->Conn()), -1)[0], "autocommit is restored");
 	}
 
 	function testQueryTransactionThrownErrorRollsBackAndRethrows() {
@@ -690,14 +780,13 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 		$this->assertFalse($db->Conn()->closed);
 	}
 
-	function testQueryTransactionFailedCommit() {
-		TestsHelper::Print("testing a failed commit rolls back (false when returned, MagratheaDBException when thrown)...");
+	/**
+	 * @dataProvider errorReportingModes
+	 */
+	function testQueryTransactionFailedCommit(string $mode) {
+		TestsHelper::Print("testing a failed commit rolls back and throws MagratheaDBException...");
 		$db = $this->OpenTransactionDb();
-		$db->Conn()->FailNext("commit", 1180, "return", "Got error during COMMIT");
-		$this->assertFalse($db->QueryTransaction($this->transaction));
-		$this->assertSame(["commit", "rollback", "autocommit:on"], array_slice($this->TransactionCalls($db->Conn()), -3));
-
-		$db->Conn()->FailNext("commit", 1180, "exception", "Got error during COMMIT");
+		$db->Conn()->FailNext("commit", 1180, $mode, "Got error during COMMIT");
 		try {
 			$db->QueryTransaction($this->transaction);
 			$this->fail("expected MagratheaDBException");
@@ -706,6 +795,7 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 			$this->assertSame("COMMIT", $ex->query);
 		}
 		$this->assertSame(["commit", "rollback", "autocommit:on"], array_slice($this->TransactionCalls($db->Conn()), -3));
+		$this->assertFalse($db->Conn()->closed);
 	}
 
 	public static function commitConnectionLostModes(): array {
@@ -987,6 +1077,93 @@ class databaseConnectionTest extends \PHPUnit\Framework\TestCase {
 		} finally {
 			Debugger::Instance()->LogQueries(false);
 			TestsHelper::Debug();
+		}
+	}
+
+	private function QueriesRun(FakeMysqli $conn): array {
+		return array_map(fn($c) => $c[1], $conn->Called("query"));
+	}
+
+	function testQuerySplitsWithSqlSplitter() {
+		TestsHelper::Print("testing Query() splits with SqlSplitter: comments, backticks and DELIMITER don't break statements...");
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$db->Query("UPDATE t SET a = 'x;y' -- trailing; comment\n; UPDATE `odd;name` SET b = 1 /* c; */");
+		$this->assertSame(["UPDATE t SET a = 'x;y'", "UPDATE `odd;name` SET b = 1"], $this->QueriesRun($db->Conn()));
+
+		// a single statement runs as the splitter gives it: no DELIMITER line, no delimiter
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$this->assertTrue($db->Query("DELIMITER ;;\nCREATE TRIGGER x BEFORE INSERT ON t FOR EACH ROW BEGIN SET NEW.a = 1; END;;"));
+		$this->assertSame(["CREATE TRIGGER x BEFORE INSERT ON t FOR EACH ROW BEGIN SET NEW.a = 1; END"], $this->QueriesRun($db->Conn()));
+	}
+
+	function testQueryMultiStringSplitsWithSqlSplitter() {
+		TestsHelper::Print("testing QueryMulti() with a string splits it with SqlSplitter (no more explode on ;\\n)...");
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$rs = $db->QueryMulti("INSERT INTO t VALUES ('a;\nb');\nUPDATE t SET a = 1;\r\n");
+		$this->assertSame(["INSERT INTO t VALUES ('a;\nb')", "UPDATE t SET a = 1"], array_column($rs, "query"));
+		$this->assertSame(["INSERT INTO t VALUES ('a;\nb')", "UPDATE t SET a = 1"], $this->QueriesRun($db->Conn()));
+	}
+
+	function testImportFileStreamsTheFile() {
+		TestsHelper::Print("testing ImportFile() runs a file's statements through SqlSplitter, and a missing file throws...");
+		$db = FakeConnectionDatabase::Fresh();
+		$file = tempnam(sys_get_temp_dir(), "magrathea-import-");
+		file_put_contents($file, "-- header\nINSERT INTO t VALUES ('x;\ny');\nDELIMITER //\nCREATE PROCEDURE p() BEGIN SELECT 1; END//\n");
+		$rs = $db->ImportFile($file, false);
+		unlink($file);
+		$this->assertSame(["INSERT INTO t VALUES ('x;\ny')", "CREATE PROCEDURE p() BEGIN SELECT 1; END"], array_column($rs, "query"));
+		$this->expectException(MagratheaDBException::class);
+		$db->ImportFile($file);
+	}
+
+	function testInstallDatabaseRunsEveryStatement() {
+		TestsHelper::Print("testing Install::InstallDatabase() runs each statement of the admin's database.sql...");
+		$previous = Database::Instance();
+		$db = FakeConnectionDatabase::Fresh();
+		Database::MockClass($db);
+		try {
+			$rs = (new \Magrathea\Admin\Install())->InstallDatabase();
+		} finally {
+			Database::MockClass($previous);
+		}
+		$this->assertCount(5, $rs);
+		$this->assertSame([true, true, true, true, true], array_column($rs, "success"));
+		$this->assertStringStartsWith("CREATE TABLE `_magrathea_logs`", $this->QueriesRun($db->Conn())[4]);
+	}
+
+	function testQueryStreamIsUnbuffered() {
+		TestsHelper::Print("testing QueryStream() runs MYSQLI_USE_RESULT, yields lowercase rows and frees the result...");
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$db->Conn()->rows = [["ID" => "1"], ["ID" => "2"]];
+		$rows = iterator_to_array($db->QueryStream("SELECT ID FROM t"), false);
+		$this->assertSame([["id" => "1"], ["id" => "2"]], $rows);
+		$this->assertSame([1], $db->Conn()->resultModes);
+		$this->assertTrue($db->Conn()->results[0]->closed);
+
+		// a generator stopped early still frees the result
+		$db->Conn()->rows = [["id" => "1"], ["id" => "2"]];
+		foreach($db->QueryStream("SELECT id FROM t") as $row) break;
+		$this->assertTrue($db->Conn()->results[1]->closed);
+	}
+
+	/**
+	 * @dataProvider errorReportingModes
+	 */
+	function testQueryStreamErrorThrows(string $mode) {
+		TestsHelper::Print("testing a failed QueryStream() throws MagratheaDBException...");
+		$db = FakeConnectionDatabase::Fresh();
+		$db->Escape("open");
+		$db->Conn()->FailNext("query", 1146, $mode, "Table 't' doesn't exist");
+		try {
+			iterator_to_array($db->QueryStream("SELECT id FROM t"));
+			$this->fail("expected MagratheaDBException");
+		} catch(MagratheaDBException $ex) {
+			$this->assertSame(1146, $ex->getCode());
+			$this->assertSame("SELECT id FROM t", $ex->query);
 		}
 	}
 

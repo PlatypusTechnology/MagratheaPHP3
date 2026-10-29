@@ -1,14 +1,13 @@
 <?php
 
-use Magrathea\Admin\AdminDatabase;
 use Magrathea\Admin\AdminElements;
 use Magrathea\Admin\AdminFiles;
+use Magrathea\DB\Dump;
 use Magrathea\Exceptions\MagratheaException;
 
-$adminDb = AdminDatabase::Instance();
 try {
-	$filename = $adminDb->ValidateBackupFileName(@$_POST["filename"]);
-	$viewFile = AdminFiles::ResolveInFolder($adminDb->GetBackupFolder(), $filename);
+	$filename = Dump::ValidateBackupFileName(@$_POST["filename"]);
+	$viewFile = AdminFiles::ResolveInFolder(Dump::Folder(), $filename);
 } catch(MagratheaException $ex) {
 	$viewFile = null;
 }

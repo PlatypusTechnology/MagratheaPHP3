@@ -364,7 +364,8 @@ after the insert. A `NOT NULL` column with no default makes every insert fail. O
 the application sets itself are `DATETIME NULL`, never a bare `TIMESTAMP`: with MySQL 5.7's
 `explicit_defaults_for_timestamp=OFF`, a table's first bare `TIMESTAMP` column silently gets
 `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`. The admin's own tables
-(`src/Admin/database.sql`) follow this contract.
+(`src/Admin/database.sql`) follow this contract. `DB\SchemaCheck` (see the Schema page) finds the
+tables that break it, each with the `ALTER` that fixes it.
 
 Since MySQL computes the values, they're in MySQL's session zone. When the config has a
 `timezone`, each connection sets that session zone to PHP's (see the Database page, "Timezone

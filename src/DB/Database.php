@@ -43,7 +43,6 @@ class Database extends Singleton {
 	private $connDetails;
 	private $fetchmode;
 
-	private $count = 0;
 	private $affectedRows = 0;
 
 	/** nesting level of Transaction() calls (0: none open) */
@@ -413,13 +412,14 @@ class Database extends Singleton {
 	/**
 	* Runs a query on this instance's connection
 	* @param 	string 		$sql 		Query to be executed
+	* @param 	int 		$resultMode 	mysqli's result mode (`MYSQLI_STORE_RESULT`, 0, or `MYSQLI_USE_RESULT`, 1)
 	* @return 	\mysqli_result|bool 		mysqli's query result (false on error, with mysqli reporting off)
 	* @throws	MagratheaDBException 	if mysqli throws (PHP 8.1+ default reporting)
 	* @throws	MagratheaDBConnectionLostException
 	*/
-	private function RunQuery(string $sql) {
+	private function RunQuery(string $sql, int $resultMode = 0) {
 		try {
-			$result = $this->mysqli->query($sql);
+			$result = $resultMode ? $this->mysqli->query($sql, $resultMode) : $this->mysqli->query($sql);
 		} catch(\mysqli_sql_exception $ex) {
 			throw $this->FromMysqliException($ex, $sql);
 		}
@@ -431,123 +431,84 @@ class Database extends Singleton {
 	}
 
 	/**
-	 * Splits a SQL string into individual statements, respecting quoted strings
-	 * so that semicolons inside 'values' or "values" are not treated as separators.
-	 * @param  string   $sql  Raw SQL string, possibly containing multiple statements
-	 * @return string[]       Array of individual SQL statements (trimmed, non-empty)
-	 */
-	private function SplitQueries(string $sql): array {
-		$queries = [];
-		$current = '';
-		$len = strlen($sql);
-		$inString = false;
-		$stringChar = '';
-
-		for ($i = 0; $i < $len; $i++) {
-			$char = $sql[$i];
-			if ($inString) {
-				$current .= $char;
-				if ($char === '\\') {
-					if ($i + 1 < $len) $current .= $sql[++$i];
-				} elseif ($char === $stringChar) {
-					$inString = false;
-				}
-			} else {
-				if ($char === "'" || $char === '"') {
-					$inString = true;
-					$stringChar = $char;
-					$current .= $char;
-				} elseif ($char === ';') {
-					$trimmed = trim($current);
-					if ($trimmed !== '') $queries[] = $trimmed;
-					$current = '';
-				} else {
-					$current .= $char;
-				}
-			}
+	* The steps every Query*() method shares: logs the query, opens the connection, runs it and throws on an error.
+	* Each method keeps only its own fetch.
+	* @param 	string 		$sql 		Query to be executed
+	* @param 	int 		$resultMode 	mysqli's result mode (`MYSQLI_STORE_RESULT`, 0, or `MYSQLI_USE_RESULT`, 1)
+	* @return 	\mysqli_result|true 		mysqli's result (true for statements that return no rows)
+	* @throws	MagratheaDBException 	on a MySQL error, whatever mysqli's reporting mode
+	* @throws	MagratheaDBConnectionLostException
+	*/
+	private function Execute(string $sql, int $resultMode = 0) {
+		$this->LogControl($sql);
+		$this->OpenConnectionPlease();
+		$result = $this->RunQuery($sql, $resultMode);
+		if($result === false) {
+			throw $this->ErrorHandle($this->mysqli->error, $sql, null, $this->mysqli->errno);
 		}
-
-		$trimmed = trim($current);
-		if ($trimmed !== '') $queries[] = $trimmed;
-
-		return $queries;
+		return $result;
 	}
 
 	/**
-	* executes the query and returns the full data
+	* executes the query and returns the full data.
+	* The SQL is split with `SqlSplitter`: more than one statement runs through `QueryMulti()` (and returns its results);
+	* a single one runs as the splitter gives it (comments and the delimiter removed, so `DELIMITER` lines work).
 	* @param 	string 		$sql 		Query to be executed
-	* @return 	object 		$result 	Result of the query
+	* @return 	\mysqli_result|true|array 		mysqli's result (true for statements that return no rows); `QueryMulti()`'s results for more than one statement
+	* @throws	MagratheaDBException
 	*/
 	public function Query(string $sql){
-		$queries = $this->SplitQueries($sql);
+		$queries = SqlSplitter::Split($sql);
 		if (count($queries) > 1) {
 			return $this->QueryMulti($queries);
 		}
-		$this->LogControl($sql);
-		$this->OpenConnectionPlease();
-		$result = $this->RunQuery($sql);
-		if(is_object($result))
-			$this->count = $result->num_rows;
-		return $result;
+		if (count($queries) == 1) $sql = $queries[0];
+		return $this->Execute($sql);
 	}
-	
+
 	/**
 	* executes the query and returns the full data in an array
 	* @param 	string 		$sql 		Query to be executed
 	* @return 	array 		$result 	Result of the query (one row for line result)
+	* @throws	MagratheaDBException
 	*/
 	public function QueryAll(string $sql){
 		$arrRetorno = array();
-		$this->LogControl($sql);
-		$this->OpenConnectionPlease();
-		$result = $this->RunQuery($sql);
-		if(!$result){
-			throw $this->ErrorHandle($this->mysqli->error, $sql, null, $this->mysqli->errno);
-		}
+		$result = $this->Execute($sql);
 		if(is_object($result) ){
-			$this->count = $result->num_rows;
 			$arrRetorno = $this->FetchResult($result);
 			$result->close();
 		}
 		return $arrRetorno;
 	}
-	
+
 	/**
 	* executes the query and returns only the first row of the result
 	* @param 	  array|object|string 		$sql 		Query to be executed
 	* @return 	array 		      				$result 	First line of the query
+	* @throws	MagratheaDBException
 	*/
 	public function QueryRow(string $sql) : array | object {
 		$arrRetorno = array();
-		$this->LogControl($sql);
-		$this->OpenConnectionPlease();
-		$result = $this->RunQuery($sql);
-		if(!$result){
-			throw $this->ErrorHandle($this->mysqli->error, $sql, null, $this->mysqli->errno);
-		}
+		$result = $this->Execute($sql);
 		if(is_object($result) ){
-			$this->count = $result->num_rows;
-			if($this->count > 0)
+			if($result->num_rows > 0)
 				$arrRetorno = $this->FetchResult($result, true);
 			$result->close();
 		}
 		return $arrRetorno;
 	}
-	
+
 	/**
 	* executes the query and returns only the first value of the first row of the result
 	* @param 	string 		$sql 		Query to be executed
 	* @return 	object 		$result 	First value of the first line
+	* @throws	MagratheaDBException
 	*/
 	public function QueryOne($sql){
-		$this->LogControl($sql);
-		$this->OpenConnectionPlease();
-		$result = $this->RunQuery($sql);
-		if(!$result){
-			throw $this->ErrorHandle($this->mysqli->error, $sql, null, $this->mysqli->errno);
-		}
+		$rs = null;
+		$result = $this->Execute($sql);
 		if(is_object($result) ){
-			$this->count = $result->num_rows;
 			$rs = $result->fetch_row();
 			$result->close();
 		}
@@ -555,11 +516,31 @@ class Database extends Singleton {
 	}
 
 	/**
+	* Runs a query unbuffered (`MYSQLI_USE_RESULT`) and yields its rows one at a time, as associative arrays
+	* with lowercase keys: a big result never sits in memory.
+	* Until every row is read (or the generator is destroyed), nothing else can run on this connection.
+	* @param 	string 		$sql 		Query to be executed
+	* @return 	\Generator 		yields each row (array)
+	* @throws 	MagratheaDBException
+	*/
+	public function QueryStream(string $sql): \Generator {
+		$result = $this->Execute($sql, 1); // MYSQLI_USE_RESULT
+		if(!is_object($result)) return;
+		try {
+			while($row = $result->fetch_assoc()) {
+				yield array_change_key_case($row, CASE_LOWER);
+			}
+		} finally {
+			$result->free();
+		}
+	}
+
+	/**
 	* receives an array of queries and executes them all in one transaction.
 	* Stops at the first failing query and rolls everything back.
 	* @param 	array 		$query_array  	Array of queries to be executed
-	* @return 	bool 		true on success; false if a query (or the commit) failed and mysqli returned the error (mysqli reporting off)
-	* @throws 	MagratheaDBException 	if mysqli threw the error (PHP 8.1+ default reporting), after the rollback
+	* @return 	bool 		true (a failure throws)
+	* @throws 	MagratheaDBException 	if a query, the begin or the commit fails, whatever mysqli's reporting mode, after the rollback
 	* @throws 	MagratheaDBConnectionLostException 	if the connection is lost (MySQL discards the transaction with it)
 	*/
 	public function QueryTransaction($query_array){
@@ -569,22 +550,15 @@ class Database extends Singleton {
 		$this->OpenConnectionPlease();
 
 		try {
-			$this->MysqliCall("SET autocommit = 0", fn() => $this->mysqli->autocommit(false));
-			$this->MysqliCall("START TRANSACTION", fn() => $this->mysqli->begin_transaction());
+			$this->TransactionStep("SET autocommit = 0", fn() => $this->mysqli->autocommit(false));
+			$this->TransactionStep("START TRANSACTION", fn() => $this->mysqli->begin_transaction());
 			foreach( $query_array as $query ){
 				$this->LogControl($query);
 				if ($this->RunQuery($query) === false) {
-					$this->ErrorHandle($this->mysqli->error, $query, null, $this->mysqli->errno);
-					$this->RollbackTransaction();
-					return false;
+					throw $this->ErrorHandle($this->mysqli->error, $query, null, $this->mysqli->errno);
 				}
 			}
-			if (!$this->MysqliCall("COMMIT", fn() => $this->mysqli->commit())) {
-				$this->CheckConnectionLost($this->mysqli->errno, $this->mysqli->error, "COMMIT");
-				$this->ErrorHandle($this->mysqli->error, "COMMIT", null, $this->mysqli->errno);
-				$this->RollbackTransaction();
-				return false;
-			}
+			$this->TransactionStep("COMMIT", fn() => $this->mysqli->commit());
 		} catch(MagratheaDBConnectionLostException $ex) {
 			throw $ex;
 		} catch(\Exception $ex) {
@@ -683,16 +657,18 @@ class Database extends Singleton {
 
 
 	/**
-	* receives a string with multiple queries and executes them all
-	*	@todo confirms if this is working properly
-	* @param 	array|string 		$multipleQueries  	String of queries to be executed
+	* executes several statements, one by one, and returns each one's result.
+	* A string is split with `SqlSplitter`; an array (or any iterable, such as `SqlSplitter::FromFile()`) is run as it is,
+	* one statement per item.
+	* @param 	iterable|string 		$queries  	statements, or a string with them
 	* @param 	bool						$killable						Should all queries be killed in case of error?
+	* @return 	array 		one ["query", "success", "result" (rows, or the error message)] per statement
 	* @throws 	MagratheaDBException 	with $killable, on the first failing statement
 	* @throws 	MagratheaDBConnectionLostException 	always, even without $killable: the next statements can't run
 	*/
 	public function QueryMulti($queries, $killable=true) {
 		if (is_string($queries)) {
-			$queries = explode(";\n", $queries);
+			$queries = SqlSplitter::Split($queries);
 		}
 		$this->OpenConnectionPlease();
 		$results = array();
@@ -747,18 +723,18 @@ class Database extends Singleton {
 	}
 
 	/**
-	 * imports a .sql file to the database
+	 * imports a .sql file to the database: streamed with `SqlSplitter::FromFile()`, through `QueryMulti()`.
+	 * Every statement's result is returned, so it's meant for small files: dumps go through `Dump::Import()`.
 	 * @param		string 	$file_path		Path of the file to import
 	 * @param 	bool		$killable			Should all queries be killed in case of error?
-	 * @throws 	MagratheaDBException
+	 * @return 	array 		`QueryMulti()`'s results
+	 * @throws 	MagratheaDBException 	also when the file can't be read
 	 */
 	public function ImportFile($file_path, $killable=true) {
 		if(!$file_path) {
 			throw new MagratheaDBException("SQL file path is empty: [".$file_path."]");
 		}
-		$queries = file_get_contents($file_path);
-		$rs = $this->QueryMulti($queries, $killable);
-		return $rs;
+		return $this->QueryMulti(SqlSplitter::FromFile($file_path), $killable);
 	}
 	
 	/**

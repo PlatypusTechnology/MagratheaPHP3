@@ -47,7 +47,8 @@ project, without the rest of the docs.
 | M11 | `Update()` never writes `created_at`/`updated_at`; an unchanged object runs no query | **Yes**: `updated_at` needs `ON UPDATE CURRENT_TIMESTAMP` | Run the schema check, ALTER the tables | ⚠ |
 | M12 | New `Touch()`; `Save()` no longer bumps `updated_at` on its own | Where code relied on that; a model declaring its own `Touch()` with another signature | Use `Touch()`; rename or fix the model's own | ⚠ |
 | M13 | Every model table needs `created_at`/`updated_at` (already true, now checked); the admin's install schema uses `DATETIME` | No | Covered by M11's check; optional `last_login` fix | |
-| M14–M17 | New `DB\Schema`, `DB\SchemaCheck`, `ProjectCheck`, `DB\Dump`; `AdminDatabase` loses `GetTables()`, `GetTableColumns()`, `DoBackup()` | Only where those three are called | Use `Schema`/`Dump` | |
+| M14–M17 | New `DB\Schema`, `DB\SchemaCheck`, `ProjectCheck`, `DB\Dump`, `DB\SqlSplitter`; `AdminDatabase` keeps only its SQL file helpers; `Query()`, `QueryMulti()` and `ImportFile()` split SQL correctly | Only where the removed `AdminDatabase` methods are called; rarely, SQL that only ran because of the old split | Use `Schema`/`Dump` | |
+| M17a | `Query()` and `QueryTransaction()` throw `MagratheaDBException` on a failure with mysqli reporting off (they returned `false`) | Only with `mysqli_report(MYSQLI_REPORT_OFF)` and code checking their result for `false` | Catch the exception | |
 | M18–M23 | The admin's Database section (explorer, query editor, dumps, checks); menu items changed | Only for custom menus using removed items | Fix the menu | |
 | M24–M26 | New `vendor/bin/magrathea` CLI; framework error pages print text in the CLI | No | Declare the bootstrap if it isn't `app/_inc.php` | |
 | M27–M28 | Setup Wizard rebuilt: dedicated entry file, token lock | Yes, for projects with a 2.x wizard entry file | Replace or delete that file | ⚠ |
@@ -316,7 +317,7 @@ loads. `GetItem("tools-file-editor")` returns `null`, which `AdminMenu::Add()` i
 ```bash
 grep -rnE 'ShowAll\(|LoadVendor|Query::Clean|::Clean\(|CloseConnectionThanks|IncludeAllModels|GetNextID|GetAutoLoad|autoLoad\b|ResponseUserPayload|StartDB\(' --include='*.php' --exclude-dir=vendor .
 grep -rn --include='*.php' --exclude-dir=vendor -e '->Start()' .   # only calls on a MagratheaApi object matter
-grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand)\(' --include='*.php' --exclude-dir=vendor .   # only calls on AdminDatabase matter
+grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand|LoadBackupFolder|GetBackupFolder|GetDefaultFileName|ValidateBackupFileName)\(' --include='*.php' --exclude-dir=vendor .   # only calls on AdminDatabase matter
 ```
 
 **What to do.** Replace each call:
@@ -333,8 +334,9 @@ grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand)\(' --include='*.php' 
 | `$this->autoLoad` (capital `L`, the property behind `GetAutoLoad()`) | nothing: `GetById()` never read it. Relations loaded with a join go in `$autoload` (M6). A model that declares `protected $autoLoad` itself is unaffected |
 | `MagratheaApiAuth::ResponseUserPayload($user)` | `ResponsePayload($payload)`, or a payload built in your auth class. The keys differ: `token`, `expires`, `data`, `refresh_token` |
 | `$api->Start()` on a `MagratheaApi` | nothing: `Run()` does the work. Delete the call |
-| `AdminDatabase::Instance()->GetTables()` / `GetTableColumns($t)` | `(new \Magrathea\DB\Schema())->Tables()` / `->Columns($t)` (M14). The rows have different keys; `Tables(false)` leaves out the `_magrathea_*` tables, as `GetTables(false)` did |
-| `AdminDatabase::Instance()->DoBackup($name)` / `GetCommand()` | `(new \Magrathea\DB\Dump())->Export($name)` (M17) |
+| `AdminDatabase::Instance()->GetTables()` / `GetTableColumns($t)` | `(new \Magrathea\DB\Schema())->Tables()` / `->Columns($t)` (M14). The rows have different keys: `$t["table_name"]` → `$t["name"]`; a column's `pk` → `$c["key"] === "PRI"` (`name`, `type`, `default`, `nullable` keep their meaning). `Tables(false)` leaves out the `_magrathea_*` tables, as `GetTables(false)` did. `Tables()` also lists views (`type` is `VIEW`). `GetTables()`'s `$db` argument is gone: `Schema` reads the connection's current database. `Columns()` of an unknown table throws `MagratheaDBException` (`GetTableColumns()` threw MySQL's error) |
+| `AdminDatabase::Instance()->DoBackup($name)` / `GetCommand()` | `(new \Magrathea\DB\Dump())->Export($name)` (M17). It returns `["file", "size", "driver"]` (plus `skipped` with the php driver), and runs `mysqldump` with `--single-transaction --routines --triggers --default-character-set=utf8mb4` instead of `--opt` (on by default anyway). Without `mysqldump`, it falls back to the php driver instead of throwing |
+| `AdminDatabase::Instance()->GetBackupFolder()` / `LoadBackupFolder()` / `GetDefaultFileName()` / `ValidateBackupFileName($n)` | `\Magrathea\DB\Dump::Folder()` / nothing (`Folder()` reads the config on every call) / `Dump::GetDefaultFileName()` / `Dump::ValidateBackupFileName($n)`, all static (M17). `AdminDatabase` keeps only `GetSQLFile()` and `GetSQLFileContents()` |
 | `MagratheaPHP::Instance()->StartDB()` | `Connect()`. `StartDB()` still works in 3.0 (deprecated, removed in 4.0; in DEV it adds a deprecation notice to the Debugger, so in an API call it shows in `_debug`) |
 
 ## M6. `MagratheaModel` defaults
@@ -583,9 +585,17 @@ grep -rnE "[\"']uuid[\"']" --include='*.php' --exclude-dir=vendor .
    vendor/bin/magrathea check --json
    vendor/bin/magrathea models:verify --json
    ```
-   Every table whose `created_at` lacks `DEFAULT CURRENT_TIMESTAMP`, or whose `updated_at` lacks
-   `ON UPDATE CURRENT_TIMESTAMP`, is listed with the `ALTER TABLE … MODIFY …` that fixes it (the
-   finding's `fix`). The ALTER keeps the column's type and nullability.
+   Every table whose `created_at` or `updated_at` lacks `DEFAULT CURRENT_TIMESTAMP`, whose
+   `updated_at` lacks `ON UPDATE CURRENT_TIMESTAMP`, or whose `created_at` has it (MySQL 5.7 gives
+   it to a table's first bare `TIMESTAMP`, so `created_at` changes on every update) is listed with
+   the `ALTER TABLE … MODIFY …` that fixes it (the finding's `fix`). The ALTER keeps the column's
+   type and nullability. Before applying one, check two things, because `MODIFY` redefines the
+   whole column:
+   - a column `COMMENT` is dropped: add it back to the ALTER;
+   - the ALTER assumes a `DATETIME` or `TIMESTAMP` column. MySQL rejects it on any other type: the
+     2.x admin's "add created_at/updated_at" created `varchar(255) NULL` columns. **⚠ Ask the
+     human** before converting such a column to `DATETIME`, since values that don't parse as dates
+     fail the conversion.
 2. Apply the ALTERs on **staging**, then rerun the checks until they're clean.
 3. **⚠ Production:** show the human the list of ALTERs and the table sizes:
    ```sql
@@ -656,13 +666,58 @@ ALTER TABLE `_magrathea_users` MODIFY `last_login` TIMESTAMP NULL DEFAULT NULL;
 
 **What changed.**
 - New classes: `Magrathea\DB\Schema` (introspection), `DB\SchemaCheck` (model ↔ table drift and
-  timestamps), `ProjectCheck` (config, folders, database, timezone), `DB\Dump` (export and import,
+  timestamps), `ProjectCheck` (config, folders, database, timezone, schema), `DB\Dump` (export and import,
   through `mysqldump` or in PHP) and `DB\SqlSplitter`.
-- `AdminDatabase` keeps only the backup folder and the admin's SQL file helpers.
-- `Database::Query()`, `QueryMulti()` and `ImportFile()` now split SQL correctly: they respect
-  quotes, comments, backticks and `DELIMITER`, instead of splitting on `";\n"`.
+- `AdminDatabase` keeps only the admin's SQL file helpers (`GetSQLFile()`, `GetSQLFileContents()`).
+  The backup folder and the backup file names moved to `DB\Dump`, statics: `Folder()`,
+  `GetDefaultFileName()`, `ValidateBackupFileName()`.
+- `Database::Query()`, `QueryMulti()` (given a string) and `ImportFile()` split SQL with
+  `SqlSplitter`: they respect quotes, backticks, comments and `DELIMITER`, so a statement with `;`
+  inside a value or a comment runs whole. `QueryMulti()` split strings on `";\n"`, and `Query()`
+  knew only quotes. `ImportFile()` reads the file in chunks instead of loading it whole (it still
+  returns every statement's result: dumps go through `Dump::Import()`), and throws
+  `MagratheaDBException` when the file can't be read.
+- `Query()` with a single statement sends it as the splitter gives it: comments removed (except
+  `/*!…*/` and `/*+…*/`), no trailing delimiter. A `DELIMITER` line in it works now (it reached MySQL
+  as a syntax error).
+- `QueryMulti()` accepts any iterable of statements, not only an array.
+- New `Database::QueryStream($sql)`: an unbuffered query (`MYSQLI_USE_RESULT`) that yields its rows.
 
-**What to do.** Replace the calls (M5's table).
+**Applies if**, for the split: the project runs multi-statement SQL through `Query()`,
+`QueryMulti()` with a string, or `ImportFile()`:
+```bash
+grep -rnE 'QueryMulti\(|ImportFile\(' --include='*.php' --exclude-dir=vendor .
+```
+SQL that the old split cut wrongly failed with a MySQL error, so this only fixes it. One case is
+still split wrongly, as before: with the `NO_BACKSLASH_ESCAPES` SQL mode, a string ending in `\`
+(`'C:\'`) is read as escaping its closing quote.
+
+**What to do.** Replace the calls (M5's table). Nothing for the split.
+
+## M17a. `Query()` and `QueryTransaction()` throw on a returned error
+
+**Applies if** the project turns mysqli's error reporting off:
+```bash
+grep -rn "mysqli_report" --include='*.php' --exclude-dir=vendor .
+```
+Nothing found: skip. With PHP 8.1+'s default reporting, mysqli throws, and both methods already threw
+`MagratheaDBException`.
+
+**What changed.**
+- `Query()`, `QueryAll()`, `QueryRow()`, `QueryOne()` and `QueryStream()` share one execution path.
+  With mysqli reporting off, a failed `Query()` returned `false`; it now throws `MagratheaDBException`
+  (code = MySQL's errno, `query` = the SQL), like the others.
+- `QueryTransaction()`, with reporting off, returned `false` when a statement or the `COMMIT` failed; it
+  now rolls back and throws `MagratheaDBException`, as it did with default reporting. A failed
+  `SET autocommit = 0` or `START TRANSACTION` was ignored, and the statements ran anyway; it now
+  throws before any statement is sent. It returns `true` on success, as before.
+
+**What to do.** List the calls:
+```bash
+grep -rnE -- '->(Query|QueryTransaction)\(' --include='*.php' --exclude-dir=vendor .
+```
+For each one whose result is checked for `false` (`=== false`, `if (!$rs)`, `or die`), catch
+`MagratheaDBException` instead.
 
 ## M18–M23. The admin "Database" section
 

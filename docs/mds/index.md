@@ -35,6 +35,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | [MagratheaPHP](core/magrathea-php.md) | Main entry point, app bootstrap |
 | [Config](core/config.md) | INI-based configuration |
 | [TimezoneCheck](core/timezone.md) | PHP/MySQL timezone sync and troubleshooter |
+| [ProjectCheck](core/project-check.md) | The project's health as findings: config, folders, database, timezone, schema |
 | [Singleton](core/singleton.md) | Base singleton pattern |
 | [MagratheaHelper](core/helper.md) | Utility / helper functions |
 | [Global Functions](core/global-functions.md) | Procedural helpers & autoloader |
@@ -46,6 +47,8 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | [Query Builder](database/query-builder.md) | Fluent SQL query construction |
 | [MagratheaModel](database/orm-model.md) | ORM base model class |
 | [MagratheaModelControl](database/orm-control.md) | Static ORM query interface |
+| [Schema](database/schema.md) | Tables, columns and indexes as data; models checked against their tables |
+| [Dump](database/dump.md) | Export and import the database (`mysqldump` or PHP); SQL split into statements |
 
 ### API Framework
 | File | Description |
