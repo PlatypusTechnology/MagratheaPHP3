@@ -484,7 +484,7 @@ that don't explain themselves (all four verified):
   why the base declarations stay untyped: typing them would break every generated model.
 
 ### 7. Field types: one list, unknown types throw
-- [ ] done
+- [x] done
 
 **Error.**
 - `GetDataTypeFromField()` (`MagratheaModel.php:553-573`) has no `default`. An unknown type returns
@@ -496,20 +496,28 @@ that don't explain themselves (all four verified):
 
 **Solution.**
 - `const TYPES = ["int", "boolean", "string", "text", "float", "decimal", "datetime", "date", "uuid"];`
-  on `MagratheaModel`. The aliases `integer` and `double` stay accepted: `GetDataTypeFromField()` and
-  `CoerceValue()` already handle them.
+  on `MagratheaModel`, with no aliases: 2.x's `integer` and `double` are removed (decided while
+  implementing: every type comparison had to remember them, and `CoerceValue()`, `ValidateId()` and
+  `GetById()` didn't).
 - `GetDataTypeFromField()` gets a `default` that throws
-  `MagratheaModelException("Unknown field type [x]: use one of …")`. `Insert()`, `Update()` and
-  `Delete()` let it propagate, and the drift check (item 15) reports it with the model and field.
+  `MagratheaModelException("Unknown field type [x]: use one of …")`, and so does `CoerceValue()`
+  (`$strictTypes` loads). An unknown type throws only where it's used, from switches that already
+  run: no extra check per call (decided while implementing, for performance). A type nothing uses
+  doesn't throw at runtime.
+- A public `ValidateTypes()` checks every `$dbValues` type, naming the model and the field. Nothing
+  calls it at runtime: it's for the drift check (item 15), which reports what runtime doesn't catch.
+  It throws on the first bad field only, so item 15 lists the others itself if it wants all of them.
 - `AdminUser`: `"active" => "boolean"`.
-- Tests: an unknown type throws on `Insert()` and `Update()`; the aliases work; every framework
-  model's `$dbValues` uses only `TYPES`.
+- Tests: an unknown type (including `integer`/`double`) throws on a write that binds it and on a
+  strict load, before any query; an unused one doesn't throw; every `TYPES` entry writes and loads;
+  every framework model's `$dbValues` uses only `TYPES`.
 
-**Impact** (M7). A model with an unknown type (`"bool"`, `"varchar"`, `"tinyint"`, `"json"`, a
-typo) throws on its first write.
+**Impact** (M7). A model with an unknown type (`"bool"`, `"varchar"`, `"tinyint"`, `"json"`,
+`"integer"`, `"double"`, a typo) throws the first time a write binds that field or a strict load
+reads it.
 
 ### 8. Controls: `$model` and a derived `$dbTable`
-- [ ] done
+- [x] done
 
 **Error.** A Control repeats what its model already knows: `$modelNamespace`, `$modelName` and
 `$dbTable` (`MagratheaModelControl.php:27-29`). The generator kept them in sync; an agent has to
@@ -525,10 +533,19 @@ remember to. A Control whose `$dbTable` differs from its model's makes `GetAll()
 - Tests: a Control with only `$model` queries the model's table; the three-property form is
   unchanged; an explicit `$dbTable` wins.
 
-**Impact.** None: it's additive.
+**Impact** (M8). Almost none: it's additive, but a Control that declares its own `$model` (non-static
+or `private`) or `GetDbTable()` (non-static or non-public) is now a fatal error at class load
+(verified while implementing). `__toString()` (`:313`) also goes through `GetModelName()` and
+`GetDbTable()`.
+
+**Also fixed while implementing** (Paulo's call, M8): `GetRowWhere()` with a string called
+`GetSimpleWhere()` and returned an array of every match; it now returns the first object or `null`,
+like the array form. Breaking for code that used that array. The framework Controls (`AdminUserControl`,
+`AppConfigControl`, `AdminLogControl`) declare only `$model`, as reference Controls, and `AdminUserControl`
+reads its table with `GetDbTable()`.
 
 ### 9. `$strictTypes` defaults to `true`
-- [ ] done
+- [x] done
 
 **Error.** With `$strictTypes = false` (`MagratheaModel.php:45`), every `int`, `boolean` and `float`
 field comes back as a string. Code and tests written by agents assume native types, and the docs
@@ -544,6 +561,13 @@ already recommend `true` for new models.
 (`"42"` → `42`, `"1"` → `true`), which changes API JSON and `===` comparisons. The migration pins
 `protected $strictTypes = false;` on every existing model, then diffs API snapshots to catch a
 missed one.
+
+**Also fixed while implementing** (Paulo's call): the admin had no string comparisons of model
+fields, but `AdminElements::Table()` and `AdminForm` printed values with `(string)`, so a strict
+`false` showed as an empty cell or text input (the generic CRUD renders `boolean` fields as text),
+and saving an untouched CRUD form posted `""`, which `ValueChanged()` counts as a change. Both
+render booleans as `1`/`0`, as the driver did. `Assign()`/`Set()` still don't cast input: an
+object holds what was assigned until it's reloaded (items 10 and 11 reload in the API).
 
 ---
 

@@ -142,10 +142,10 @@ class modelDefaultsTest extends \PHPUnit\Framework\TestCase {
 		]);
 		$json = (new Gizmo(5))->ToJson();
 		$this->assertSame(Gizmo::class, $json["object"]);
-		$this->assertSame("5", $json["id"]);
+		$this->assertSame(5, $json["id"]);
 		$this->assertSame("2026-01-01 10:00:00", $json["created_at"]);
 		$this->assertSame("2026-01-02 10:00:00", $json["updated_at"]);
-		$this->assertSame(["id" => "5", "name" => "spinner"], $json["fields"]);
+		$this->assertSame(["id" => 5, "name" => "spinner"], $json["fields"]);
 		$this->assertNull((new Gizmo())->ToJson()["created_at"]);
 	}
 
@@ -259,7 +259,7 @@ class modelDefaultsTest extends \PHPUnit\Framework\TestCase {
 		$this->db->row = $this->Row($table, ["id" => "2"] + $fields + ["created_at" => "2026-01-01 10:00:00"]);
 		$model = new $class(2);
 		$this->assertStringContainsString("FROM `".$table."`", $this->db->queries[0]);
-		$this->assertSame("2", $model->id);
+		$this->assertSame(2, $model->id);
 		foreach($fields as $field => $value) $this->assertSame($value, $model->$field);
 		$this->assertSame("2026-01-01 10:00:00", $model->ToJson()["created_at"]);
 		$this->assertInstanceOf($control, $model->GetControl());

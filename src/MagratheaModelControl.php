@@ -24,12 +24,34 @@ use Magrathea\Exceptions\MagratheaModelException;
 #######################################################################################
 
 abstract class MagratheaModelControl{
+	/** model's class name (`Article::class`); when set, `$modelNamespace` and `$modelName` are not needed */
+	protected static $model;
 	protected static $modelNamespace;
 	protected static $modelName;
+	/** model's table; when not set, it's read from the model */
 	protected static $dbTable;
+	private static $dbTableCache = [];
 
+	/**
+	 * Model's class name: `$model` when it's set, else `$modelNamespace\$modelName`
+	 * @return 	string 	model's class name
+	 */
 	public static function GetModelName() {
+		if(!empty(static::$model)) return static::$model;
 		return static::$modelNamespace."\\".static::$modelName;
+	}
+
+	/**
+	 * Model's table: `$dbTable` when it's set, else the table of a new (empty) model, cached per Control
+	 * @return 	string 	table name
+	 */
+	public static function GetDbTable() {
+		if(!empty(static::$dbTable)) return static::$dbTable;
+		if(!array_key_exists(static::class, self::$dbTableCache)) {
+			$modelName = static::GetModelName();
+			self::$dbTableCache[static::class] = (new $modelName())->GetDbTable();
+		}
+		return self::$dbTableCache[static::class];
 	}
 
 	private static function ConvertToObject($item) {
@@ -211,7 +233,7 @@ abstract class MagratheaModelControl{
 	 * @return  array<object> 	List of objects
 	 */
 	public static function GetAll() {
-		$sql = "SELECT * FROM ".static::$dbTable." ORDER BY created_at ASC";
+		$sql = "SELECT * FROM ".static::GetDbTable()." ORDER BY created_at ASC";
 		return static::RunQuery($sql);
 	}
 
@@ -221,7 +243,7 @@ abstract class MagratheaModelControl{
 	 */
 	public static function GetListPage(int $limit=20, int $page=0) {
 		$offset = $page * $limit;
-		$sql = "SELECT * FROM ".static::$dbTable." ORDER BY created_at DESC LIMIT ".$offset.",".$limit;
+		$sql = "SELECT * FROM ".static::GetDbTable()." ORDER BY created_at DESC LIMIT ".$offset.",".$limit;
 		return static::RunQuery($sql);
 	}
 
@@ -244,7 +266,7 @@ abstract class MagratheaModelControl{
 	 * @return  array<object> 	List of objects
 	 */
 	public static function GetSimpleWhere(string $whereSql){
-		$sql = "SELECT * FROM ".static::$dbTable." WHERE ".$whereSql;
+		$sql = "SELECT * FROM ".static::GetDbTable()." WHERE ".$whereSql;
 		return static::RunQuery($sql);
 	}
 
@@ -259,7 +281,7 @@ abstract class MagratheaModelControl{
 			return static::GetSimpleWhere($arr);
 		}
 		$whereSql = Query::BuildWhere($arr, $condition);
-		$sql = "SELECT * FROM ".static::$dbTable." WHERE ".$whereSql." ORDER BY created_at DESC";
+		$sql = "SELECT * FROM ".static::GetDbTable()." WHERE ".$whereSql." ORDER BY created_at DESC";
 		return static::RunQuery($sql);
 	}
 
@@ -267,14 +289,11 @@ abstract class MagratheaModelControl{
 	 * Builds query with where clause, returning only first row
 	 * @param 	string|array 			$arr 		where clause
 	 * @param 	string 						$condition 	"AND" or "OR" for multiple clauses
-	 * @return  object|array 			First object available
+	 * @return  object|null 			First object available (null when none)
 	 */
 	public static function GetRowWhere(string|array $arr, $condition = "AND"){
-		if(!is_array($arr)){
-			return static::GetSimpleWhere((string)$arr);
-		}
-		$whereSql = Query::BuildWhere($arr, $condition);
-		$sql = "SELECT * FROM ".static::$dbTable." WHERE ".$whereSql;
+		$whereSql = is_array($arr) ? Query::BuildWhere($arr, $condition) : $arr;
+		$sql = "SELECT * FROM ".static::GetDbTable()." WHERE ".$whereSql;
 		return static::RunRow($sql);
 	}
 
@@ -287,7 +306,7 @@ abstract class MagratheaModelControl{
 	 */
 	public static function GetMultipleObjects($array_objects, $joinGlue, $where=""){
 		$magQuery = new Query();
-		$magQuery->Table(static::$dbTable)->SelectArrObj($array_objects)->Join($joinGlue)->Where($where);
+		$magQuery->Table(static::GetDbTable())->SelectArrObj($array_objects)->Join($joinGlue)->Where($where);
 
 		// db:
 		$objects = array();
@@ -310,7 +329,7 @@ abstract class MagratheaModelControl{
 	public function __toString(): string {
 		$rs = "";
 		$rs .= "[MAGRATHEA MODEL CLASS == ".get_class($this)."]\n";
-		$rs .= "Model: ".static::$modelName." / Table: ".static::$dbTable;
+		$rs .= "Model: ".static::GetModelName()." / Table: ".static::GetDbTable();
 		return $rs;
 	}
 

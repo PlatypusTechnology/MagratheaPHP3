@@ -13,6 +13,8 @@
 	// values are data: escaped. Callable columns and callable row values return HTML built by the caller: raw
 	$magratheaCellHtml = function($value): string {
 		if($value === null) return "";
+		// strict-typed booleans: "1"/"0", as the driver returns them ((string)false is "")
+		if(is_bool($value)) return $value ? "1" : "0";
 		if(is_scalar($value)) return htmlspecialchars((string)$value, ENT_QUOTES);
 		return htmlspecialchars((string)json_encode($value), ENT_QUOTES);
 	};

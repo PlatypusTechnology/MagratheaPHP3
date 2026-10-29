@@ -38,6 +38,12 @@ interface iMagratheaModel {
 }
 	
 abstract class MagratheaModel{
+	/**
+	 * Valid `$dbValues` field types: any other type throws when it's used (a write binding that field,
+	 * or a `$strictTypes` load of it). `ValidateTypes()` checks them all.
+	 */
+	const TYPES = ["int", "boolean", "string", "text", "float", "decimal", "datetime", "date", "uuid"];
+
 	protected $dbTable;
 	protected $dbValues = array();
 	protected $dbAlias = array();
@@ -45,7 +51,7 @@ abstract class MagratheaModel{
 	protected $dbPk;
 	protected $dirtyValues = array();
 	protected $loadedValues = null;
-	protected $strictTypes = false;
+	protected $strictTypes = true;
 	protected $autoload = null;
 	public $created_at = null, $updated_at = null;
 
@@ -162,7 +168,7 @@ abstract class MagratheaModel{
 	 * Marks the object as loaded: `Update()` will write only the fields that change after this.
 	 * It's meant for DB rows; use `Assign()` for input data.
 	 * @param 	array 		$row 		mysql result for the object
-	 * @throws 	MagratheaModelException 	if `$strictTypes` is enabled and a value can't be cast to its declared type
+	 * @throws 	MagratheaModelException 	if `$strictTypes` is enabled and a value can't be cast to its declared type, or the type is unknown
 	 */
 	public function LoadObjectFromTableRow($row){
 		if(!is_array($row) && !is_object($row)) return;
@@ -234,7 +240,7 @@ abstract class MagratheaModel{
 	 * @param 	string 		$type 		declared Magrathea field type
 	 * @param 	string 		$field 		field name, for the exception message
 	 * @return 	mixed							coerced value
-	 * @throws 	MagratheaModelException		if the value can't be cast to the declared type
+	 * @throws 	MagratheaModelException		if the value can't be cast to the declared type, or the type is unknown
 	 */
 	protected function CoerceValue($value, $type, $field) {
 		if($value === null) return null;
@@ -246,15 +252,21 @@ abstract class MagratheaModel{
 				if(!is_numeric($value) && !is_bool($value)) throw new MagratheaModelException("Invalid boolean value for field [".$field."]: [".$value."]");
 				return (bool)$value;
 			case "float":
-			case "double":
 				if(!is_numeric($value)) throw new MagratheaModelException("Invalid float value for field [".$field."]: [".$value."]");
 				return (float)$value;
 			case "decimal":
 				// exact numbers: validated, but never cast (a float would round them)
 				if(!is_numeric($value)) throw new MagratheaModelException("Invalid decimal value for field [".$field."]: [".$value."]");
 				return $value;
+			case "string":
+			case "text":
+			case "datetime":
+			case "date":
+			case "uuid":
+				return $value;
+			default:
+				throw new MagratheaModelException("Unknown field type [".$type."] for field [".$field."]: use one of ".implode(", ", self::TYPES));
 		}
-		return $value;
 	}
 	
 	/**
@@ -431,6 +443,7 @@ abstract class MagratheaModel{
 	 * skipping `null` int/boolean fields.
 	 * An int/boolean field that is `null` or `""` is written as SQL NULL.
 	 * @return 	boolean	 		successfully updated
+	 * @throws 	MagratheaModelException 	if the type of a field it writes is unknown
 	 */
 	public function Update(){
 		$arr_Types = array();
@@ -488,6 +501,7 @@ abstract class MagratheaModel{
 	/**
 	 * Deletes the object in database
 	 * @return 	boolean	 		successfully updated
+	 * @throws 	MagratheaModelException 	if the PK's type is unknown
 	 */
 	public function Delete(){
 		$pkField = $this->dbPk;
@@ -586,7 +600,8 @@ abstract class MagratheaModel{
 	/**
 	 * Get the bind category of a field type, for `PrepareAndExecute()`
 	 * @param 	string 		$field 		field type (`$dbValues` value, e.g. "int"), not the field name
-	 * @return 	string|null 	"integer", "decimal", "text" or "date"; null for an unknown type
+	 * @return 	string 		"integer", "decimal", "text" or "date"
+	 * @throws 	MagratheaModelException 	if the type isn't one of `TYPES`
 	 */
 	public static function GetDataTypeFromField($field){
 		switch($field){
@@ -595,9 +610,7 @@ abstract class MagratheaModel{
 				return "text";
 			case "boolean":
 			case "int":
-			case "integer":
 				return "integer";
-			case "double":
 			case "float":
 				return "decimal";
 			case "datetime":
@@ -607,6 +620,23 @@ abstract class MagratheaModel{
 			case "decimal":
 				// "decimal" (exact numbers) binds as text: the "decimal" category above is float-ish
 				return "text";
+			default:
+				throw new MagratheaModelException("Unknown field type [".$field."]: use one of ".implode(", ", self::TYPES));
+		}
+	}
+
+	/**
+	 * Checks every `$dbValues` type, including fields that no write or load uses yet.
+	 * Nothing calls it at runtime (writes and strict loads throw on the types they use): it's for checks.
+	 * @throws 	MagratheaModelException 	on the first unknown type, naming the model, the field and the type
+	 */
+	public function ValidateTypes(): void {
+		foreach( $this->dbValues as $field => $type ) {
+			try {
+				self::GetDataTypeFromField($type);
+			} catch(MagratheaModelException $ex) {
+				throw new MagratheaModelException(static::class."::\$dbValues[".$field."]: ".$ex->getMessage());
+			}
 		}
 	}
 

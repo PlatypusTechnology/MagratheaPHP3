@@ -15,7 +15,27 @@ The companion to `MagratheaModel`. Provides a static, repository-style interface
 namespace App\Controls;
 
 use Magrathea\MagratheaModelControl;
+use App\Models\Product;
 
+class ProductControl extends MagratheaModelControl {
+    protected static $model = Product::class;
+}
+```
+
+That's all a Control needs: its table comes from the model (`Product`'s `$dbTable`), so the two can't disagree.
+
+### Static Properties
+
+| Property | Type | Example | |
+|----------|------|---------|---|
+| `$model` | `string` | `Product::class` | The model's class name. |
+| `$dbTable` | `string` | `"products"` | Optional. When set, it wins over the model's table. |
+| `$modelNamespace` | `string` | `"App\\Models"` | The 2.x form: used only when `$model` isn't set. |
+| `$modelName` | `string` | `"Product"` | The 2.x form: used only when `$model` isn't set. |
+
+Controls written for 2.x (and the generated `ControlBase` classes) declare `$modelNamespace`, `$modelName` and `$dbTable`; they keep working unchanged:
+
+```php
 class ProductControl extends MagratheaModelControl {
     protected static $modelName      = "Product";
     protected static $modelNamespace = "App\\Models";
@@ -23,20 +43,12 @@ class ProductControl extends MagratheaModelControl {
 }
 ```
 
-### Required Static Properties
-
-| Property | Type | Example |
-|----------|------|---------|
-| `$modelName` | `string` | `"Product"` |
-| `$modelNamespace` | `string` | `"App\\Models"` |
-| `$dbTable` | `string` | `"products"` |
-
 ---
 
 ## Static Query Methods
 
 ### `GetAll(): array<MagratheaModel>`
-Returns all records in the table, ordered by PK descending.
+Returns all records in the table, ordered by `created_at` ascending (oldest first).
 
 ```php
 $products = ProductControl::GetAll();
@@ -46,7 +58,7 @@ foreach ($products as $product) {
 ```
 
 ### `GetListPage(int $limit = 20, int $page = 0): array<MagratheaModel>`
-Paginated list of all records.
+Paginated list of all records, ordered by `created_at` descending (newest first).
 
 ```php
 $page1 = ProductControl::GetListPage(20, 0); // first 20
@@ -54,7 +66,7 @@ $page2 = ProductControl::GetListPage(20, 1); // next 20
 ```
 
 ### `GetWhere(string|array $arr, string $condition = "AND"): array<MagratheaModel>`
-Fetch records matching a WHERE condition. Pass a raw SQL string or an associative array.
+Fetch records matching a WHERE condition. Pass a raw SQL string or an associative array. The array form orders by `created_at` descending; a string is passed to `GetSimpleWhere()`, unordered.
 
 ```php
 // Array form (recommended — safer)
@@ -68,8 +80,10 @@ $recent = ProductControl::GetWhere("created_at > '2024-01-01'");
 $either = ProductControl::GetWhere(["status" => "draft", "status" => "review"], "OR");
 ```
 
-### `GetRowWhere(string|array $arr, string $condition = "AND"): object|array`
-Same as `GetWhere` but returns only the **first matching record**.
+### `GetRowWhere(string|array $arr, string $condition = "AND"): object|null`
+Same as `GetWhere`, but returns only the **first matching record**, or `null` when nothing matches. Unordered: add your own `ORDER BY` through `Run()` with a `Query` when it matters which row comes first.
+
+> Before 3.0, the string form (`GetRowWhere("email = '…'")`) returned an array of every matching record, like `GetSimpleWhere()`. It now returns the first object, like the array form.
 
 ```php
 $product = ProductControl::GetRowWhere(["id" => 42]);
@@ -207,7 +221,19 @@ $results = ProductControl::GetMultipleObjects(
 ## Utility
 
 ### `GetModelName(): string`
-Returns the model class name.
+Returns the model class name: `$model` when it's set, else `$modelNamespace\$modelName`.
+
+### `GetDbTable(): string`
+Returns the table every query helper reads (`GetAll()`, `GetListPage()`, `GetWhere()`, `GetRowWhere()`, `GetSimpleWhere()`, `GetMultipleObjects()`): `$dbTable` when it's set, else the table of a new, empty model (no query runs), built once per Control class and cached.
+
+Use it in your own Control methods instead of `static::$dbTable`, which is empty on a Control that declares only `$model`:
+
+```php
+public static function CountActive(): int {
+    $query = Query::Select()->SelectStr("count(1)")->Table(static::GetDbTable())->Where(["active" => 1]);
+    return intval(static::QueryOne($query->SQL()));
+}
+```
 
 ---
 
@@ -269,6 +295,6 @@ $results = ProductControl::Run($query);
 
 ## Notes
 
-- Control classes are purely static — never instantiate them.
-- Methods that return model arrays always instantiate the correct model type using `$modelNamespace . $modelName`.
+- The query helpers are static: call them on the class (`ProductControl::GetAll()`). A Control can still be instantiated, and it's what `$model->GetControl()` returns; add instance methods for app-specific operations if you like (the framework's `AdminUserControl` does: `$control->Login()`, `$control->CountUsers()`). Static methods work on an instance too.
+- Methods that return model arrays always instantiate the correct model type using `GetModelName()`.
 - Use `Run()` with a `Query` object for complex queries; use simple helpers (`GetAll`, `GetWhere`) for quick lookups.

@@ -10,9 +10,7 @@ use Magrathea\MagratheaModel;
 use function Magrathea\p_r;
 
 class AdminLogControl extends MagratheaModelControl { 
-	protected static $modelNamespace = "Magrathea\Admin\Features\UserLogs";
-	protected static $modelName = "AdminLog";
-	protected static $dbTable = "_magrathea_logs";
+	protected static $model = AdminLog::class;
 
 	public function GetVictim(MagratheaModel|string $victim) {
 		if(is_string($victim)) return '"'.$victim.'"';

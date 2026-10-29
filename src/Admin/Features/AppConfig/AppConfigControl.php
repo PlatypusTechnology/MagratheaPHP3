@@ -22,8 +22,7 @@ use Magrathea\MagratheaCache;
  * Class for installing Magrathea's Admin
  */
 class AppConfigControl extends MagratheaModelControl { 
-	protected static $modelName = "Magrathea\Admin\Features\AppConfig\AppConfig";
-	protected static $dbTable = "_magrathea_config";
+	protected static $model = AppConfig::class;
 
 	/**
 	 * returns a value for a key

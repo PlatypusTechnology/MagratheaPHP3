@@ -128,9 +128,7 @@ use Magrathea\MagratheaModelControl;
 use App\Models\User;
 
 class UserControl extends MagratheaModelControl {
-    protected static $modelName = "User";
-    protected static $modelNamespace = "App\\Models";
-    protected static $dbTable = "users";
+    protected static $model = User::class;
 }
 ```
 

@@ -9,9 +9,7 @@ use Magrathea\DB\Query;
 
 class AdminUserControl extends MagratheaModelControl { 
 
-	protected static $modelNamespace = "Magrathea\Admin\Features\User";
-	protected static $modelName = "AdminUser";
-	protected static $dbTable = "_magrathea_users";
+	protected static $model = AdminUser::class;
 
 	/**
 	 * Gets a user by e-mail
@@ -64,7 +62,7 @@ class AdminUserControl extends MagratheaModelControl {
 	public function SetLoginAsNow(AdminUser $user) {
 		try {
 			$query = Query::Update();
-			$query->Table(static::$dbTable);
+			$query->Table(static::GetDbTable());
 			$query
 				->SetRaw("last_login = NOW()")
 				->Where([ "id" => $user->id ]);
@@ -83,7 +81,7 @@ class AdminUserControl extends MagratheaModelControl {
 		try {
 			$query = Query::Select()
 				->SelectStr("count(1) as c")
-				->Table(static::$dbTable);
+				->Table(static::GetDbTable());
 			$c = self::QueryOne($query->SQL());
 			return intval($c);
 		} catch(Exception $ex) {

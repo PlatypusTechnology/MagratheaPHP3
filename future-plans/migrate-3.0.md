@@ -41,7 +41,7 @@ project, without the rest of the docs.
 | M5 | Deprecated and dead methods removed (`ShowAll()`, `LoadVendor()`, `Clean()`, `CloseConnectionThanks()`, …) | Yes, where they're called | Replace each call | |
 | M6 | `MagratheaModel` provides a constructor, `$autoload`, `$created_at`/`$updated_at` and `GetControl()`; `iMagratheaModel` deprecated; the framework models' `Start()` is `MagratheaStart()` | Rarely: redeclarations PHP now refuses (non-public, typed, static), constructor-less models called with an argument, calls to `Start()` on framework models | Fix those | |
 | M7 | Unknown `$dbValues` types throw | Yes, for models with invalid types (`"bool"`, …) | Fix the types | |
-| M8 | Controls can declare `$model = X::class` | No | None | |
+| M8 | Controls can declare `$model = X::class`; `GetRowWhere(string)` returns one object | Rarely: a Control declaring its own `$model` or `GetDbTable()`; code using `GetRowWhere(string)`'s array | Rename it; call `GetSimpleWhere()` | |
 | M9 | `$strictTypes` defaults to `true` | **Yes**: int/bool/float fields become native types, in PHP and in JSON | Pin `false` on every existing model | ⚠ |
 | M10 | `Insert()` sends assigned timestamps as they are and no longer stamps `now()` on the object; uuid PKs work with `Insert()` | Where code assigns timestamps before inserting, or reads them right after | Check assignments; reload to read the database's values | |
 | M11 | `Update()` never writes `created_at`/`updated_at`; an unchanged object runs no query | **Yes**: `updated_at` needs `ON UPDATE CURRENT_TIMESTAMP` | Run the schema check, ALTER the tables | ⚠ |
@@ -393,25 +393,33 @@ grep -rn 'iMagratheaModel' --include='*.php' --exclude-dir=vendor .
 
 ## M7. Unknown field types throw
 
-**Applies if** a model declares a type other than `int`, `integer`, `boolean`, `string`, `text`,
-`float`, `double`, `decimal`, `datetime`, `date` or `uuid`. List the types in use:
+**Applies if** a model declares a type other than `int`, `boolean`, `string`, `text`, `float`,
+`decimal`, `datetime`, `date` or `uuid`. That includes `integer` and `double`, which 2.x accepted as
+aliases of `int` and `float`. List the types in use:
 ```bash
 # style 1: $this->dbValues["x"] = "type";
 grep -rhoE "dbValues\[[\"'][A-Za-z0-9_]+[\"']\] *= *[\"'][A-Za-z]+[\"']" --include='*.php' --exclude-dir=vendor . | sed -E "s/.*= *[\"']([A-Za-z]+)[\"']/\1/" | sort | uniq -c
 # style 2: protected $dbValues = [ "x" => "type", ... ];
 grep -rlE 'dbValues *= *(\[|array\()' --include='*.php' --exclude-dir=vendor . | xargs awk '/dbValues *= *(\[|array\()/,/(\]|\));/' | grep -oE "=> *[\"'][A-Za-z]+[\"']" | sed -E "s/=> *[\"']([A-Za-z]+)[\"']/\1/" | sort | uniq -c
 ```
-Once the bootstrap runs on 3.0, `vendor/bin/magrathea models:verify` reports each unknown type as
-an ERROR, with its model and field.
+Once the bootstrap runs on 3.0, `vendor/bin/magrathea models:verify` and the admin's Database →
+Checks page (M22) report each unknown type as an ERROR, with its model and field.
 
-**What changed.** An unknown type used to be bound as a string, silently. Now the model's first
-write throws `MagratheaModelException("Unknown field type …")`.
+**What changed.** An unknown type used to be bound as a string, silently. Now it throws
+`MagratheaModelException("Unknown field type [bool]: use one of …")` where it's used: a write
+(`Insert()`, `InsertWithPk()`, `Update()`, so `Save()`) that binds that field, `Delete()` when it's
+the PK's type, or a `$strictTypes` load of that field. A type nothing uses doesn't throw, so the
+first exception can come weeks after the upgrade, the first time that field is written: run the
+greps above, `models:verify`, or the admin's Database → Checks page (M22) instead of waiting for it. The valid list
+is `MagratheaModel::TYPES`, and it has no aliases: `integer` and `double` throw too.
 
 **What to do.** Fix each unknown type according to its column (check it with
 `vendor/bin/magrathea db:describe <table>`):
 
 | Found | Use |
 |---|---|
+| `integer` | `int` |
+| `double` | `float` |
 | `bool` | `boolean` |
 | `varchar`, `char`, `enum` | `string` |
 | `tinyint` | `boolean` for `tinyint(1)` flags, else `int` |
@@ -421,8 +429,58 @@ write throws `MagratheaModelException("Unknown field type …")`.
 
 ## M8. Controls can declare `$model`
 
-No impact. New Controls can declare `protected static $model = Article::class;` instead of
-`$modelNamespace`, `$modelName` and `$dbTable`; `$dbTable` then comes from the model.
+New Controls can declare `protected static $model = Article::class;` instead of
+`$modelNamespace`, `$modelName` and `$dbTable`; the table then comes from the model, through the
+new `public static function GetDbTable()`. Controls with the three properties work unchanged.
+
+**Detect.** `MagratheaModelControl` now declares `protected static $model` and
+`public static function GetDbTable()`. A Control that declares either itself in another shape is a
+fatal error at class load: `$model` non-static or `private`; `GetDbTable()` non-static or
+non-public. A `public static function GetDbTable()` overrides the base one, which is fine as long
+as it returns the table.
+
+```bash
+grep -rnE '(public|protected|private|var|static)\s+(static\s+)?\$model\b|function\s+GetDbTable\s*\(' --include='*.php' . | grep -v vendor/
+```
+
+Only hits inside a class that extends `MagratheaModelControl` (directly or through a `ControlBase`)
+matter: models have their own `GetDbTable()`, and API controls their own `$model`.
+
+**Fix.** Rename the Control's own `$model` property or `GetDbTable()` method (and their callers),
+or make `GetDbTable()` `public static` if it already returns the table.
+
+Custom Control methods that read `static::$dbTable` keep working on Controls that declare
+`$dbTable`. When merging a Control to `$model` only (see "Optional: merge Base classes"), change them
+to `static::GetDbTable()`: `static::$dbTable` is empty there.
+
+### The framework's Controls declare only `$model`
+
+`AdminUserControl`, `AppConfigControl` and `AdminLogControl` no longer declare `$modelNamespace`,
+`$modelName` or `$dbTable`. Only a project class that **extends** one of them is affected: there,
+`static::$dbTable`, `static::$modelName` and `static::$modelNamespace` are now `null`.
+
+```bash
+grep -rnE 'extends\s+\\?([A-Za-z\\]+\\)?(AdminUserControl|AppConfigControl|AdminLogControl)\b' --include='*.php' . | grep -v vendor/
+```
+
+**Fix.** In those classes, read `static::GetDbTable()` and `static::GetModelName()` instead.
+
+### `GetRowWhere()` with a string returns one object
+
+`GetRowWhere("email = 'x'")` (a string, not an array) used to call `GetSimpleWhere()` and return an
+array of every matching object. It now returns the first one, or `null`, like the array form.
+
+**Detect.** Calls whose first argument isn't an array literal:
+
+```bash
+grep -rnE 'GetRowWhere\(\s*[^[ )]' --include='*.php' . | grep -v vendor/
+```
+
+A hit whose first argument is a variable needs a look at what the variable holds: an array is fine.
+
+**Fix.** Where the result is treated as an array (`foreach`, `count()`, `[0]`, `empty()` to mean
+"no rows"), call `GetSimpleWhere()` instead, which keeps the old behavior. Where the code already
+expected one object (and so was broken), nothing to do.
 
 ## M9. ⚠ `$strictTypes` defaults to `true`
 
@@ -677,7 +735,7 @@ the project has no `AGENTS.md`, `skills.MD` §17 has a five-line stub.
 
 ## Changes with no impact
 
-- New classes and the CLI: M8, M14–M17, M24–M26.
+- New classes and the CLI: M14–M17, M24–M26.
 - The admin's new Database pages: M18–M23, unless the project builds its own menu.
 
 ## Verify after upgrading
@@ -715,7 +773,8 @@ For a feature `Article`:
    stops skipping `ArticleControl`'s overrides.
 3. Point has_many relations at `ArticleControl::GetWhere()`.
 4. Make `ArticleControl` extend `\Magrathea\MagratheaModelControl` directly, with
-   `protected static $model = Article::class;` (M8), and delete `ArticleControlBase.php`.
+   `protected static $model = Article::class;` (M8), and delete `ArticleControlBase.php`. Change
+   its own `static::$dbTable` reads to `static::GetDbTable()`.
 5. Delete `ArticleBase.php`. `$dbValues` may keep listing `created_at` and `updated_at`; new code
    doesn't need them there.
 6. Run the tests, and diff the feature's API snapshots, before moving to the next feature.

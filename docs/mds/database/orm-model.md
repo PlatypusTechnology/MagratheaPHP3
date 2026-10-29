@@ -44,9 +44,6 @@ class Product extends MagratheaModel {
     // Optional: primary key column (default: "id")
     protected $dbPk = "id";
 
-    // Recommended for new models: typed values on load (see "Strict typing" below)
-    protected $strictTypes = true;
-
     // Required: column definitions [column_name => type]
     protected $dbValues = [
         "id"          => "int",
@@ -115,6 +112,15 @@ every relation field.
 | `date` | `string` | MySQL date format (`Y-m-d`) — see note below |
 | `uuid` | `string` | Auto-generated UUIDv7 on `Insert()` if left unset — see note below |
 
+The list is `MagratheaModel::TYPES`, with no aliases (2.x also accepted `integer` and `double`).
+Any other type (`"bool"`, `"varchar"`, `"tinyint"`, `"json"`, `"integer"`, a typo) throws
+`MagratheaModelException("Unknown field type [x]: use one of …")` where it's used: when `Insert()`,
+`InsertWithPk()` or `Update()` binds that field, when `Delete()` binds the PK, and when a
+`$strictTypes` load reads that field. A type nothing uses doesn't throw at runtime (there's no extra
+check on every call). `ValidateTypes()` checks every `$dbValues` type, naming the model and the
+field; it's for the admin and CLI checks, and nothing calls it at runtime. Requires MagratheaPHP
+`3.0`+; before that, an unknown type was silently bound as a string.
+
 **`date` normalization:** on `Insert()`/`Update()`, a `date` field's value is normalized
 to `Y-m-d` before binding. Accepted inputs: `"YYYY-MM-DD"`, `"YYYY-MM-DD HH:MM:SS"`, and
 ISO-8601 (`"YYYY-MM-DDTHH:MM:SS.sssZ"`). Anything else throws a `MagratheaModelException`.
@@ -149,26 +155,23 @@ the real backstop is the database: the `uuid` column must actually be declared
 
 ### Strict typing (`$strictTypes`)
 
-By default, `LoadObjectFromTableRow()` assigns whatever the DB driver returns for each
-column with no type coercion — mysqli/PDO return every column as a string regardless of
-its SQL type, so numeric and boolean properties end up as strings unless the calling code
-casts them.
-
-Set `protected $strictTypes = true;` on a model (or its Base class) to opt into typed
-hydration: values are cast to their declared `$dbValues` PHP type on load — `int` → `(int)`,
-`boolean` → `(bool)`, `float` → `(float)`. `null` is always left as `null`, and
+mysqli/PDO return every column as a string, whatever its SQL type. By default (since 3.0),
+`LoadObjectFromTableRow()` casts each value to its declared `$dbValues` PHP type on load —
+`int` → `(int)`, `boolean` → `(bool)`, `float` → `(float)`. `null` is always left as `null`, and
 `string`/`text`/`uuid`/`date`/`datetime` fields are left untouched (the DB driver already
 returns those as strings). `decimal` fields are checked but never cast: they stay the exact
 string. A value that can't be cast — schema drift, e.g. a non-numeric string landing in an
 `int`, `float` or `decimal` column — throws `MagratheaModelException` naming the field and
 value.
 
-`$strictTypes` defaults to `false` in the framework, so it never changes an existing model's
-behavior. Requires MagratheaPHP `2.3.0`+.
+New models don't declare `$strictTypes`: they're strict by default. Use `decimal`, not `float`,
+for exact numbers.
 
-**Recommended for new models**: declare `protected $strictTypes = true;`, and use `decimal`, not
-`float`, for exact numbers. For an **existing** model, turn it on only after checking its API
-consumers: the JSON changes from `"42"` to `42` and from `"1"` to `true`.
+`protected $strictTypes = false;` turns it off: every value stays the string the driver returned,
+as in 2.x. Projects migrated from 2.x pin it on their existing models, because the default changes
+their API JSON (`"42"` → `42`, `"1"` → `true`); remove a pin only once that model's API consumers
+accept native types. Typed hydration exists since MagratheaPHP `2.3.0`; it's the default since `3.0`
+(it was `false` before).
 
 ---
 
@@ -184,7 +187,7 @@ consumers: the JSON changes from `"42"` to `42` and from `"1"` to `true`.
 | `$dirtyValues` | `array` | Fields set through `Set()`/`Assign()` since the last save (cleared after `Insert()`/`Update()`) |
 | `$autoload` | `array\|null` | Relations `GetById()` loads with a join (default `null`) |
 | `$created_at`, `$updated_at` | `string\|null` | Public row timestamps (default `null`) — see [Timestamps](#timestamps-created-at-updated-at) |
-| `$strictTypes` | `bool` | Typed hydration on load — see [Strict typing](#strict-typing-stricttypes) above (default `false`; recommended `true` for new models) |
+| `$strictTypes` | `bool` | Typed hydration on load — see [Strict typing](#strict-typing-stricttypes) above (default `true` since 3.0; `false` keeps the driver's strings) |
 
 ---
 
@@ -362,7 +365,7 @@ echo $product->GetID(); // same
 ## Loading Methods
 
 ### `LoadObjectFromTableRow(array|object $row): void`
-Populates model properties from a database row (array or stdClass). Used internally by `MagratheaModelControl`. If `$strictTypes` is enabled, values are cast to their declared `$dbValues` type — see [Strict typing](#strict-typing-stricttypes) above. The object then counts as loaded: `Update()` writes only the fields changed after this call. Don't use it for input data (use `Assign()`).
+Populates model properties from a database row (array or stdClass). Used internally by `MagratheaModelControl`. Unless `$strictTypes` is off, values are cast to their declared `$dbValues` type — see [Strict typing](#strict-typing-stricttypes) above. The object then counts as loaded: `Update()` writes only the fields changed after this call. Don't use it for input data (use `Assign()`).
 
 ```php
 $row = Database::Instance()->QueryRow("SELECT * FROM products WHERE id = 1");
@@ -469,8 +472,9 @@ echo $product; // uses __toString
 ### `GetDataTypeFromField(string $field): string`
 Takes a field's **type** (a `$dbValues` value like `"int"`, not the field name) and returns the category
 `Insert()`/`Update()`/`Delete()` pass to `PrepareAndExecute()`: `"integer"` (`int`, `boolean`),
-`"decimal"` (`float`, `double`), `"text"` (`string`, `text`, `uuid`, `decimal`) or `"date"` (`date`, `datetime`);
-`null` for an unknown type. `"integer"` is bound as an integer, the others as strings. Mind the names:
+`"decimal"` (`float`), `"text"` (`string`, `text`, `uuid`, `decimal`) or `"date"` (`date`, `datetime`);
+An unknown type throws `MagratheaModelException("Unknown field type [x]: use one of …")` (it returned
+`null` before 3.0). `"integer"` is bound as an integer, the others as strings. Mind the names:
 the `decimal` **field type** maps to `"text"`; the `"decimal"` **category** is the float one.
 
 ---

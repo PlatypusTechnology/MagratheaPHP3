@@ -35,6 +35,8 @@ $elements = AdminElements::Instance();
 					}
 				} else { $value = ""; }
 			} else { $value = ""; }
+			// strict-typed booleans: "1"/"0", as the driver returns them ((string)false is "", which posts back as a change)
+			if(is_bool($value)) $value = $value ? "1" : "0";
 			$type = @$el["type"];
 			if(is_callable($type) && $type !== "date") {
 				$type($values);

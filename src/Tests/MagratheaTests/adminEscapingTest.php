@@ -127,6 +127,24 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString('<div id="html" class=""><b>trusted</b></div>', $output);
 	}
 
+	function testBooleansRenderAsOneAndZero() {
+		TestsHelper::Print("testing Table() and AdminForm render strict-typed booleans as 1/0, not \"\"...");
+		$table = $this->Buffer(fn($e) => $e->Table([["on" => true, "off" => false]]));
+		$this->assertStringContainsString('<td scope="row">1</td><td >0</td>', $table);
+		$form = new AdminForm();
+		$form->SetName("booleans")->Build([
+			["type" => "text", "key" => "off"],
+			["type" => "hidden", "key" => "on"],
+			["type" => "checkbox", "key" => "flag"],
+		], ["off" => false, "on" => true, "flag" => false]);
+		ob_start();
+		$form->Print();
+		$output = ob_get_clean();
+		$this->assertStringContainsString('name="off" id="off" value="0"', $output);
+		$this->assertStringContainsString('name="on" id="on" value="1"', $output);
+		$this->assertStringNotContainsString("checked", $output);
+	}
+
 	function testQueryRunCardEscapes() {
 		TestsHelper::Print("testing the Queries page result card escapes the query...");
 		class_exists(\Magrathea\DB\Query::class); // declares the QueryType enum, as the admin always has

@@ -186,7 +186,6 @@ class ArticleBase extends MagratheaModel {
     public $id, $title, $body, $author_id, $published, $views;
     public $created_at, $updated_at;
     protected $autoload = null;
-    protected $strictTypes = true; // new models: typed values on load (see "Supported field types")
 
     public function __construct($id = 0) {
         $this->MagratheaStart();
@@ -270,15 +269,17 @@ For simple internal tools without the feature/Base convention, a flat single-cla
 | `date` | string in `Y-m-d` format (SQL DATE column) |
 | `uuid` | string (CHAR(36)), auto-generated UUIDv7 on insert if unset |
 
+These are `MagratheaModel::TYPES`, with no aliases. Any other type (`"bool"`, `"varchar"`, `"tinyint"`, `"json"`, `"integer"`, `"double"`) throws `MagratheaModelException` when it's used: a write that binds that field, or a `$strictTypes` load. A type nothing uses doesn't throw, so don't rely on the exception: use only these types. Requires MagratheaPHP `3.0`+.
+
 Declare `$this->dbValues["uuid"] = "uuid";` and the framework fills it in on `Insert()` (via `Uuid::V7()`) whenever the property is left empty. An explicitly pre-set value (e.g. from a fixture or migration) is respected and never overwritten. Nothing changes on `Update()` — UUIDs are immutable once assigned. Requires MagratheaPHP `2.1.30`+.
 
 **Collision safety is not enforced in application code** — there is no pre-insert uniqueness check and no catch/retry on a duplicate-key error; `Uuid::V7()` relies purely on `random_bytes(10)` entropy. Always declare the `uuid` column `PRIMARY KEY`/`UNIQUE` in the DB schema so uniqueness is actually guaranteed, not just statistically likely.
 
 `date` (requires MagratheaPHP `2.2.2`+) normalizes its value to `Y-m-d` on `Insert()`/`Update()`: it accepts `"YYYY-MM-DD"`, `"YYYY-MM-DD HH:MM:SS"`, and ISO-8601 (`"YYYY-MM-DDTHH:MM:SS.sssZ"`), and throws `MagratheaModelException` for anything else. The date part is taken as written — **no timezone conversion** — so prefer sending plain `"YYYY-MM-DD"` from clients to avoid off-by-one-day issues east of UTC. Existing models that declare a SQL `date` column as `"datetime"` keep working unchanged; change the declaration to `"date"` by hand to get the normalization.
 
-By default, values loaded from the DB (`GetById()`, `LoadObjectFromTableRow()`, list queries) are **not** type-coerced — mysqli/PDO return every column as a string, so `int`/`boolean`/`float` properties come back as strings unless cast by hand. `protected $strictTypes = true;` on a model (or its Base class) casts `int`/`boolean`/`float` values to their native PHP type on load (`string`/`text`/`uuid`/`date`/`datetime` stay untouched, `null` stays `null`; `decimal` must be numeric but stays the exact string). A value that can't be cast throws `MagratheaModelException`. Declare SQL `DECIMAL` columns as `"decimal"`, never `"float"`: a strict `float` field rounds a large DECIMAL on load, and `Update()` writes the rounded value back. Do decimal math with `bcmath`, not `+`/`*`. Requires MagratheaPHP `2.3.0`+.
+mysqli/PDO return every column as a string. By default (MagratheaPHP `3.0`+, `$strictTypes = true`), values loaded from the DB (`GetById()`, `LoadObjectFromTableRow()`, list queries) are cast: `int`/`boolean`/`float` become native PHP types (`string`/`text`/`uuid`/`date`/`datetime` stay untouched, `null` stays `null`; `decimal` must be numeric but stays the exact string). A value that can't be cast throws `MagratheaModelException`. Declare SQL `DECIMAL` columns as `"decimal"`, never `"float"`: a strict `float` field rounds a large DECIMAL on load, and `Update()` writes the rounded value back. Do decimal math with `bcmath`, not `+`/`*`.
 
-**`$strictTypes = true` is recommended for new models.** The framework default stays `false`, so existing models are unaffected. **Don't turn it on for an existing model without checking its API consumers**: its JSON changes from `"42"` to `42` and from `"1"` to `true`.
+**New models don't declare `$strictTypes`**: they're strict by default. `protected $strictTypes = false;` keeps every value as the driver's string (the 2.x default): models migrated from 2.x pin it so their API JSON doesn't change. **Don't remove that pin without asking the human**: the model's JSON changes from `"42"` to `42` and from `"1"` to `true`, and its API consumers must accept that first.
 
 `created_at`/`updated_at` (declared in every model's `$dbValues`) are **not** like `uuid`:
 - `Insert()` skips them while they're `null`, so the **DB** fills them (column `DEFAULT CURRENT_TIMESTAMP` or a trigger). The table's timestamp columns must have a default: `NOT NULL` with no default fails every insert; nullable stays `NULL`.
@@ -1275,11 +1276,12 @@ try {
 - [ ] Each `$dbValues` field has a public property declaration (untyped)
 - [ ] No `#[\AllowDynamicProperties]` attribute used
 - [ ] If the project uses UUIDs as external ids, the field is declared as `"uuid"` type, not hand-rolled
-- [ ] New models declare `protected $strictTypes = true;`; existing ones only after checking API consumers
+- [ ] New models don't declare `$strictTypes` (strict by default); models migrated from 2.x keep their `protected $strictTypes = false;` pin unless the human says otherwise
 - [ ] SQL `DECIMAL` columns are `"decimal"`, not `"float"`
 
 ### Controls
-- [ ] `$modelName`, `$modelNamespace`, `$dbTable` are all set
+- [ ] `protected static $model = Article::class;` is set (or, 2.x form, `$modelName`, `$modelNamespace` and `$dbTable` are all set)
+- [ ] Custom Control methods read the table with `static::GetDbTable()`, not `static::$dbTable` (empty when only `$model` is set)
 - [ ] Same namespace as its model (`App\Article\ArticleControl` for `App\Article\Article`), matching the feature folder
 
 ### API Class

@@ -32,7 +32,7 @@ class AdminUser extends MagratheaModel {
 			"password" => "string",
 			"last_login" => "datetime",
 			"role_id" => "int",
-			"active" => "bool"
+			"active" => "boolean"
 		];
 	}
 
