@@ -33,12 +33,12 @@ class AppConfig extends MagratheaModel {
 	public function Insert() {
 		$valid = $this->Validate();
 		if($valid["valid"] == false) throw new MagratheaModelException($valid["error"]);
-		parent::Insert();
+		return parent::Insert();
 	}
 	public function Update() {
 		$valid = $this->Validate();
 		if($valid["valid"] == false) throw new MagratheaModelException($valid["error"]);
-		parent::Update();
+		return parent::Update();
 	}
 
 	public function MagratheaStart() {

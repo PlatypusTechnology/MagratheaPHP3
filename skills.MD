@@ -271,7 +271,7 @@ For simple internal tools without the feature/Base convention, a flat single-cla
 
 These are `MagratheaModel::TYPES`, with no aliases. Any other type (`"bool"`, `"varchar"`, `"tinyint"`, `"json"`, `"integer"`, `"double"`) throws `MagratheaModelException` when it's used: a write that binds that field, or a `$strictTypes` load. A type nothing uses doesn't throw, so don't rely on the exception: use only these types. Requires MagratheaPHP `3.0`+.
 
-Declare `$this->dbValues["uuid"] = "uuid";` and the framework fills it in on `Insert()` (via `Uuid::V7()`) whenever the property is left empty. An explicitly pre-set value (e.g. from a fixture or migration) is respected and never overwritten. Nothing changes on `Update()` — UUIDs are immutable once assigned. Requires MagratheaPHP `2.1.30`+.
+Declare `$this->dbValues["uuid"] = "uuid";` and the framework fills it in on `Insert()` (via `Uuid::V7()`) whenever the property is left empty. An explicitly pre-set value (e.g. from a fixture or migration) is respected and never overwritten. Nothing changes on `Update()` — UUIDs are immutable once assigned. Requires MagratheaPHP `2.1.30`+. A `uuid` **primary key** works with `Insert()`/`Save()` since `3.0`: it's sent, kept on the object and returned by `Insert()` (2.x needed `InsertWithPk()`). `Save()` with a uuid already assigned calls `Update()`: use `Insert()` there.
 
 **Collision safety is not enforced in application code** — there is no pre-insert uniqueness check and no catch/retry on a duplicate-key error; `Uuid::V7()` relies purely on `random_bytes(10)` entropy. Always declare the `uuid` column `PRIMARY KEY`/`UNIQUE` in the DB schema so uniqueness is actually guaranteed, not just statistically likely.
 
@@ -281,12 +281,13 @@ mysqli/PDO return every column as a string. By default (MagratheaPHP `3.0`+, `$s
 
 **New models don't declare `$strictTypes`**: they're strict by default. `protected $strictTypes = false;` keeps every value as the driver's string (the 2.x default): models migrated from 2.x pin it so their API JSON doesn't change. **Don't remove that pin without asking the human**: the model's JSON changes from `"42"` to `42` and from `"1"` to `true`, and its API consumers must accept that first.
 
-`created_at`/`updated_at` (declared in every model's `$dbValues`) are **not** like `uuid`:
-- `Insert()` skips them while they're `null`, so the **DB** fills them (column `DEFAULT CURRENT_TIMESTAMP` or a trigger). The table's timestamp columns must have a default: `NOT NULL` with no default fails every insert; nullable stays `NULL`.
-- Assigning one before `Insert()` makes `Insert()` send it, but always as PHP's `now()`, never the assigned value. To insert rows with their original timestamps (imports), use `Query::Insert()`.
-- After `Insert()`, the object holds PHP's `now()` for both, not the stored row values; `GetById()` again if you need the DB's.
-- `Update()` writes `updated_at = now()` (PHP clock) and never `created_at` (exception: a never-loaded object updated after a `Set()` doesn't write `updated_at`). `Set()` ignores both.
-- Inserts use MySQL's clock, updates PHP's: they agree when the config has `timezone` (MySQL's session timezone is synced to PHP's since 2.4.0, unless `db_sync_timezone = false`).
+`created_at`/`updated_at` are owned by the **database** (MagratheaPHP `3.0`+). `MagratheaModel` declares both, and `Insert()`/`Update()` handle them by name, so new models don't list them in `$dbValues` (generated models do; that still works):
+- `Insert()` skips them while they're `null`, so the column's `DEFAULT CURRENT_TIMESTAMP` fills them. One assigned on the object is sent **as assigned** (imports keep their dates). Never PHP's `now()`.
+- `Update()` never writes either one: `ON UPDATE CURRENT_TIMESTAMP` sets `updated_at`. `$obj->updated_at = …; $obj->Save();` writes nothing; use `Query::Update()` to set them explicitly. `Set()`/`Assign()` ignore both.
+- Nothing reads the row back. After `Insert()`, both are `null` on the object (assigned ones too); after an `Update()` that ran a query, `updated_at` is `null` (`created_at` unchanged). `null` = "not read": `$obj->Reload()` (one query, returns `$obj`) gets the values. Call it only where they're needed: never in loops or bulk saves.
+- `MagratheaApiControl::Create()`/`Update()` don't reload either: their responses have `null` timestamps (and `Update()`'s only the fields sent). When the client needs them, override: `public function Create($data = false) { return parent::Create($data)->Reload(); }`.
+- `$obj->Touch()` bumps `updated_at` on purpose ("last seen", "touch the parent"): `UPDATE … SET updated_at = CURRENT_TIMESTAMP WHERE pk = ?`, nothing else written, `updated_at` is `null` on the object afterwards, throws without a PK. `Save()` on an unchanged object runs no query, so it can't do this.
+- So every model's table needs `created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP` and `updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` (existing `TIMESTAMP` columns with those defaults work too). Without `ON UPDATE`, `updated_at` never changes after the insert. Other date columns the app sets are `DATETIME NULL`, never a bare `TIMESTAMP` (MySQL 5.7 may give it `ON UPDATE CURRENT_TIMESTAMP`).
 
 ### Using a model
 
@@ -314,7 +315,7 @@ return $article->ToArray();
 ```
 
 **What `Update()` writes** (since 2.4.0):
-- **Loaded object** (`new Article(42)`, `GetById()`, any Control query, or after its own `Insert()`/`Update()`): only the fields changed since then, by plain assignment or `Set()`/`Assign()`, plus `updated_at`. Other columns are left alone. `5`/`"5"` and `true`/`"1"` count as the same value; `null` only equals `null`.
+- **Loaded object** (`new Article(42)`, `GetById()`, any Control query, or after its own `Insert()`/`Update()`): only the fields changed since then, by plain assignment or `Set()`/`Assign()`. Other columns are left alone; with nothing changed, no query runs (and `Update()` returns `true`). `5`/`"5"` and `true`/`"1"` count as the same value; `null` only equals `null`.
 - **Never-loaded object** (`new Article(); $a->id = 42; … Update()`): with any `Set()`/`Assign()`, only those fields (plain assignments are dropped); otherwise every field, except `null` int/boolean fields (skipped). So for updates, load the object first (`new Article($id)`) instead of building one by hand.
 - **Clearing an int/boolean (e.g. a nullable FK):** on a loaded object, `$a->category_id = null; $a->Save();` writes SQL `NULL`. `""` (an empty form field) in an int/boolean field is always written as `NULL`, never `0`: a `NOT NULL` int column needs a real value.
 - `LoadObjectFromTableRow()` marks the object as loaded: use it for DB rows only, never for input (`$_POST`, `GetPut()`): use `Assign()`.
@@ -1316,6 +1317,6 @@ try {
 - [ ] `bootstrap_unlocked = true`, if present, is only in `[dev]`
 
 ### General
-- [ ] `now()` used for datetime fields
+- [ ] `now()` used for datetime fields the app sets itself; never assigned to `created_at`/`updated_at` (the database sets them)
 - [ ] Cache invalidated when data is mutated
 - [ ] Singletons accessed via `::Instance()`, never `new ClassName()`

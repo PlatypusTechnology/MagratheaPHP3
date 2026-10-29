@@ -192,17 +192,39 @@ $userId = $this->GetUserId();
 
 ---
 
-## CRUD Stub Methods
+## CRUD Methods
 
-These are meant to be **overridden** in subclasses. By default they throw `Exception`.
+The routes `MagratheaApi::Crud()` registers. Override them in a subclass as needed; the defaults
+work on the control's `$model` (a model class name; `List()` uses `$service->GetAll()`).
 
-| Method | HTTP Method | Route |
-|--------|-------------|-------|
-| `List(): array` | GET | `/resource` |
-| `Read($params): object\|array` | GET | `/resource/{id}` |
-| `Create($data): object` | POST | `/resource` |
-| `Update(array $params): object` | PUT | `/resource/{id}` |
-| `Delete($params): bool` | DELETE | `/resource/{id}` |
+| Method | HTTP Method | Route | Default |
+|--------|-------------|-------|---------|
+| `List(): array` | GET | `/resource` | `$service->GetAll()` |
+| `Read($params): object\|array` | GET | `/resource/{id}` | `new $model($id)`; no params → `List()` |
+| `Create($data): object` | POST | `/resource` | inserts, returns the object |
+| `Update(array $params): object` | PUT | `/resource/{id}` | updates, returns the object |
+| `Delete($params): bool` | DELETE | `/resource/{id}` | loads, then deletes |
+
+- **`Create()`** drops `id`, `created_at` and `updated_at` from the data (the database sets them),
+  inserts, and returns the object with its new id and `null` timestamps.
+- **`Update()`** takes the id from the route (`{id}`), or from the body's `id` when the route has
+  none, and checks it for an int PK (`ValidateId()`): a malformed id (`"5abc"`) throws
+  `MagratheaModelException` with code 400 before anything is written. It drops the PK,
+  `created_at` and `updated_at` from the data, so a body `id` can't send the update to another row.
+  Empty data throws `"Empty Data Sent"`. It returns the object it wrote: only the fields that were
+  sent, and a `null` `updated_at`.
+
+Neither reads the row back: no extra query per write. When an endpoint's response needs the row as
+stored (timestamps included), reload it explicitly, one query:
+
+```php
+public function Create($data = false) {
+    return parent::Create($data)->Reload();
+}
+public function Update($params) {
+    return parent::Update($params)->Reload();
+}
+```
 
 ---
 

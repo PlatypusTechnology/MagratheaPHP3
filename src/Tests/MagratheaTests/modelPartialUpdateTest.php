@@ -40,9 +40,10 @@ class PartialUpdateTestModel extends MagratheaModel {
 
 /**
  * 2.4.0 item 16: a loaded object's Update() writes the fields changed since load
- * (plain assignments included), plus the ones set through Set(), plus updated_at.
+ * (plain assignments included), plus the ones set through Set().
  * Objects that were never loaded keep the 2.3.5 rule.
  * 2.4.0 item 17: int/boolean fields that are null (loaded objects) or "" are written as NULL.
+ * 3.0 item 11: timestamps are never written, and nothing to write means no query.
  */
 class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 
@@ -83,6 +84,11 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		preg_match_all("/`(\w+)`= \?/", $run["query"], $matches);
 		return array_values(array_diff($matches[1], ["id"]));
 	}
+	private function AssertUpdateRunsNoQuery(PartialUpdateTestModel $model) {
+		$before = count($this->db->executed);
+		$this->assertTrue($model->Update());
+		$this->assertCount($before, $this->db->executed);
+	}
 
 	function testSetThenPlainAssignmentWritesBoth() {
 		TestsHelper::Print("testing a loaded object writes plain assignments made after a Set()...");
@@ -90,7 +96,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model->Set("name", "Gadget");
 		$model->bio = "new bio";
 		$model->Update();
-		$this->assertSame(["name", "bio", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["name", "bio"], $this->UpdatedFields());
 		$run = end($this->db->executed);
 		$this->assertSame("Gadget", $run["values"]["name"]);
 		$this->assertSame("new bio", $run["values"]["bio"]);
@@ -101,14 +107,14 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model = $this->Loaded();
 		$model->stock = 4;
 		$model->Update();
-		$this->assertSame(["stock", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["stock"], $this->UpdatedFields());
 	}
 
-	function testNothingChangedWritesOnlyUpdatedAt() {
-		TestsHelper::Print("testing a loaded object with no changes writes only updated_at...");
+	function testNothingChangedRunsNoQuery() {
+		TestsHelper::Print("testing a loaded object with no changes runs no query...");
 		$model = $this->Loaded();
-		$model->Update();
-		$this->assertSame(["updated_at"], $this->UpdatedFields());
+		$this->AssertUpdateRunsNoQuery($model);
+		$this->assertSame("2020-01-01 00:00:00", $model->updated_at);
 	}
 
 	function testConstructorLoadTakesSnapshot() {
@@ -119,7 +125,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model = new PartialUpdateTestModel(3);
 		$model->name = "Gadget";
 		$model->Update();
-		$this->assertSame(["name", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["name"], $this->UpdatedFields());
 	}
 
 	function testStrictAndLooseComparisonIgnoresType() {
@@ -128,14 +134,12 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame(5, $strict->stock);
 		$strict->stock = "5";
 		$strict->active = "1";
-		$strict->Update();
-		$this->assertSame(["updated_at"], $this->UpdatedFields());
+		$this->AssertUpdateRunsNoQuery($strict);
 
 		$loose = $this->Loaded(false);
 		$loose->stock = 5;
 		$loose->active = false;
-		$loose->Update();
-		$this->assertSame(["updated_at"], $this->UpdatedFields());
+		$this->AssertUpdateRunsNoQuery($loose);
 	}
 
 	function testBooleanChangeIsWritten() {
@@ -144,7 +148,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$this->assertFalse($model->active);
 		$model->active = true;
 		$model->Update();
-		$this->assertSame(["active", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["active"], $this->UpdatedFields());
 	}
 
 	function testNullIsDifferentFromEmptyString() {
@@ -152,12 +156,12 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model = $this->Loaded();
 		$model->bio = null;
 		$model->Update();
-		$this->assertSame(["bio", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["bio"], $this->UpdatedFields());
 
 		$model = $this->Loaded(false, ["bio" => null]);
 		$model->bio = "";
 		$model->Update();
-		$this->assertSame(["bio", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["bio"], $this->UpdatedFields());
 	}
 
 	function testFieldsMissingFromRowAreNotWritten() {
@@ -166,7 +170,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model->LoadObjectFromTableRow(["id" => "3", "name" => "Widget"]);
 		$model->name = "Gadget";
 		$model->Update();
-		$this->assertSame(["name", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["name"], $this->UpdatedFields());
 	}
 
 	function testSnapshotAndDirtyValuesResetAfterUpdate() {
@@ -175,8 +179,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model->Set("name", "Gadget");
 		$model->bio = "new bio";
 		$model->Update();
-		$model->Update();
-		$this->assertSame(["updated_at"], $this->UpdatedFields());
+		$this->AssertUpdateRunsNoQuery($model);
 	}
 
 	function testInsertMarksObjectAsLoaded() {
@@ -187,7 +190,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame(9, $model->Insert());
 		$model->stock = 2;
 		$model->Update();
-		$this->assertSame(["stock", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["stock"], $this->UpdatedFields());
 	}
 
 	function testInsertWithPkMarksObjectAsLoaded() {
@@ -198,7 +201,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model->InsertWithPk();
 		$model->bio = "bio";
 		$model->Update();
-		$this->assertSame(["bio", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["bio"], $this->UpdatedFields());
 	}
 
 	function testNeverLoadedWithSetKeeps235Rule() {
@@ -212,12 +215,12 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testNeverLoadedWithoutSetKeeps235Rule() {
-		TestsHelper::Print("testing a never-loaded object without Set() writes every field (null ints skipped)...");
+		TestsHelper::Print("testing a never-loaded object without Set() writes every field (null ints and timestamps skipped)...");
 		$model = new PartialUpdateTestModel();
 		$model->id = 3;
 		$model->name = "Gadget";
 		$model->Update();
-		$this->assertSame(["name", "bio", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["name", "bio"], $this->UpdatedFields());
 	}
 
 	function testInsertWritesRelatedModelId() {
@@ -239,23 +242,21 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model->Update();
 		$this->assertCount(2, $this->db->executed);
 		$this->assertStringStartsWith("INSERT INTO partial_update_test", $this->db->executed[0]["query"]);
-		$this->assertSame(["parent_id", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["parent_id"], $this->UpdatedFields());
 		$this->assertSame(9, $this->db->executed[1]["values"]["parent_id"]);
 
-		$model->Update();
-		$this->assertSame(["updated_at"], $this->UpdatedFields());
+		$this->AssertUpdateRunsNoQuery($model);
 	}
 
 	function testRelatedModelIsComparedById() {
 		TestsHelper::Print("testing a related model with the loaded id is not a change...");
 		$model = $this->Loaded(false, ["parent_id" => "4"]);
 		$model->parent_id = $this->Loaded(false, ["id" => "4"]);
-		$model->Update();
-		$this->assertSame(["updated_at"], $this->UpdatedFields());
+		$this->AssertUpdateRunsNoQuery($model);
 
 		$model->parent_id = $this->Loaded(false, ["id" => "5"]);
 		$model->Update();
-		$this->assertSame(["parent_id", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["parent_id"], $this->UpdatedFields());
 	}
 
 	// item 17: null ints
@@ -269,7 +270,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model = $this->Loaded(false, ["parent_id" => "4"]);
 		$model->parent_id = null;
 		$model->Update();
-		$this->assertSame(["parent_id", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["parent_id"], $this->UpdatedFields());
 		$this->assertArrayHasKey("parent_id", $this->LastValues());
 		$this->assertNull($this->LastValues()["parent_id"]);
 	}
@@ -279,7 +280,7 @@ class modelPartialUpdateTest extends \PHPUnit\Framework\TestCase {
 		$model = $this->Loaded(true);
 		$model->Set("stock", null);
 		$model->Update();
-		$this->assertSame(["stock", "updated_at"], $this->UpdatedFields());
+		$this->assertSame(["stock"], $this->UpdatedFields());
 		$this->assertNull($this->LastValues()["stock"]);
 	}
 

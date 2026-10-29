@@ -567,25 +567,27 @@ fields, but `AdminElements::Table()` and `AdminForm` printed values with `(strin
 `false` showed as an empty cell or text input (the generic CRUD renders `boolean` fields as text),
 and saving an untouched CRUD form posted `""`, which `ValueChanged()` counts as a change. Both
 render booleans as `1`/`0`, as the driver did. `Assign()`/`Set()` still don't cast input: an
-object holds what was assigned until it's reloaded (items 10 and 11 reload in the API).
+object holds what was assigned until it's reloaded (`Reload()`, item 10).
 
 ---
 
 ## Group C — Timestamps owned by the database
 
 The database owns `created_at` and `updated_at`: one clock, MySQL's. The framework never sends
-PHP's `now()` and never invents a value on the object. After a write, the object holds either a
-value it sent itself or `null`, which means "not read: reload to get the database's value".
+PHP's `now()` and never invents a value on the object. After a write, the object's timestamps are
+`null` (`created_at` survives an update), which means "not read: reload to get the database's
+value".
 
-The model never reads the row back after a write, since a `SELECT` per write is too much for bulk
-saves. Only `MagratheaApiControl::Create()` and `Update()` reload, so API responses carry the real
-values.
+Nothing reads the row back after a write, since a `SELECT` per write is too much for bulk saves:
+not the model, and not `MagratheaApiControl::Create()`/`Update()`. Code that needs the values calls
+`Reload()`, explicitly (decided while implementing, Paulo's call: the plan first had the API
+methods always reload, and a reload flag was rejected because it hides a query behind a setting).
 
 `Insert()` and `Update()` handle both columns by name, whether or not a model lists them in
 `$dbValues`. Generated models list them; framework and new models don't.
 
 ### 10. `Insert()`: assigned timestamps are sent as they are
-- [ ] done
+- [x] done
 
 **Error.**
 - `CreateInsertQuery()` (`MagratheaModel.php:318-355`) replaces an assigned `created_at` or
@@ -602,7 +604,12 @@ values.
 - Timestamps: the `$dbValues` loop skips `created_at` and `updated_at`. Afterwards, each of the two
   that's non-null on the object is sent as assigned (bound as a date), whether or not `$dbValues`
   lists it. A `null` one isn't sent, so the column's `DEFAULT` applies. Never `now()`.
-- No read-back: remove `:348-349`. An unset timestamp stays `null` on the object.
+- No read-back: remove `:348-349`. After the insert, both timestamps are `null` on the object,
+  even one that was assigned and sent: the database may store it differently (an ISO `…Z`, a
+  `TIMESTAMP` zone shift, fractional seconds), and `null` is never wrong.
+- `public function Reload(): static` (added while implementing, Paulo's call): `GetById()` with the
+  current PK, returns `$this`; throws `MagratheaModelException` without a PK. The only way the
+  framework reads a row back after a write, and only when called.
 - uuid PK: when the PK's type is `uuid`, `CreateInsertQuery()` sends it (generating it when it's
   empty, as today), and `Insert()` keeps it instead of assigning the insert id. `Insert()` returns
   the PK.
@@ -612,25 +619,26 @@ values.
   - drops `created_at` and `updated_at` from the request data, as it already drops `id`
     (`MagratheaApiControl.php:363`). Otherwise API clients could set them, now that `Insert()`
     sends assigned values;
-  - returns a freshly loaded object, `new $this->model($m->GetID())`, so the create response
-    carries the database's timestamps. That's one query, on the API path only.
+  - returns the inserted object, with `null` timestamps: no reload (Paulo's call). An endpoint that
+    needs them overrides it: `return parent::Create($data)->Reload();`.
 - Tests (`modelTimestampsTest.php`, with a recording database):
   - assigned values are sent as they are, for a model that lists the columns in `$dbValues` and for
     one that doesn't;
-  - unset ones aren't sent and stay `null` on the object, and no `SELECT` runs after the insert;
+  - unset ones aren't sent, both are `null` on the object afterwards (assigned ones too), and no
+    `SELECT` runs after the insert;
   - a uuid-PK model sends its PK and keeps it after `Insert()`;
-  - `MagratheaApiControl::Create()` ignores posted timestamps, and reloads: a `SELECT` follows the
-    insert.
+  - `MagratheaApiControl::Create()` ignores posted timestamps, and runs no `SELECT`;
+  - `Reload()` runs one `SELECT`, refreshes the values and the snapshot, and throws without a PK.
 
 **Impact** (M10).
 - Code that assigned a timestamp before `Insert()` used to store `now()`; now it stores what it
   assigned.
-- Right after a plain `Insert()`, an unset `$obj->created_at` is `null`, not `now()`. Reload the
-  object, or read the API response.
+- Right after `Insert()`, `$obj->created_at`/`updated_at` are `null`, not `now()` (nor the assigned
+  value). Call `Reload()` where the values are needed, API responses included.
 - uuid-PK models can use `Insert()` and `Save()`.
 
 ### 11. `Update()`: the database owns `updated_at`
-- [ ] done
+- [x] done
 
 **Error.**
 - For a loaded object, `Update()` (`:397-449`) always includes `updated_at` (`:405`) and writes
@@ -652,15 +660,20 @@ values.
 - Docs: once this item and item 10 are done, `created_at`/`updated_at` are safe to leave out of
   `$dbValues`, so `database/orm-model.md`'s examples drop them (item 6 left them in).
 - `MagratheaApiControl::Update()` checks the id with item 0's rule **before** writing (int-PK models),
-  so a malformed id fails with 400 instead of updating the row its integer cast points to. After
-  the write, it returns a freshly loaded object (`new $this->model($id)`), so the response carries
-  the new `updated_at`.
+  so a malformed id fails with 400 instead of updating the row its integer cast points to. It drops
+  posted `created_at`/`updated_at` (as `Create()` does), and returns the object it wrote, without a
+  reload (Paulo's call): it holds only the fields sent, and a `null` `updated_at`.
+- **Also fixed while implementing** (Paulo's call): `MagratheaApiControl::Update()` drops the PK from
+  the data, since `Assign()` and the raw loop let a body `id` overwrite the route's, unvalidated
+  (`PUT /x/5` with `{"id": 7}` updated row 7). The body `id` is still the fallback when the route
+  has none. Empty data throws before anything runs (it was checked after `Assign()`), and the dead
+  first `GetPut()` call is gone.
 - Tests (`modelPartialUpdateTest.php`, `modelTimestampsTest.php`):
   - an unchanged loaded object runs no query and keeps its `updated_at`;
   - a changed field writes only that field, and timestamps are never in the `SET`;
   - after a write, `updated_at` is `null`, `created_at` is unchanged, and no `SELECT` follows;
-  - `MagratheaApiControl::Update()` refuses a malformed id before writing, and reloads after a
-    write.
+  - `MagratheaApiControl::Update()` refuses a malformed id before writing, ignores posted
+    timestamps, and runs no `SELECT`.
 
 **Impact ⚠** (M11).
 - Tables whose `updated_at` has no `ON UPDATE CURRENT_TIMESTAMP` (and no trigger) stop updating it
@@ -672,7 +685,7 @@ values.
   stale loaded value.
 
 ### 12. `Touch()`
-- [ ] done
+- [x] done
 
 **Error.** MySQL fires `ON UPDATE` only when a column value actually changes, so after item 11
 nothing can bump `updated_at` on purpose ("last seen", "touch the parent").
@@ -687,7 +700,7 @@ nothing can bump `updated_at` on purpose ("last seen", "touch the parent").
 **Impact.** None: it's new.
 
 ### 13. The timestamp schema
-- [ ] done
+- [x] done
 
 **Error.**
 - Every table a model maps needs `created_at` and `updated_at`, but nothing says so.
@@ -1277,7 +1290,8 @@ generated code. It still:
   - `MagratheaModel::TYPES`;
   - strict types by default;
   - the table contract and the timestamp rules: the database owns `created_at` and `updated_at`,
-    which don't go in `$dbValues`; no PHP `now()`; reload to read them; `Touch()`; `Query::Update()`
+    which don't go in `$dbValues`; no PHP `now()`; `null` after a write, `Reload()` to read them
+    (API responses too: the override recipe); `Touch()`; `Query::Update()`
     for explicit values;
   - `AddFeature()`'s `Base` folder, mentioned only for legacy projects.
 - Removed: the generator, the File Editor, `LoadVendor()`, `Clean()`, `ShowAll()` and the `mvc`
@@ -1482,8 +1496,8 @@ The wizard has no favicon at all.
 - [ ] Final report:
   - the files changed, and the test counts;
   - what needs a real MySQL:
-    - `ON UPDATE CURRENT_TIMESTAMP` bumping `updated_at`, and the reloaded values after an API
-      create or update;
+    - `ON UPDATE CURRENT_TIMESTAMP` bumping `updated_at`, and the values `Reload()` reads after an
+      insert or update;
     - `information_schema` output on MySQL vs MariaDB;
     - real `mysqldump`/`mysql` runs;
     - a PHP-driver dump round trip with triggers, views and binary data;

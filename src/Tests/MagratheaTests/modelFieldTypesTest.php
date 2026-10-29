@@ -196,7 +196,10 @@ class modelFieldTypesTest extends \PHPUnit\Framework\TestCase {
 		$model->ValidateTypes();
 		$model->name = "Widget";
 		$model->Insert();
+		// never loaded: Update() writes every field (an inserted object writes only what changed since)
+		$model = new FieldTypesValidModel();
 		$model->id = 3;
+		$model->name = "Gadget";
 		$model->Update();
 		$model->Delete();
 		$this->assertCount(3, $this->db->executed);

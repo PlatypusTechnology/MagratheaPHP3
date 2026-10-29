@@ -365,6 +365,19 @@ abstract class MagratheaModel{
 			return $this->Update();
 	}
 
+	/**
+	 * Is the PK a uuid? Then the model generates it, and `Insert()` sends and keeps it.
+	 * @return 	bool
+	 */
+	private function HasUuidPk(): bool {
+		return ($this->dbValues[$this->dbPk] ?? null) === "uuid";
+	}
+
+	/**
+	 * Builds the INSERT. `created_at`/`updated_at` are sent only when they're set on the object, as assigned
+	 * (listed in `$dbValues` or not): unset, the column's DEFAULT applies. A uuid PK is always sent.
+	 * @param 	bool 		$autoIncrement 		skip an int PK (the database generates it)
+	 */
 	private function CreateInsertQuery(bool $autoIncrement=true) {
 		$arr_Types = array();
 		$arr_Fields = array();
@@ -374,8 +387,10 @@ abstract class MagratheaModel{
 				$this->$field = Uuid::V7();
 			}
 		}
+		if( $this->HasUuidPk() ) $autoIncrement = false;
 		foreach( $this->dbValues as $field => $fieldType ){
 			if( $autoIncrement && $field == $this->dbPk ) continue;
+			if( $field == "created_at" || $field == "updated_at" ) continue;
 			if( !isset($this->$field) ) continue;
 			$type = $this->GetDataTypeFromField($fieldType);
 			array_push($arr_Types, $type);
@@ -383,20 +398,22 @@ abstract class MagratheaModel{
 			if( $this->$field instanceof MagratheaModel ) {
 				$arr_Values[$field] = $this->GetRelationId($this->$field);
 			} else {
-				if( $field == "created_at" || $field == "updated_at" ) {
-					$arr_Values[$field] = now();
-				} else if( $fieldType == "date" ) {
+				if( $fieldType == "date" ) {
 					$arr_Values[$field] = self::FormatDateValue($this->$field, $field);
 				} else {
 					$arr_Values[$field] = ($type == "integer" || $type == "boolean") ? intval($this->$field) : $this->$field;
 				}
 			}
 		}
+		foreach( ["created_at", "updated_at"] as $field ) {
+			if( $this->$field === null ) continue;
+			array_push($arr_Types, "date");
+			array_push($arr_Fields, $field);
+			$arr_Values[$field] = $this->$field;
+		}
 		// old query, for pear mdb2 driver
 		// $query_run = "INSERT INTO ".$this->dbTable." (".implode(",", $arr_Fields).") VALUES (:".implode(",:", $arr_Fields).") ";
 		$query_run = "INSERT INTO ".$this->dbTable." (`".implode("`,`", $arr_Fields)."`) VALUES (".implode(", ", array_fill(0, count($arr_Fields), "?")).") ";
-		$this->created_at = now();
-		$this->updated_at = now();
 		return [
 			"query" => $query_run,
 			"types" => $arr_Types,
@@ -404,8 +421,10 @@ abstract class MagratheaModel{
 		];
 	}
 	/**
-	 * Inserts the object in database
-	 * @return 	int 		id of inserted object
+	 * Inserts the object in database.
+	 * Doesn't read the row back: `created_at`/`updated_at` are `null` on the object afterwards, even when they were
+	 * assigned and sent (the database may store them differently). `Reload()` reads the database's values.
+	 * @return 	int|string 		id of inserted object (the generated or assigned uuid, for a uuid PK)
 	 * @todo  	create query to UPDATE in case of id already exists... (or deal with it with an exception)
 	 */
 	public function Insert() {
@@ -417,12 +436,15 @@ abstract class MagratheaModel{
 			throw $ex;
 		}
 		$pk = $this->dbPk;
-		$this->$pk = $lastId;
+		if( !$this->HasUuidPk() ) $this->$pk = $lastId;
+		$this->created_at = null;
+		$this->updated_at = null;
 		$this->SavedState();
-		return $lastId;
+		return $this->$pk;
 	}
 	/**
-	 * Inserts the object, but the object alredy has the PK
+	 * Inserts the object, but the object alredy has the PK.
+	 * Like `Insert()`, leaves `created_at`/`updated_at` `null` on the object.
 	 * @return 	bool 		success?
 	 */
 	public function InsertWithPk(): bool {
@@ -433,16 +455,21 @@ abstract class MagratheaModel{
 		} catch(\Exception $ex) {
 			throw $ex;
 		}
+		$this->created_at = null;
+		$this->updated_at = null;
 		$this->SavedState();
 		return true;
 	}
 	/**
 	 * Updates the object in database.
-	 * A loaded object writes the fields changed since it was loaded (or set through `Set()`), plus `updated_at`.
+	 * A loaded object writes the fields changed since it was loaded (or set through `Set()`).
 	 * An object that was never loaded writes the fields set through `Set()`, or all of them if there are none,
 	 * skipping `null` int/boolean fields.
 	 * An int/boolean field that is `null` or `""` is written as SQL NULL.
-	 * @return 	boolean	 		successfully updated
+	 * `created_at` and `updated_at` are never written: the database owns them (`ON UPDATE CURRENT_TIMESTAMP`).
+	 * After a write, `updated_at` is `null` on the object (`Reload()` reads the database's value); `created_at` is kept.
+	 * With no field to write, no query runs.
+	 * @return 	boolean	 		successfully updated (true when there was nothing to write)
 	 * @throws 	MagratheaModelException 	if the type of a field it writes is unknown
 	 */
 	public function Update(){
@@ -453,8 +480,7 @@ abstract class MagratheaModel{
 		$pkField = $this->dbPk;
 		if($this->loadedValues !== null) {
 			$updates = array_filter($this->dbValues, function($field) {
-				return $field == "updated_at"
-					|| array_key_exists($field, $this->dirtyValues)
+				return array_key_exists($field, $this->dirtyValues)
 					|| self::ValueChanged(@$this->loadedValues[$field], $this->$field);
 			}, ARRAY_FILTER_USE_KEY);
 		} else if(count($this->dirtyValues) > 0) {
@@ -464,7 +490,7 @@ abstract class MagratheaModel{
 		}
 		foreach( $updates as $field => $type ){
 			if( $field == $pkField ) continue;
-			if( $field == "created_at" ) continue;
+			if( $field == "created_at" || $field == "updated_at" ) continue;
 
 			$t = $this->GetDataTypeFromField($type);
 			$value = $this->$field;
@@ -477,9 +503,7 @@ abstract class MagratheaModel{
 			if( $value instanceof MagratheaModel ) {
 				$arr_Values[$field] = $this->GetRelationId($value);
 			} else {
-				if( $field == "updated_at" ) {
-					$arr_Values[$field] = now();
-				} else if( $type == "date" ) {
+				if( $type == "date" ) {
 					$arr_Values[$field] = self::FormatDateValue($value, $field);
 				} else if( $t == "integer" ) {
 					$arr_Values[$field] = $value === null ? null : intval($value);
@@ -490,14 +514,52 @@ abstract class MagratheaModel{
 			array_push($arr_Types, $t);
 			array_push($arr_Fields, "`".$field."`= ? ");
 		}
+		// nothing changed: the row stays as it is (and so does updated_at)
+		if( count($arr_Fields) == 0 ) return true;
 		$query_run = "UPDATE ".$this->dbTable." SET ".implode(",", $arr_Fields)." WHERE `".$this->dbPk."`= ? ";
 
 		$arr_Values[$pkField] = $this->$pkField;
 		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->dbValues[$pkField]);
 		$result = Database::Instance()->PrepareAndExecute($query_run, $arr_Types, $arr_Values);
+		$this->updated_at = null;
 		$this->SavedState();
 		return $result;
 	}
+	/**
+	 * Reads the row again (`GetById()` with the current PK), for the database's values after a write:
+	 * `Insert()` and `Update()` leave `created_at`/`updated_at` `null`. One query; nothing calls it implicitly.
+	 * @return 	static 		itself
+	 * @throws 	MagratheaModelException 	if the object has no PK, or its row doesn't exist
+	 */
+	public function Reload(): static {
+		if( $this->IsEmpty() ) {
+			throw new MagratheaModelException("Can't reload ".static::class.": its ".$this->dbPk." is empty");
+		}
+		$this->GetById($this->GetID());
+		return $this;
+	}
+
+	/**
+	 * Bumps `updated_at` to the database's clock (`SET updated_at = CURRENT_TIMESTAMP`), even when nothing else changed:
+	 * `ON UPDATE CURRENT_TIMESTAMP` fires only when a value changes, so `Save()` alone can't do it.
+	 * Afterwards `updated_at` is `null` on the object (`Reload()` reads the database's value).
+	 * Other fields aren't written, and their pending changes stay pending.
+	 * @return 	bool 		true (database errors throw)
+	 * @throws 	MagratheaModelException 	if the object has no PK, or the PK's type is unknown
+	 */
+	public function Touch(): bool {
+		if( $this->IsEmpty() ) {
+			throw new MagratheaModelException("Can't touch ".static::class.": its ".$this->dbPk." is empty");
+		}
+		$pkField = $this->dbPk;
+		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->dbValues[$pkField]);
+		$arr_Values[$pkField] = $this->$pkField;
+		$query_run = "UPDATE ".$this->dbTable." SET `updated_at` = CURRENT_TIMESTAMP WHERE `".$this->dbPk."`= ? ";
+		Database::Instance()->PrepareAndExecute($query_run, $arr_Types, $arr_Values);
+		$this->updated_at = null;
+		return true;
+	}
+
 	/**
 	 * Deletes the object in database
 	 * @return 	boolean	 		successfully updated

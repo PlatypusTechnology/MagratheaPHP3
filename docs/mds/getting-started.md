@@ -114,8 +114,10 @@ class User extends MagratheaModel {
         "id"         => "int",
         "name"       => "string",
         "email"      => "string",
-        "created_at" => "datetime",
     ];
+
+    // every $dbValues field as an untyped public property
+    public $id, $name, $email;
 }
 ```
 
@@ -139,15 +141,15 @@ namespace App\Api;
 
 use Magrathea\MagratheaApiControl;
 use App\Controls\UserControl;
+use App\Models\User;
 
 class UserApiControl extends MagratheaApiControl {
+    // the built-in Read(), Create(), Update() and Delete() work on this model
+    protected $model = User::class;
+
+    // the built-in List() calls $this->service->GetAll(): without a service, override it
     public function List(): array {
         return UserControl::GetAll();
-    }
-
-    public function Read($params = false): object|array {
-        $id = $params["id"] ?? null;
-        return UserControl::GetWhere(["id" => $id], "AND")[0] ?? [];
     }
 }
 ```

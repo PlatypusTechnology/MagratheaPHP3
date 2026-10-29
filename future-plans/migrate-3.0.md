@@ -43,10 +43,10 @@ project, without the rest of the docs.
 | M7 | Unknown `$dbValues` types throw | Yes, for models with invalid types (`"bool"`, …) | Fix the types | |
 | M8 | Controls can declare `$model = X::class`; `GetRowWhere(string)` returns one object | Rarely: a Control declaring its own `$model` or `GetDbTable()`; code using `GetRowWhere(string)`'s array | Rename it; call `GetSimpleWhere()` | |
 | M9 | `$strictTypes` defaults to `true` | **Yes**: int/bool/float fields become native types, in PHP and in JSON | Pin `false` on every existing model | ⚠ |
-| M10 | `Insert()` sends assigned timestamps as they are and no longer stamps `now()` on the object; uuid PKs work with `Insert()` | Where code assigns timestamps before inserting, or reads them right after | Check assignments; reload to read the database's values | |
+| M10 | `Insert()` sends assigned timestamps as they are and no longer stamps `now()` on the object; uuid PKs work with `Insert()` | Where code assigns timestamps before inserting, or reads them right after a write (API responses too) | Check assignments; `Reload()` where the values are read | |
 | M11 | `Update()` never writes `created_at`/`updated_at`; an unchanged object runs no query | **Yes**: `updated_at` needs `ON UPDATE CURRENT_TIMESTAMP` | Run the schema check, ALTER the tables | ⚠ |
-| M12 | New `Touch()`; `Save()` no longer bumps `updated_at` on its own | Where code relied on that | Use `Touch()` | ⚠ |
-| M13 | Every model table needs `created_at`/`updated_at` (already true, now checked) | No | Covered by M11's check | |
+| M12 | New `Touch()`; `Save()` no longer bumps `updated_at` on its own | Where code relied on that; a model declaring its own `Touch()` with another signature | Use `Touch()`; rename or fix the model's own | ⚠ |
+| M13 | Every model table needs `created_at`/`updated_at` (already true, now checked); the admin's install schema uses `DATETIME` | No | Covered by M11's check; optional `last_login` fix | |
 | M14–M17 | New `DB\Schema`, `DB\SchemaCheck`, `ProjectCheck`, `DB\Dump`; `AdminDatabase` loses `GetTables()`, `GetTableColumns()`, `DoBackup()` | Only where those three are called | Use `Schema`/`Dump` | |
 | M18–M23 | The admin's Database section (explorer, query editor, dumps, checks); menu items changed | Only for custom menus using removed items | Fix the menu | |
 | M24–M26 | New `vendor/bin/magrathea` CLI; framework error pages print text in the CLI | No | Declare the bootstrap if it isn't `app/_inc.php` | |
@@ -517,22 +517,36 @@ grep -rnE "[\"']uuid[\"']" --include='*.php' --exclude-dir=vendor .
 **What changed.**
 - An assigned timestamp is stored as assigned; 2.x silently stored `now()` instead. That fixes
   imports through `InsertWithPk()`.
-- An unset timestamp is left to the column's `DEFAULT`, and the object keeps it `null` after the
-  insert. The framework no longer stamps PHP's `now()` on the object, and it doesn't read the row
-  back: reload the object to get the database's value. API create responses reload automatically.
+- An unset timestamp is left to the column's `DEFAULT`. After the insert, both timestamps are
+  `null` on the object, assigned ones included. The framework no longer stamps PHP's `now()` on the
+  object, and nothing reads the row back: the new `$obj->Reload()` does, when called.
 - `MagratheaApiControl::Create()` ignores `created_at`/`updated_at` sent by the client (2.x
-  replaced them with `now()`).
+  replaced them with `now()`), and doesn't reload: **its response has `null` timestamps** (2.x
+  returned PHP's `now()`).
 - A model with a `uuid` primary key now sends it on `Insert()` and keeps it, and `Insert()` returns
   it. In 2.x, `Insert()` and `Save()` left the uuid out of the INSERT and set the PK to `true`; only
-  `InsertWithPk()` worked.
+  `InsertWithPk()` worked. `Save()` still calls `Update()` when the uuid is already assigned (any
+  set PK means "update"): call `Insert()` for a new row with a pre-set uuid.
+- `AppConfig::Insert()` returns the id (it returned `null`).
 
 **What to do.**
 1. Check each assignment found before an `Insert()` or `Save()`. If it set the value only because
    "the framework needs it", delete it and let the database default fill it.
-2. Where code reads `$obj->created_at` or `$obj->updated_at` right after a plain `Insert()`, reload
-   the object.
-3. uuid-PK models: code that worked around the bug with `InsertWithPk()` keeps working, and can now
+2. Where code reads `$obj->created_at` or `$obj->updated_at` right after an `Insert()`, call
+   `$obj->Reload()` first (one query).
+3. API create endpoints whose clients read the timestamps from the response (**ask the human** if
+   unsure): override `Create()` to reload:
+   ```php
+   public function Create($data = false) {
+       return parent::Create($data)->Reload();
+   }
+   ```
+4. uuid-PK models: code that worked around the bug with `InsertWithPk()` keeps working, and can now
    use `Insert()` or `Save()`. Report any code that relied on the PK being `true` after `Insert()`.
+5. A model that declares its own `Reload()` collides with the new `MagratheaModel::Reload(): static`
+   (fatal error at class load unless it's public, non-static and returns `static`):
+   `grep -rn --include='*.php' --exclude-dir=vendor 'function Reload' .`. Rename it, or drop it if
+   it only reloaded the row.
 
 ## M11. ⚠ `Update()` never writes timestamps; `updated_at` needs `ON UPDATE CURRENT_TIMESTAMP`
 
@@ -543,10 +557,23 @@ grep -rnE "[\"']uuid[\"']" --include='*.php' --exclude-dir=vendor .
   `ON UPDATE CURRENT_TIMESTAMP`.
 - A loaded object with no changes runs **no query** at all.
 - After an update that changed something, the object sets its own `updated_at` to `null`, so it
-  never reports the stale pre-update value; `created_at` is untouched. Reload the object, or read
-  the API's update response (which reloads), to get the new value. The framework doesn't read the
-  row back.
-- `MagratheaApiControl::Update()` refuses a malformed id (HTTP 400) before writing.
+  never reports the stale pre-update value; `created_at` is untouched. `$obj->Reload()` reads the
+  new value. The framework doesn't read the row back.
+- With no field to write, `Update()` returns `true` without a query. Before, an unchanged loaded
+  object ran an `UPDATE` setting only `updated_at`, and a never-loaded object with nothing to write
+  sent an empty `SET` (a SQL error).
+- `$obj->updated_at = …; $obj->Save();` no longer writes the assignment. Set it explicitly with
+  `Query::Update()`.
+- `MagratheaApiControl::Update()` refuses a malformed id (HTTP 400) before writing, and ignores
+  posted `created_at`/`updated_at`. It still returns the object it wrote, without a reload: only the
+  fields sent, and a `null` `updated_at` (2.x returned the stale loaded value, or the client's).
+  An endpoint whose clients need the row overrides it:
+  `return parent::Update($params)->Reload();`.
+- `MagratheaApiControl::Update()` ignores the PK in the body: the route's `{id}` decides the row
+  (2.x let a body `id` overwrite it, unvalidated). The body `id` is still used, validated, when the
+  route has none. Clients that relied on the body to pick the row (**unlikely; ask the human**)
+  must call the right URL.
+- `AppConfig::Update()` returns the result (it returned `null`).
 - **A table whose `updated_at` has no `ON UPDATE CURRENT_TIMESTAMP` (and no trigger) silently stops
   updating it.**
 
@@ -586,7 +613,16 @@ grep -rniE 'order +by +updated_at|Order\(.updated_at' --include='*.php' --exclud
 **What to do.**
 - Where code saves an object only to bump its timestamp, call `$obj->Touch()` instead
   (`UPDATE … SET updated_at = CURRENT_TIMESTAMP`, on MySQL's clock). `$obj->updated_at` is `null`
-  afterwards: reload to read the new value.
+  afterwards: reload to read the new value. `Touch()` writes only `updated_at`: other changes on
+  the object stay pending until the next `Save()`.
+- A model that already declares a `Touch()` is now overriding `MagratheaModel::Touch(): bool`. PHP
+  refuses the class at load unless it's public, non-static, takes no required parameters and
+  returns `bool`. Find them with:
+  ```bash
+  grep -rnE 'function +Touch *\(' --include='*.php' --exclude-dir=vendor .
+  ```
+  If it does something else, rename it (and its callers); if it bumps `updated_at`, delete it and
+  use the framework's.
 - **⚠ Ask the human** about features that depend on `updated_at` being fresh: activity feeds, sync
   jobs, caches keyed on `updated_at`.
 
@@ -594,7 +630,14 @@ grep -rniE 'order +by +updated_at|Order\(.updated_at' --include='*.php' --exclud
 
 This isn't a new requirement: every SELECT built from a model has always included both columns,
 and Controls sort by `created_at`. 3.0 documents it and checks it as part of M11's check, which
-reports a model table missing them as an ERROR.
+reports a model table missing them as an ERROR. The recommended declaration is
+`created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP` and
+`updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`; existing
+`TIMESTAMP` columns with those defaults work, and don't need converting.
+
+New installs of the admin's tables (`src/Admin/database.sql`) use `DATETIME` for both columns
+(2.x mixed a `TIMESTAMP` `created_at` with a `DATETIME` `updated_at`) and `last_login DATETIME NULL`.
+Existing installs keep their columns.
 
 **Optional, on the human's go-ahead.** In databases installed by the 2.x admin, `_magrathea_users`'s
 `last_login` may update itself on every change to the row: under MySQL 5.7's

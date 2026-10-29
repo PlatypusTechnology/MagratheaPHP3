@@ -39,7 +39,8 @@ Returns the current date/time formatted as `"Y-m-d H:i:s"`.
 echo now(); // "2024-03-15 14:30:00"
 ```
 
-Useful for setting `created_at` / `updated_at` timestamps without importing a class.
+Useful for datetime fields your code sets itself, without importing a class. Not for a model's
+`created_at` / `updated_at`: the database sets those (see the Model page, "Timestamps").
 
 ---
 

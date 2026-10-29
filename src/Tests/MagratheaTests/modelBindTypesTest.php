@@ -101,8 +101,8 @@ class modelBindTypesTest extends \PHPUnit\Framework\TestCase {
 		$model = $this->IntPkModel();
 		$model->id = 3;
 		$model->Update();
-		// name, stock, active, price, updated_at, then the WHERE PK
-		$this->assertSame("siissi", $this->LastBindTypes("UPDATE bind_types_int"));
+		// name, stock, active, price (timestamps are never written), then the WHERE PK
+		$this->assertSame("siisi", $this->LastBindTypes("UPDATE bind_types_int"));
 	}
 
 	function testUpdateBindsUuidPkAsString() {

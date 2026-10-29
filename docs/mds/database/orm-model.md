@@ -52,7 +52,6 @@ class Product extends MagratheaModel {
         "price"       => "decimal",   // DECIMAL column: exact, kept as a string
         "stock"       => "int",
         "active"      => "boolean",
-        "created_at"  => "datetime",
     ];
 
     // Optional: property aliases [alias => real_column]
@@ -112,6 +111,10 @@ every relation field.
 | `date` | `string` | MySQL date format (`Y-m-d`) — see note below |
 | `uuid` | `string` | Auto-generated UUIDv7 on `Insert()` if left unset — see note below |
 
+`created_at` and `updated_at` don't go in `$dbValues`: `MagratheaModel` declares both, and
+`Insert()`/`Update()` handle them by name (see [Timestamps](#timestamps-created-at-updated-at)).
+Generated models list them, which still works.
+
 The list is `MagratheaModel::TYPES`, with no aliases (2.x also accepted `integer` and `double`).
 Any other type (`"bool"`, `"varchar"`, `"tinyint"`, `"json"`, `"integer"`, a typo) throws
 `MagratheaModelException("Unknown field type [x]: use one of …")` where it's used: when `Insert()`,
@@ -143,7 +146,10 @@ time-ordered RFC 9562 UUIDv7: a 48-bit millisecond timestamp prefix followed by 
 from PHP's CSPRNG (`random_bytes()`), with the version/variant bits set per spec. A field
 that already has a value (set explicitly before `Insert()`) is left alone and never
 overwritten. Nothing regenerates it on `Update()` — UUIDs are treated as immutable once
-assigned.
+assigned. A `uuid` **primary key** is sent in the INSERT, and `Insert()` keeps it and returns it
+(before 3.0, `Insert()` and `Save()` left it out and set the PK to `true`; only `InsertWithPk()`
+worked). `Save()` on a new object with an empty uuid PK inserts it; with a uuid already assigned,
+`Save()` calls `Update()`, as with any PK that's set: call `Insert()` for that.
 
 Collision-safety is **not** enforced by the framework: there is no pre-insert uniqueness
 check and no catch/retry around a duplicate-key error on `INSERT` — a collision would
@@ -225,8 +231,10 @@ $product->price = 12.99;
 $product->Save(); // returns true
 ```
 
-### `Insert(): int`
-Executes an INSERT and sets the PK on the model. Returns the new auto-increment ID.
+### `Insert(): int|string`
+Executes an INSERT and sets the PK on the model. Returns the new auto-increment ID (for a `uuid`
+PK, the uuid it sent). It doesn't read the row back: `created_at`/`updated_at` are `null` on the
+object afterwards (see [Timestamps](#timestamps-created-at-updated-at)), and `Reload()` reads them.
 A failed INSERT (duplicate key, `NOT NULL` column…) throws `MagratheaDBException` and leaves the PK
 untouched, whatever mysqli's error reporting mode (before 2.4.0, with reporting off, it set the PK to
 `null` and returned it).
@@ -248,12 +256,14 @@ $product->InsertWithPk();
 ```
 
 ### `Update(): bool`
-Executes an UPDATE for the current model (uses PK in WHERE clause).
+Executes an UPDATE for the current model (uses PK in WHERE clause). It never writes
+`created_at` or `updated_at` (see [Timestamps](#timestamps-created-at-updated-at)), and when
+there's no field to write it runs no query and returns `true`.
 
 ```php
 $product = new Product(42);
 $product->name = "Updated Name";
-$product->Update(); // UPDATE products SET name = 'Updated Name', updated_at = … WHERE id = 42
+$product->Update(); // UPDATE products SET name = 'Updated Name' WHERE id = 42
 ```
 
 Which columns it writes depends on whether the object was **loaded**: loaded from the DB
@@ -261,17 +271,17 @@ Which columns it writes depends on whether the object was **loaded**: loaded fro
 once with `Insert()`/`InsertWithPk()`/`Update()`:
 
 - **Loaded object:** the fields whose value changed since the load or the last save, by plain
-  assignment (`$obj->name = …`) or `Set()`/`Assign()`, plus `updated_at`. If nothing changed,
-  only `updated_at`. Columns this object didn't change are left alone, so a value changed by
-  another process in the meantime isn't overwritten.
+  assignment (`$obj->name = …`) or `Set()`/`Assign()`. If nothing changed, no query runs.
+  Columns this object didn't change are left alone, so a value changed by another process in the
+  meantime isn't overwritten.
   - "Changed" ignores the type: `5` and `"5"`, `true` and `"1"`, `false` and `"0"` are the same
     value. `null` is only equal to `null` (`null` → `""` is a change).
   - A partial row (custom `SELECT` with some columns) is fine: columns it didn't have are
     written only if you assign them.
 - **Never-loaded object** (`new Product(); $p->id = 42; … Update()`), as before 2.4.0: if
-  anything was set through `Set()`/`Assign()`, only those fields (no `updated_at`, plain
-  assignments are dropped); otherwise every field, including `null`s (except `null` ints and
-  booleans, which are skipped).
+  anything was set through `Set()`/`Assign()`, only those fields (plain assignments are
+  dropped); otherwise every field, including `null`s (except `null` ints and booleans, which are
+  skipped).
 
 **`null` in int/boolean fields:** a written int/boolean field that is `null` or `""` (an empty
 form input) is written as SQL `NULL`, so a nullable FK can be cleared:
@@ -304,34 +314,61 @@ $product->Delete(); // DELETE FROM products WHERE id = 42
 
 ### Timestamps (`created_at` / `updated_at`)
 
-When `created_at` / `updated_at` are declared in `$dbValues` (generated models always declare
-them), the model handles them like this:
+The database owns both columns: one clock, MySQL's. The model never sends PHP's `now()` and never
+invents a value on the object. It handles them by name, whether `$dbValues` lists them or not:
 
-- **`Insert()` / `InsertWithPk()`:** a timestamp left unset (`null`) isn't sent, so the
-  **database** sets it: its column default (`DEFAULT CURRENT_TIMESTAMP`) or a `BEFORE INSERT`
-  trigger. A timestamp assigned on the object (`$obj->created_at = …`) is sent, but always as
-  PHP's `now()`, never the assigned value — so an import can't keep original timestamps through
-  the model; use `Query::Insert()` for that.
-- **After `Insert()`:** the object's `created_at` / `updated_at` are set to PHP's `now()`, not
-  read back from the row. They match the row only when PHP and MySQL agree on the time and
-  timezone; with a trigger or a different MySQL timezone, reload the object
-  (`GetById()`) if you need the stored values.
-- **`Update()`:** writes `updated_at` with PHP's `now()` (this overrides
-  `ON UPDATE CURRENT_TIMESTAMP` and any `BEFORE UPDATE` trigger that sets it), and never
-  writes `created_at`. The one exception: a never-loaded object updated after a `Set()`
-  doesn't write `updated_at` (see `Update()` above). The object's own `updated_at` isn't
-  changed by `Update()`.
-- **`Set()`** ignores both fields.
+- **`Insert()` / `InsertWithPk()`:** a timestamp left unset (`null`) isn't sent, so the column's
+  `DEFAULT CURRENT_TIMESTAMP` (or a `BEFORE INSERT` trigger) sets it. A timestamp assigned on the
+  object (`$obj->created_at = "2001-01-01 00:00:00"`) is sent **as assigned**, so imports keep
+  their dates.
+- **`Update()`:** never writes either one, loaded object or not. `ON UPDATE CURRENT_TIMESTAMP`
+  (or a `BEFORE UPDATE` trigger) sets `updated_at`; `$obj->updated_at = …; $obj->Save();` writes
+  nothing. To set them explicitly, use `Query::Update()`.
+- **No read-back:** neither method runs a `SELECT` afterwards (too costly for bulk saves), so the
+  object never holds a guessed value. After `Insert()`, both are `null`, even one that was
+  assigned and sent (the database may store it differently). After an `Update()` that ran a
+  query, `updated_at` is `null` and `created_at` stays as it was; when nothing changed, no query
+  runs and both stay. `null` means "not read".
+- **`Reload()`** reads them: it runs `GetById()` with the current PK (one query) and returns the
+  object, so `return $product->Reload();` works. It throws `MagratheaModelException` without a PK.
+  Nothing calls it implicitly, `MagratheaApiControl::Create()`/`Update()` included (see the API
+  Controller page for the one-line override).
+- **`Touch()`** bumps `updated_at` on purpose ("last seen", "touch the parent"): MySQL fires
+  `ON UPDATE` only when a value actually changes, so saving an unchanged object does nothing. It
+  runs `UPDATE <table> SET updated_at = CURRENT_TIMESTAMP WHERE <pk> = ?` (MySQL's clock), writes
+  no other field (pending changes stay pending for the next `Save()`), sets `updated_at` to `null`
+  on the object and returns `true`. It throws `MagratheaModelException` without a PK.
+- **`Set()`** and **`Assign()`** ignore both fields.
 
-So the table's timestamp columns need a default (or a trigger): a `NOT NULL` column with no
-default makes every insert fail, and a nullable one stays `NULL`. The admin's table generator
-creates `TIMESTAMP DEFAULT CURRENT_TIMESTAMP` (plus `ON UPDATE CURRENT_TIMESTAMP` for
-`updated_at`).
+```php
+$product = new Product();
+$product->name = "Widget";
+$product->Insert();      // $product->created_at === null
+$product->Reload();      // SELECT …: created_at/updated_at as stored
+$product->Touch();       // UPDATE … SET updated_at = CURRENT_TIMESTAMP; $product->updated_at === null
+```
 
-Inserts use MySQL's clock and updates use PHP's, so both must be on the same timezone, or
-`updated_at` can come out earlier than `created_at`. Since 2.4.0 that's automatic when the config has
-a `timezone`: each connection sets MySQL's session `time_zone` to PHP's (see the Database page,
-"Timezone sync"), unless `db_sync_timezone = false`.
+#### The table contract
+
+Every table a model maps needs both columns: every SELECT built from a model reads them, and
+`GetAll()`, `GetListPage()` and `GetWhere()` sort by `created_at`. Declare them like this:
+
+```sql
+`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+`updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+```
+
+`DATETIME` has no 2038 limit and no session-zone conversion; `TIMESTAMP` columns with the same
+defaults work too, and don't need converting. Without `ON UPDATE`, `updated_at` stops changing
+after the insert. A `NOT NULL` column with no default makes every insert fail. Other date columns
+the application sets itself are `DATETIME NULL`, never a bare `TIMESTAMP`: with MySQL 5.7's
+`explicit_defaults_for_timestamp=OFF`, a table's first bare `TIMESTAMP` column silently gets
+`DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`. The admin's own tables
+(`src/Admin/database.sql`) follow this contract.
+
+Since MySQL computes the values, they're in MySQL's session zone. When the config has a
+`timezone`, each connection sets that session zone to PHP's (see the Database page, "Timezone
+sync"), unless `db_sync_timezone = false`.
 
 ---
 

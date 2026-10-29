@@ -353,6 +353,8 @@ class MagratheaApiControl {
 
 	/**
 	 * Creates a new item.
+	 * `id`, `created_at` and `updated_at` are dropped from the data: the database sets them.
+	 * The row isn't read back: the returned object's timestamps are `null`.
 	 * @param array|false $data Data for the new item. If false, it uses POST data.
 	 * @return object The created model instance.
 	 * @throws \Exception If the creation fails.
@@ -361,6 +363,7 @@ class MagratheaApiControl {
 		if(!$data) $data = $this->GetPost();
 		$m = new $this->model();
 		if(@$data["id"]) unset($data["id"]);
+		unset($data["created_at"], $data["updated_at"]);
 		foreach ($data as $key => $value) {
 			if(property_exists($m, $key)) {
 				$m->$key = $value;
@@ -377,21 +380,26 @@ class MagratheaApiControl {
 
 	/**
 	 * Updates an existing item.
+	 * The id comes from `$params["id"]`, else from the data's `id`. The PK, `created_at` and `updated_at` are dropped
+	 * from the data: the body can't redirect the update to another row, and the database sets the timestamps.
+	 * The row isn't read back: the returned object holds only the fields sent (timestamps `null`).
 	 * @param array $params Parameters from the request, expecting an "id" and/or "data".
 	 * @return object The updated model instance.
-	 * @throws \Exception If the ID is invalid or data is empty.
+	 * @throws \Exception If the data is empty or the ID is missing.
+	 * @throws \Magrathea\Exceptions\MagratheaModelException (code 400) if the id is invalid for an int PK: nothing is written
 	 */
 	public function Update($params) {
-		$put = $this->GetPut();
 		$data = @$params["data"] ? $params["data"] : $this->GetPut();
-		$id = @$params["id"] ? $params["id"] : $data["id"];
+		if(!$data) throw new \Exception("Empty Data Sent", 500);
+		$id = @$params["id"] ? $params["id"] : @$data["id"];
 		if(!$id) {
 			throw new \Exception("Invalid Id for update", 500);
 		}
 		$m = new $this->model();
+		$id = $m->ValidateId($id);
+		unset($data[$m->GetPkName()], $data["created_at"], $data["updated_at"]);
 		$m->SetPK($id);
 		$m->Assign($data);
-		if(!$data) throw new \Exception("Empty Data Sent", 500);
 		foreach ($data as $key => $value) {
 			if(property_exists($m, $key)) {
 				$m->$key = $value;
