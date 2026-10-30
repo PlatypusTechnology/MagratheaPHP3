@@ -7,7 +7,7 @@
 
 Checks a project's setup and returns what it finds as a list of findings: PHP and the config, the
 folders, the database, the timezone and the schema. It never prints and never throws: whatever fails
-is a finding. The admin's Checks page, `magrathea check` and the Setup Wizard show it. It's never
+is a finding. The admin's [Checks page](../admin/admin-database.md#checks), `magrathea check` and the Setup Wizard show it. It's never
 called on a normal request, so its cost doesn't matter at runtime.
 
 ```php

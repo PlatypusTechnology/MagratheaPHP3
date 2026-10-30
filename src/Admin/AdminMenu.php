@@ -100,9 +100,12 @@ class AdminMenu {
 		$rs = [];
 		array_push($rs, 
 			$this->CreateTitle("Database"),
-			$this->GetItem("connect"),
+			$this->GetItem("db-explorer"),
 			$this->GetItem("query"),
-			$this->GetItem("backups")
+			$this->GetItem("query-editor"),
+			$this->GetItem("dumps"),
+			$this->GetItem("checks"),
+			$this->GetItem("connect")
 		);
 		return $rs;
 	}
@@ -259,11 +262,13 @@ class AdminMenu {
 			"htaccess" => $this->SimpleItem(".htaccess", "htaccess"),
 			"caddy" => $this->SimpleItem("site.caddy", "caddy"),
 			"tests" => $this->SimpleItem("Tests", "tests"),
+			"db-explorer" => $this->SimpleItem("Explorer", "db-explorer"),
 			"query" => $this->SimpleItem("Queries", "db-query"),
-			"connect" => $this->SimpleItem("Connect", "db-connect"),
-			"backups" => $this->SimpleItem("Backups", "backups"),
+			"query-editor" => $this->SimpleItem("Query editor", "query-editor"),
+			"dumps" => $this->SimpleItem("Dumps", "dumps"),
+			"checks" => $this->SimpleItem("Checks", "checks"),
+			"connect" => $this->SimpleItem("Connection", "db-connect"),
 			"logs" => $this->SimpleItem("Logs", "logs"),
-			"structure" => $this->SimpleItem("Structure", "structure"),
 			"server" => $this->SimpleItem("Server", "server"),
 			"help-admin-demos" => $this->SimpleItem("Admin Elements", "demo-form"),
 			"help-admin-scripts" => $this->SimpleItem("Admin Scripts", "demo-scripts"),

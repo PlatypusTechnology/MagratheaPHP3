@@ -1,12 +1,29 @@
 # Admin: the Database section
 
-**Files:** `src/Admin/DatabaseExplorer.php`, `src/Admin/QueryRunner.php`, `src/Admin/QueryEditor.php`, `src/Admin/DumpManager.php`
+**Files:** `src/Admin/DatabaseExplorer.php`, `src/Admin/QueryRunner.php`, `src/Admin/QueryEditor.php`, `src/Admin/DumpManager.php`, `src/Admin/CheckReport.php`
 **Namespace:** `Magrathea\Admin`
 
 The admin's Database menu section (since 3.0). Every page renders its data through `AdminElements::Table()`,
 `Findings()` and the form elements, which escape it. Table and column names are checked against
 [`Schema`](../database/schema.md) before they reach SQL. Each page's logic lives in a small class that returns
 arrays (tests cover it with fakes); the views only render.
+
+## The menu
+
+`AdminMenu::GetDatabaseSection()` returns the "Database" title and, in this order:
+
+| Item | Key (`GetItem()`) | Page (`?magrathea_page=`) |
+|------|-------------------|---------------------------|
+| Explorer | `db-explorer` | `db-explorer` |
+| Queries | `query` | `db-query` |
+| Query editor | `query-editor` | `query-editor` |
+| Dumps | `dumps` | `dumps` |
+| Checks | `checks` | `checks` |
+| Connection | `connect` | `db-connect` |
+
+`Admin::AddMagratheaMenu()` adds the whole section. The 2.x keys `backups` and `structure` are gone (since 3.0):
+`GetItem()` returns `null` for them, and `AdminMenu::Add()` adds nothing for `null`, so a custom menu that still
+asks for them silently loses those entries. Use `dumps` and `checks`.
 
 ---
 
@@ -79,7 +96,7 @@ a delimiter) is an `ERROR` with no statements. The constructor takes an optional
 ## Query editor
 
 Database → Query editor (`?magrathea_page=query-editor`) builds a `Query` from a form and shows its PHP chain and
-its SQL. It isn't in the menu yet (item 23). The logic is `Admin\QueryEditor::Build($spec)`; the page posts the
+its SQL. The logic is `Admin\QueryEditor::Build($spec)`; the page posts the
 spec as JSON to the `query-editor-card` action (a POST, so it carries the CSRF token).
 
 - **The form:** the type (select, insert, update or delete) and the table (from `Schema::Tables()`; choosing
@@ -147,8 +164,7 @@ are escaped through `Database::Instance()`, as `Query` does.
 
 ## Dumps
 
-Database → Dumps (`?magrathea_page=dumps`) replaces the Backups page (since 3.0). It isn't in the menu yet (item 23):
-the menu's Backups item still points to the removed page. Exports and imports go through
+Database → Dumps (`?magrathea_page=dumps`) replaces the Backups page (since 3.0). Exports and imports go through
 [`Dump`](../database/dump.md); the logic is `Admin\DumpManager`.
 
 - **The files:** every `.sql` file in the backups folder (`Dump::Folder()`: `backups_path`, or `<magRoot>/backups`), the
@@ -194,3 +210,41 @@ $dumps->Import("before-migration", "app");        // ["status" => "ok", …, "re
 confirmed with (default the config's `db_name`), so tests can pass fakes. Every method throws `MagratheaException`
 on a bad name or a failure; the views show its message. The protected `MoveUploadedFile()` moves only a file PHP
 received in this request (`is_uploaded_file()`); tests override it.
+
+---
+
+## Checks
+
+Database → Checks (`?magrathea_page=checks`) replaces the Structure page (since 3.0), which was in the Setup section. It
+shows [`ProjectCheck::Run()`](../core/project-check.md)'s findings; the logic is `Admin\CheckReport`.
+
+- **Summary:** how many findings of each level (`ok`, `info`, `warning`, `error`).
+- **One card per group**, in this order, each with its most severe level as a badge: Configuration (`config`, with a
+  link to the configuration file page), Folders (`folders`: the logs, cache and backups folders, each message naming
+  its path, with links to Logs and Dumps), Database (`database`), Timezone (`timezone`), and the `schema` group split
+  in two: **Timestamps** (the findings with a `fix`: `SchemaCheck::CheckTimestamps()`) and **Models** (the rest: the
+  models' drift, models that couldn't load, tables no model maps). A finding whose group isn't one of these goes to a
+  last "Other" card.
+- **Fixes:** each finding shows its `fix`, and a card with fixes also shows all of them in one block with a "Copy"
+  button. They're shown, never run: copy them to the Queries page or a migration.
+- A card with no findings says so: its check was skipped (`ProjectCheck::Run()` stops after a config error, and the
+  database groups need a database and a connection) or it found nothing.
+
+Every message and fix goes through `AdminElements::Findings()` and `htmlspecialchars()`. The page runs every check
+on each load, the database ones included; nothing it shows is cached.
+
+The Structure page also listed the Magrathea and app roots: they're not checks, and they're gone. The cache folder's
+link to the Cache feature is gone too (the Cache menu item stays).
+
+```php
+use Magrathea\Admin\CheckReport;
+
+$report = CheckReport::Build();      // CheckReport::Group(ProjectCheck::Run())
+$report["status"];                   // "warning": the most severe level
+$report["counts"];                   // ["ok" => 14, "info" => 2, "warning" => 1, "error" => 0]
+$report["sections"][4];              // ["key" => "timestamps", "title" => "Timestamps", "findings" => […],
+                                     //  "status" => "warning", "fixes" => "ALTER TABLE `articles` MODIFY …;"]
+```
+
+`CheckReport::Group($findings)` does the grouping, so tests pass it fixed findings; `AdminElements::CheckReport($report)`
+prints it.

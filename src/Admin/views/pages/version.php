@@ -1,10 +1,8 @@
 <?php
 
 use Magrathea\Admin\AdminElements;
-use Magrathea\Config;
+use Magrathea\Admin\AdminUrls;
 use Magrathea\MagratheaPHP;
-
-use function Magrathea\now;
 
 AdminElements::Instance()->Header("Version");
 
@@ -32,9 +30,8 @@ $magPhp = MagratheaPHP::Instance();
 			<div class="card-close" aria-label="Close" onclick="closeCard(this);">&times;</div>
 		</div>
 		<div class="card-body">
-			<b><?=now()?></b><br/><br/>
-			Current Timezone = <?=date_default_timezone_get()?><br/>
-			ConfigApp("<i>timezone</i>") = <?=Config::Instance()->Get("timezone")?><br/>
+			The server's time and timezone, and their check, are on the
+			<a href="<?=htmlspecialchars(AdminUrls::Instance()->GetPageUrl("server"))?>#timezone-check">Server page</a>.
 		</div>
 	</div>
 

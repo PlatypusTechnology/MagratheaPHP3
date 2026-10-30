@@ -146,6 +146,24 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString('<div class="alert alert-secondary py-1 mb-1">unknown level</div>', $output);
 	}
 
+	function testCheckReportEscapes() {
+		TestsHelper::Print("testing the Checks page's report escapes messages, fixes and unknown groups' findings...");
+		$report = \Magrathea\Admin\CheckReport::Group([
+			["level" => \Magrathea\TimezoneCheck::WARNING, "message" => "Cache: `".self::XSS."` doesn't exist.", "group" => "folders"],
+			["level" => \Magrathea\TimezoneCheck::ERROR, "message" => "`t`.`updated_at` ".self::XSS, "group" => "schema", "table" => "t",
+				"fix" => "ALTER TABLE `t` -- ".self::XSS],
+			["level" => \Magrathea\TimezoneCheck::INFO, "message" => self::XSS, "group" => self::XSS],
+		]);
+		$output = $this->Buffer(fn($e) => $e->CheckReport($report));
+		$this->assertStringNotContainsString("<script>", $output);
+		// the folder message, the fix twice (the finding and the section's block), the unknown group's message
+		$this->assertSame(5, substr_count($output, self::XSS_HTML));
+		$this->assertStringContainsString('<pre class="code-light" id="checks-fixes-timestamps">ALTER TABLE `t` -- '.self::XSS_HTML.'</pre>', $output);
+		$this->assertStringContainsString('id="checks-other"', $output);
+		$this->assertStringContainsString('<span class="badge bg-warning">warning</span>', $output);
+		$this->assertStringContainsString('<span class="badge bg-light text-muted">no findings</span>', $output);
+	}
+
 	function testFormElementsEscapeValues() {
 		TestsHelper::Print("testing Input, Textarea, Select, date and Checkbox escape their values...");
 		$this->assertEscaped($this->Buffer(fn($e) => $e->Input("text", "f", "F", self::XSS)), "input");

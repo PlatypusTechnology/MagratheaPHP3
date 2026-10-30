@@ -1095,7 +1095,7 @@ that tests can cover with fake schema rows; the views stay thin.
     items 22 and 23, so `MagratheaAdminTests/adminMenuTest` fails 2 tests until then.
 
 ### 22. Checks (replaces Structure)
-- [ ] done
+- [x] done
 
 **Solution.**
 - A new page that lists `ProjectCheck::Run()`'s findings by group: configuration, folders (with each
@@ -1103,9 +1103,24 @@ that tests can cover with fake schema rows; the views stay thin.
   drift).
 - Delete `views/pages/structure.php`: its folder checks are now part of this page.
 - Tests: findings are grouped and escaped.
+- **Decided while implementing:**
+  - the logic is `Admin\CheckReport` (static, like `QueryEditor`): `Build()` runs `ProjectCheck::Run()`,
+    `Group($findings)` does the grouping, so tests pass fixed findings; the rendering is
+    `AdminElements::CheckReport($report)` (like `QueryResults()`), so the escaping test doesn't run real checks;
+  - `schema` is split into two sections by the `fix` key: Timestamps (`CheckTimestamps()`'s findings) and Models
+    (everything else, including `CheckModel()`'s "no `created_at` column", which has no fix);
+  - each section with fixes also shows them all in one block with a "Copy" button; `Findings()` is unchanged;
+  - a finding with an unknown group lands in a last "Other" section instead of disappearing;
+  - a section with no findings can't tell "skipped" from "found nothing" (`ProjectCheck::Run()` doesn't say), so it
+    says either;
+  - the folder messages already name each path; the Magrathea and app roots Structure listed are dropped (not
+    checks), as is its link to the Cache feature; the Configuration and Folders cards link to the config, logs and
+    dumps pages;
+  - the menu's `structure` item still points to the removed page until item 23 (like `backups` after item 21), so
+    `adminMenuTest::testEveryMenuPageExists` keeps failing until then.
 
 ### 23. Menu and the Version page
-- [ ] done
+- [x] done
 
 **Solution.**
 - `AdminMenu::GetDatabaseSection()` lists Explorer (`db-explorer`), Queries (`query`), Query editor
@@ -1116,6 +1131,14 @@ that tests can cover with fake schema rows; the views stay thin.
   (`views/pages/version.php:29-39`) becomes a link to it.
 - Tests (`MagratheaAdminTests/adminMenuTest.php`): the section's items; no generator, File Editor,
   `backups` or `structure` items.
+- **Decided while implementing:**
+  - the section follows the order above; the new keys are the page names (`db-explorer`, `query-editor`,
+    `dumps`, `checks`), and `connect` is retitled "Connection" (it was "Connect");
+  - the "Server Time" card keeps its header and links to `server#timezone-check` (the Server page's check card
+    got that `id`); the Version page no longer reads `Config` or `now()`;
+  - `adminMenuTest::testQueryTesterIsGone` lost its "3 links" count (now `testDatabaseSection`'s job); the new
+    `testRemovedItemsAreGone` also builds `AddMagratheaMenu()` and checks no `backups`/`structure`/File Editor
+    entry reaches it.
 
 ---
 

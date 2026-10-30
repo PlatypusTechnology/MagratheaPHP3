@@ -247,7 +247,6 @@ class Admin implements iAdmin {
 		if(@$this->adminFeatures["AdminFeatureAppConfig"])
 			$adminMenu->Add($this->adminFeatures["AdminFeatureAppConfig"]->GetMenuItem());
 		$adminMenu
-			->Add($adminMenu->GetItem("structure"))
 			->Add($adminMenu->GetItem("htaccess"))
 			->Add($adminMenu->GetItem("caddy"))
 

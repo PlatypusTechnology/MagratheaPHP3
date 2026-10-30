@@ -74,7 +74,6 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		foreach($links as $link) {
 			$this->assertNotSame("query-creator", $this->PageFromLink($link));
 		}
-		$this->assertCount(3, $links);
 		$start = MenuTestAdminStart::Instance();
 		$this->assertNull($start->GetViewFile("pages", "query-creator"));
 		$this->assertNull($start->GetViewFile("actions", "query-creator"));
@@ -95,6 +94,50 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		$this->assertNull($start->GetViewFile("actions", "object-detail"));
 		$this->assertFalse(class_exists("\\Magrathea\\Admin\\ObjectManager"));
 		$this->assertFalse(class_exists("\\Magrathea\\Admin\\CodeCreator"));
+	}
+
+	function testDatabaseSection() {
+		TestsHelper::Print("testing the Database section lists its six pages, in order...");
+		$menu = new AdminMenu();
+		$section = $menu->GetDatabaseSection();
+		$this->assertSame(["title" => "Database", "type" => "sub"], array_shift($section));
+		$this->assertSame(
+			["Explorer", "Queries", "Query editor", "Dumps", "Checks", "Connection"],
+			array_column($section, "title")
+		);
+		$this->assertSame(
+			["db-explorer", "db-query", "query-editor", "dumps", "checks", "db-connect"],
+			array_map(fn($i) => $this->PageFromLink($i["link"]), $section)
+		);
+		foreach(["db-explorer", "query", "query-editor", "dumps", "checks", "connect"] as $i => $key) {
+			$this->assertSame($menu->GetItem($key), $section[$i], $key);
+		}
+	}
+
+	function testRemovedItemsAreGone() {
+		TestsHelper::Print("testing backups, structure, the generator and the File Editor are gone from the menu...");
+		$menu = new AdminMenu();
+		foreach(["backups", "structure", "tools-file-editor", "objects-create", "objects-conf", "objects", "objects-edit", "code-gen"] as $key) {
+			$this->assertNull($menu->GetItem($key), $key);
+		}
+		$start = MenuTestAdminStart::Instance();
+		$this->assertNull($start->GetViewFile("pages", "backups"));
+		$this->assertNull($start->GetViewFile("pages", "structure"));
+
+		$admin = new class extends \Magrathea\Admin\Admin {
+			public function __construct() {}
+		};
+		$built = new AdminMenu();
+		$admin->AddMagratheaMenu($built);
+		$pages = array_map(fn($i) => $this->PageFromLink($i["link"]), array_filter($built->GetMenu(), fn($i) => !empty($i["link"])));
+		foreach(["backups", "structure", "file-editor"] as $page) {
+			$this->assertNotContains($page, $pages, $page);
+		}
+		$features = array_column($built->GetMenu(), "feature");
+		$this->assertNotContains("AdminFeatureFileEditor", $features);
+		foreach(["db-explorer", "query-editor", "dumps", "checks"] as $page) {
+			$this->assertContains($page, $pages, $page);
+		}
 	}
 
 	function testAddIgnoresNull() {

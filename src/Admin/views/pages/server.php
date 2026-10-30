@@ -19,7 +19,7 @@ $pageTitle = "Server & Info";
 		</div>
 	</div>
 
-	<div class="card">
+	<div class="card" id="timezone-check">
 		<div class="card-header">
 			Timezone check
 		</div>

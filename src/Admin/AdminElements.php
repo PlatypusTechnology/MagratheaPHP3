@@ -147,6 +147,16 @@ class AdminElements extends Singleton {
 	}
 
 	/**
+	 * Displays `CheckReport::Group()`'s report: the counts per level, then one card per section with its status,
+	 * its findings (through `Findings()`) and every fix of the section in one block with a "Copy" button. Everything is escaped
+	 * @param array $report		`CheckReport::Group()`'s result
+	 */
+	public function CheckReport(array $report) {
+		$view = __DIR__."/views/elements/check-report.php";
+		include($view);
+	}
+
+	/**
 	 * Prints page header
 	 * @param string $title			title
 	 * @param string $error 		error message (default: null)

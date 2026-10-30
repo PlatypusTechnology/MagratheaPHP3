@@ -180,7 +180,11 @@ Your own pages belong in admin features (`?magrathea_feature=`), not in these fo
 
 #### The Database section
 
-Explorer, Queries, the Query editor and Dumps (since 3.0) have their own page: [Admin: the Database section](admin-database.md).
+Explorer, Queries, the Query editor, Dumps and Checks (since 3.0), and the section's menu items, have their own page:
+[Admin: the Database section](admin-database.md).
+
+The Version page shows the app, Magrathea and PHP versions. Its "Server Time" card links to the Server page
+(Debugging → Server), which shows the time, the timezone and its check (`TimezoneCheck::Run()`).
 
 #### Backups, logs, and the removed Query Tester
 

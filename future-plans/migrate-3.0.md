@@ -751,6 +751,14 @@ or calls the admin's `CreateBackupFile` API (see the Dumps item below).
   grep -rnE 'CreateBackupFile|magrathea_api=Database|DatabaseApi|magrathea_page=backups' --include='*.php' --include='*.js' --exclude-dir=vendor .
   ```
   Replace an API call with `(new \Magrathea\DB\Dump())->Export($name)` (M17), and a link to `backups` with `dumps`.
+- Checks (M22) replaces Structure: it shows `ProjectCheck::Run()`'s findings by group (configuration, folders,
+  database, timezone, and the schema's timestamps, with their fix SQL to copy, and models), through the new
+  `Admin\CheckReport`. The Structure page (`views/pages/structure.php`) is removed, and with it the Magrathea and app
+  root paths it listed:
+  ```bash
+  grep -rnE 'magrathea_page=structure|GetPageUrl\(.structure.\)' --include='*.php' --include='*.js' --exclude-dir=vendor .
+  ```
+  Replace a link to `structure` with `checks`.
 
 **What to do.** In custom menus, replace `backups` with `dumps` and `structure` with `checks`.
 
