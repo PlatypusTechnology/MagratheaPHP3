@@ -1,6 +1,5 @@
 <?php
 
-use Magrathea\Admin\Api\DatabaseApi;
 use Magrathea\Config;
 use Magrathea\DB\Database;
 use Magrathea\DB\Dump;
@@ -53,15 +52,7 @@ class BackupTablesDatabase extends Database {
 	}
 }
 
-// the backup API with the fake Dump
-class FakeDumpDatabaseApi extends DatabaseApi {
-	public $dump;
-	protected function GetDump(): Dump {
-		return $this->dump;
-	}
-}
-
-class adminBackupsTest extends \PHPUnit\Framework\TestCase {
+class dumpBinaryTest extends \PHPUnit\Framework\TestCase {
 
 	private $folder;
 	private $magRoot;
@@ -325,16 +316,6 @@ class adminBackupsTest extends \PHPUnit\Framework\TestCase {
 		$rs = $dump->RealRunProcess([PHP_BINARY, "-r", 'for($i = 0; $i < 20; $i++) { fwrite(STDOUT, str_repeat("o", 20000)); fwrite(STDERR, str_repeat("e", 20000)); }']);
 		$this->assertSame(400000, strlen($rs["stdout"]));
 		$this->assertSame(400000, strlen($rs["stderr"]));
-	}
-
-	function testCreateBackupFileResponse() {
-		TestsHelper::Print("testing the backup API answers the file, size and driver, never the command...");
-		$api = new FakeDumpDatabaseApi();
-		$api->dump = $this->Fake();
-		$rs = $api->CreateBackupFile(["filename" => "api_backup"]);
-		$this->assertSame(["success" => true, "file" => "api_backup.sql", "size" => 8, "driver" => "binary"], $rs);
-		$this->assertArrayNotHasKey("command", $rs);
-		$this->assertFalse(method_exists(Dump::class, "GetCommand"));
 	}
 
 }

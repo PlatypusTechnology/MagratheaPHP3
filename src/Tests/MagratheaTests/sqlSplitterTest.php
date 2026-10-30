@@ -110,4 +110,23 @@ class sqlSplitterTest extends \PHPUnit\Framework\TestCase {
 		}
 	}
 
+	function testIsReadOnly() {
+		TestsHelper::Print("testing SqlSplitter::IsReadOnly(): one SELECT, SHOW, DESCRIBE, DESC or EXPLAIN statement, without INTO OUTFILE...");
+		foreach(["SELECT * FROM articles", "select\n*\nfrom articles;", "  SHOW TABLES", "DESCRIBE articles", "desc articles",
+			"EXPLAIN SELECT 1", "-- why\nSELECT 1", "/* hi */ SELECT 1", "# hash\nSELECT 'a;b' ;", "SELECT * FROM `delete`",
+			"SELECT 'drop table x'"] as $sql) {
+			$this->assertTrue(SqlSplitter::IsReadOnly($sql), $sql);
+		}
+		foreach(["", "-- only a comment", "DELETE FROM articles", "UPDATE articles SET a = 1", "INSERT INTO a VALUES (1)",
+			"DROP TABLE articles", "SELECT 1; SELECT 2", "SELECT 1; DROP TABLE articles", "-- SELECT\nDELETE FROM a",
+			"/*!40101 SET NAMES utf8 */", "(SELECT 1)", "WITH a AS (SELECT 1) SELECT * FROM a", "SELECTED",
+			"SELECT * FROM a INTO OUTFILE '/var/www/x.php'", "select 1 into\n dumpfile '/tmp/x'", "SELECT 'into outfile'",
+			"DELIMITER\nSELECT 1"] as $sql) {
+			$this->assertFalse(SqlSplitter::IsReadOnly($sql), $sql);
+		}
+		$this->assertTrue(SqlSplitter::IsReadOnlyStatement("SELECT 1; SELECT 2"), "one statement as given: not split again");
+		$this->assertFalse(SqlSplitter::IsReadOnlyStatement("SELECT * INTO OUTFILE 'x' FROM a"));
+		$this->assertFalse(SqlSplitter::IsReadOnlyStatement("OPTIMIZE TABLE a"));
+	}
+
 }

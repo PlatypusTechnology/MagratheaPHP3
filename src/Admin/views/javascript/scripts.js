@@ -24,6 +24,16 @@ function closeAlert(element) {
 	$(card).slideUp('slow');
 }
 
+// the raw/table switch of a query result (AdminElements::QueryResults())
+function switchRs(el) {
+	let cardBody = $(el).closest(".card-body");
+
+	let tableRs = $(cardBody).find('.rs-table');
+	let rawRs = $(cardBody).find('.rs-raw');
+	$(tableRs).slideToggle('slow');
+	$(rawRs).slideToggle('slow');
+}
+
 function showOn(container, rs, debug=false) {
 	if(debug) {
 		console.info("["+container+"]", rs);

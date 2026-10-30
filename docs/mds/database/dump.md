@@ -19,7 +19,7 @@ $rs = $dump->Export("before-migration");               // backups_path/before-mi
 $dump->Import("before-migration", ["continue" => true]);
 ```
 
-It never prints: the admin's Backups page shows what it returns. The constructor takes an optional `Database` (default `Database::Instance()`), so tests
+It never prints: the admin's [Dumps page](../admin/admin-database.md#dumps) shows what it returns. The constructor takes an optional `Database` (default `Database::Instance()`), so tests
 can pass a fake.
 
 ---
@@ -173,6 +173,19 @@ Yields a file's statements, reading `$chunkSize` bytes at a time: the file is ne
 ### `SqlSplitter::Statements(iterable $chunks): \Generator`
 Yields the statements of SQL given in pieces. A statement, a quote, a comment or the delimiter can be
 cut between two pieces.
+
+### `SqlSplitter::IsReadOnly(string $sql): bool`
+The rule the admin's [Queries page](../admin/admin-database.md#queries) and the CLI's `db:query` use to decide
+what runs without a confirmation: `Split()` finds exactly one statement, and `IsReadOnlyStatement()` accepts
+it. SQL that can't be split is `false`. `"SELECT 1; SELECT 2"` is `false` too: two statements.
+
+### `SqlSplitter::IsReadOnlyStatement(string $statement): bool`
+One statement, as `Split()` gives it (comments already removed, not split again): its first word is
+`SELECT`, `SHOW`, `DESCRIBE`, `DESC` or `EXPLAIN` (`SqlSplitter::READ_ONLY_KEYWORDS`, case-insensitive), and it
+has no `INTO OUTFILE` or `INTO DUMPFILE`, which write a file on the server. That's searched for in the
+whole statement, quoted text included, so `SELECT 'into outfile'` counts as a write. It's a guard
+against mistakes, not access control: `SELECT … FOR UPDATE` takes locks, a stored function a `SELECT`
+calls can write, and `(SELECT 1)` or `WITH … SELECT` count as writes (they don't start with the keyword).
 
 It reads SQL the way the `mysql` client does:
 - `'…'` and `"…"` with backslash escapes and doubled quotes; `` `…` `` with a doubled backtick (no

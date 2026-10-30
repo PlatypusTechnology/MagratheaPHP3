@@ -25,16 +25,7 @@ $pageTitle = "Server & Info";
 		</div>
 		<div class="card-body">
 			<?php
-			$levelClass = [
-				\Magrathea\TimezoneCheck::OK => "success",
-				\Magrathea\TimezoneCheck::INFO => "secondary",
-				\Magrathea\TimezoneCheck::WARNING => "warning",
-				\Magrathea\TimezoneCheck::ERROR => "danger",
-			];
-			foreach(\Magrathea\TimezoneCheck::Run() as $finding) {
-				$message = preg_replace('/`([^`]+)`/', '<code>$1</code>', htmlspecialchars($finding["message"]));
-				echo '<div class="alert alert-'.$levelClass[$finding["level"]].' py-1 mb-1">'.$message.'</div>';
-			}
+			\Magrathea\Admin\AdminElements::Instance()->Findings(\Magrathea\TimezoneCheck::Run());
 			?>
 		</div>
 	</div>

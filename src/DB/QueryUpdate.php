@@ -35,7 +35,7 @@ class QueryUpdate extends Query {
 	/**
 	 * Set field for value
 	 * @param 	string 		$field 		field
-	 * @param 	string 		$value 		value for field sent
+	 * @param 	string|null	$value 		value for field sent (null sets NULL; booleans '1'/'0')
 	 */
 	public function Set($field, $value){
 		$this->fields[$field] = $value;
@@ -78,7 +78,7 @@ class QueryUpdate extends Query {
 			array_push($setsArray, $field);
 		}
 		foreach ($this->fields as $field => $value) {
-			array_push($setsArray, $field." = '".Database::Instance()->Escape($value)."'");
+			array_push($setsArray, $field." = ".self::SqlValue($value));
 		}
 		$this->sql .= implode(", ", $setsArray);
 		$sqlWhere = $this->where;

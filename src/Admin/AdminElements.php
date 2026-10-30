@@ -67,7 +67,8 @@ class AdminElements extends Singleton {
 				return;
 			}
 			$magratheaKeys = array_keys($magratheaRows[0]);
-			$magratheaTableTitles = $magratheaKeys;
+			// keys are data (a query's column names): escaped. Titles passed in $cols are the caller's HTML
+			$magratheaTableTitles = array_map(fn($k) => htmlspecialchars((string)$k, ENT_QUOTES), $magratheaKeys);
 		} else {
 			$magratheaKeys = [];
 			$magratheaTableTitles = [];
@@ -111,6 +112,37 @@ class AdminElements extends Singleton {
 		$errorCardTitle = $title;
 		$errorCardText = $message;
 		$view = __DIR__."/views/elements/error-card.php";
+		include($view);
+	}
+
+	/**
+	 * Displays findings (`TimezoneCheck::Run()`, `SchemaCheck`, `ProjectCheck::Run()`), one alert each, colored by level.
+	 * Messages are escaped, with their `code` spans as `<code>`; a finding's `fix` is shown, escaped, under its message
+	 * @param array $findings		findings: ["level", "message", optional "fix"]
+	 */
+	public function Findings(array $findings) {
+		$levelClass = [
+			\Magrathea\TimezoneCheck::OK => "success",
+			\Magrathea\TimezoneCheck::INFO => "secondary",
+			\Magrathea\TimezoneCheck::WARNING => "warning",
+			\Magrathea\TimezoneCheck::ERROR => "danger",
+		];
+		foreach($findings as $finding) {
+			$class = $levelClass[$finding["level"] ?? ""] ?? "secondary";
+			$message = preg_replace('/`([^`]+)`/', '<code>$1</code>', htmlspecialchars((string)($finding["message"] ?? "")));
+			echo '<div class="alert alert-'.$class.' py-1 mb-1">'.$message;
+			if(!empty($finding["fix"])) echo '<pre class="code-light mb-0 mt-1">'.htmlspecialchars((string)$finding["fix"]).'</pre>';
+			echo '</div>';
+		}
+	}
+
+	/**
+	 * Displays what `QueryRunner::Run()` ran: each statement's SQL, its error, affected rows or rows (as a table and raw),
+	 * the row cap notice and the statements left after an error. Everything is escaped. Not for a `CONFIRM` run: nothing ran
+	 * @param array $run		`QueryRunner::Run()`'s result
+	 */
+	public function QueryResults(array $run) {
+		$view = __DIR__."/views/elements/query-results.php";
 		include($view);
 	}
 

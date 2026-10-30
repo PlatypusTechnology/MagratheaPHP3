@@ -64,14 +64,14 @@ function RunQuery() {
 			$("#query-responses").prepend(rs);
 		});
 }
-
-function switchRs(el) {
-	let cardBody = $(el).parents().eq(3);
-
-	let tableRs = $(cardBody).find('.rs-table');
-	let rawRs = $(cardBody).find('.rs-raw');
-	$(tableRs).slideToggle('slow');
-	$(rawRs).slideToggle('slow');
+// SQL that isn't read-only comes back as a confirmation card: it posts the SQL it shows (not the textarea's) again
+function ConfirmQuery(el) {
+	let card = $(el).closest(".card");
+	let q = $(card).find(".confirm-sql").val();
+	callAction("query-run-card", "POST", { q, confirm: "1" })
+		.then((rs) => {
+			$(card).replaceWith(rs);
+		});
 }
 
 afterLoad().then( loadTables );

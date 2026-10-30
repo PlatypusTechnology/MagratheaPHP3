@@ -246,7 +246,12 @@ Since 2.4.0, `AdminElements` treats what you pass as **values** as data and esca
 - **`Table($rows, $cols)`:** every scalar value, from array rows and from models, is printed with
   `htmlspecialchars(…, ENT_QUOTES)`; `null` prints empty; arrays and objects print as escaped JSON.
   **A callable column (`"key" => function($row) {…}`) and a callable row value stay raw:** they return HTML
-  you build, so escape the data you put in it. Column titles are printed as given.
+  you build, so escape the data you put in it. Column titles passed in `$cols` are printed as given (they're
+  yours: `&nbsp;` works); without `$cols`, the titles are the rows' keys (a query's column names), escaped
+  (since 3.0; before, `SELECT 1 AS '<b>x</b>'` on the Queries page printed HTML in the header).
+- **`Findings($findings)`** (since 3.0) prints a check's findings (`TimezoneCheck::Run()`, `SchemaCheck`,
+  `ProjectCheck::Run()`), one alert each, colored by level: the message escaped, with its backtick spans as
+  `<code>`, and a finding's `fix` SQL in an escaped `<pre>` under it.
 - **`Input()`, `Textarea()`, `Select()`, `Checkbox()`** (and so `AdminForm`, the CRUD forms included) escape the
   value: the `value` attribute, the textarea's content, a select's option values and labels (`Ref()` for
   models), the checkbox's value. `AdminForm`'s `hidden` value and an `empty` field's value are escaped too,

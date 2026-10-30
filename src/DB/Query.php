@@ -565,6 +565,19 @@ class Query {
 	/**
 	 * @access private
 	 * *INTERNAL USE*
+	 * A value for an INSERT or an UPDATE's SET: NULL for null, '1'/'0' for booleans
+	 * 	(`Escape()` turns null and false into ""), anything else escaped and quoted
+	 * @param 	mixed 	$value 		value
+	 * @return 	string 	SQL literal
+	 */
+	public static function SqlValue($value): string {
+		if($value === null) return "NULL";
+		if(is_bool($value)) return $value ? "'1'" : "'0'";
+		return "'".Database::Instance()->Escape($value)."'";
+	}
+	/**
+	 * @access private
+	 * *INTERNAL USE*
 	 * gets an array with "fields" and returns it with "table.fields"
 	 * 	sample:
 	 * 		array_walk($joinObjDbValues, 'BuildSelect', $joinObjTable);

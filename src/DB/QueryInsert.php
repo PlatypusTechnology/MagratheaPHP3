@@ -35,7 +35,7 @@ class QueryInsert extends Query {
 	 * 	send an array which each key represents a field and the value
 	 * 		is the correspondent and we're gonna
 	 * 		build it nicely to you! =)
-	 * @param 	array 	$vals 		array with values
+	 * @param 	array 	$vals 		array with values (null inserts NULL; booleans '1'/'0')
 	 * @return  QueryInsert
 	 */	
 	public function Values($vals){
@@ -58,8 +58,8 @@ class QueryInsert extends Query {
 		$this->sql = "INSERT INTO `".$this->tables."`";
 		$this->sql .= " (`".implode('`, `', $this->fieldNames)."`) ";
 		$this->sql .= " VALUES ";
-		$escapedValues = array_map(fn($value) => Database::Instance()->Escape($value), $this->arrValues);
-		$this->sql .= " ('".implode('\', \'', $escapedValues)."') ";
+		$escapedValues = array_map(fn($value) => self::SqlValue($value), $this->arrValues);
+		$this->sql .= " (".implode(', ', $escapedValues).") ";
 		return $this->sql;
 	}
 

@@ -453,7 +453,7 @@ $one  = Database::Instance()->QueryRow($sql);
 $val  = Database::Instance()->QueryOne($sql);
 ```
 
-**Never interpolate user input into SQL unescaped.** The query builder's array forms (`Where([...])`, `SetArray()`, `Values()`) escape values for you. For a hand-built fragment, use `Database::Instance()->Escape()` (it wraps `mysqli::real_escape_string`). `Query::Clean()` was removed in 3.0.
+**Never interpolate user input into SQL unescaped.** The query builder's array forms (`Where([...])`, `SetArray()`, `Values()`) escape values for you, a `null` value writes `NULL` and a boolean `'1'`/`'0'` (3.0+; both null and `false` wrote `''`). For a hand-built fragment, use `Database::Instance()->Escape()` (it wraps `mysqli::real_escape_string`). `Query::Clean()` was removed in 3.0.
 
 ```php
 $safe = Database::Instance()->Escape($_GET["search"]);

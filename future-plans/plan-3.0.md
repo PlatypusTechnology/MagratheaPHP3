@@ -115,8 +115,9 @@ Several items rely on these. Keep them identical everywhere:
   fake. `ProjectCheck::Run()` and `Admin\QueryEditor::Build()` are static.
 - **Read-only SQL.** The Queries page (item 19) and `db:query` (item 26) treat SQL as read-only only
   when `DB\SqlSplitter` (item 17) finds exactly one statement, starting with `SELECT`, `SHOW`,
-  `DESCRIBE`, `DESC` or `EXPLAIN`. Anything else is a write: the admin asks for confirmation, and
-  the CLI needs `--write`.
+  `DESCRIBE`, `DESC` or `EXPLAIN`, and without `INTO OUTFILE`/`INTO DUMPFILE`. Anything else is a
+  write: the admin asks for confirmation, and the CLI needs `--write`. Both call
+  `SqlSplitter::IsReadOnly()`.
 
 ---
 
@@ -987,7 +988,7 @@ column names are checked against `Schema` before they reach SQL. Page logic live
 that tests can cover with fake schema rows; the views stay thin.
 
 ### 18. Explorer
-- [ ] done
+- [x] done
 
 **Solution.**
 - Tables page: name, approximate rows, engine, the mapped model (from
@@ -998,16 +999,26 @@ that tests can cover with fake schema rows; the views stay thin.
 - The logic lives in `Admin\DatabaseExplorer`, tested with fake schema rows.
 
 ### 19. Queries
-- [ ] done
+- [x] done
 
 **Solution.**
 - `views/pages/db-query.php` and `views/actions/query-run-card.php` stay: they already escape.
 - Results show up to 1000 rows, with a notice when there are more.
 - SQL that isn't read-only (see "Shared conventions") asks for confirmation before it runs.
 - Tests: the confirmation rule and the row cap.
+- **Decided while implementing** (Paulo's calls):
+  - the rule is `SqlSplitter::IsReadOnly()` (and `IsReadOnlyStatement()` for one statement), so item 26
+    uses the same code;
+  - `INTO OUTFILE` and `INTO DUMPFILE` make a statement a write, even after `SELECT` ("Shared
+    conventions" updated);
+  - read-only statements stream through `QueryStream()` and stop at row 1001 (column names in lower
+    case); the logic is `Admin\QueryRunner`;
+  - confirmed SQL runs one statement at a time, each with its own result, and stops at the first error;
+  - one DocMap page, `admin-database` (`docs/mds/admin/admin-database.md`), for the whole admin
+    Database section; items 20 to 23 add to it.
 
 ### 20. Query editor
-- [ ] done
+- [x] done
 
 **Error.** The admin has no query builder, only raw SQL on the Queries page.
 
@@ -1029,9 +1040,27 @@ that tests can cover with fake schema rows; the views stay thin.
   affected rows.
 - Tests: `Build()` for every type and operator; unknown tables and columns are rejected; the PHP
   chain and the SQL agree.
+- **Decided while implementing** (Paulo's calls):
+  - `Build(array $spec, ?Schema $schema = null)`: static, as "Shared conventions" says, with the `Schema`
+    as an optional argument so tests can pass a fake;
+  - `Build()` keeps one list of `[method, args]` calls, runs it on a `Query` and renders it as the PHP
+    chain, so the two agree by construction; the tests also `eval` the chain and compare the SQL;
+  - `QueryUpdate` and `QueryDelete` ignore `Order()` and `Limit()`, so a key the type doesn't take is
+    rejected when it isn't empty: no `order`, `limit`, `page` or `fields` on a write;
+  - `Query` stays as it is: `QueryUpdate`/`QueryDelete` write the table and `SET` names bare, so a
+    reserved-word name fails there with MySQL's error (documented). The editor quotes what it builds;
+  - `QueryInsert::Values()` and `QueryUpdate::Set()`/`SetArray()` write `NULL` for `null` (they wrote
+    `''`), so the editor's values can be NULL; and, while there, `'1'`/`'0'` for booleans (`false` wrote
+    `''`, refused by a `TINYINT` in strict mode, and strict types make booleans common), through the new
+    internal `Query::SqlValue()` (M20a). `Where([...])` is unchanged: `col = ''` still matches `0`;
+  - "Run" goes through `QueryRunner` (same cap and confirmation rule as Queries); its result rendering
+    moved to `AdminElements::QueryResults()`, shared by both pages;
+  - the spec is posted as JSON; where rows are ANDed; `page` is 0-based like `Query::Page()`; `IN` splits
+    on commas;
+  - the page has no menu item until item 23 (like Explorer).
 
 ### 21. Dumps (replaces Backups)
-- [ ] done
+- [x] done
 
 **Solution.**
 - One page, using `Dump` (item 17):
@@ -1045,9 +1074,25 @@ that tests can cover with fake schema rows; the views stay thin.
   Every file name is validated and resolved with `AdminFiles::ResolveInFolder()`.
 - Delete `views/pages/backups.php`, `views/actions/backups-list.php`,
   `views/actions/backup-file.php` and `Admin/Api/DatabaseApi.php`.
-- `AdminDatabase` keeps only `Initialize()`, `LoadBackupFolder()`, `GetBackupFolder()`,
-  `GetSQLFile()` and `GetSQLFileContents()`.
+- `AdminDatabase` keeps only `GetSQLFile()` and `GetSQLFileContents()` (item 17 already removed
+  `Initialize()`, `LoadBackupFolder()` and `GetBackupFolder()`: nothing left to do here).
 - Tests: the name checks on upload, download and delete; export and import through a fake `Dump`.
+- **Decided while implementing** (Paulo's calls):
+  - the logic is `Admin\DumpManager` (constructor: an optional `Dump` and database name), the page is
+    `dumps`, and each operation is its own action (`dumps-list`, `dump-download` as GET; `dump-export`,
+    `dump-upload`, `dump-import`, `dump-delete` as POST, answering 405 otherwise);
+  - an upload's target doesn't exist yet, so it can't go through `ResolveInFolder()`: the name goes through
+    `ValidateBackupFileName()`, the original name must end with `.sql`, an existing file (or link) is refused, and
+    `move_uploaded_file()` writes into `realpath()` of the folder;
+  - the import runs only once the database's name is typed: the button stays disabled until it matches, and
+    `DumpManager::Import()` checks it again (exact match), so a request without it runs nothing;
+  - the page exposes `driver` (export and import) and `continue` (import);
+  - files whose name `ValidateBackupFileName()` doesn't accept as it is, or symlinks out of the folder, are
+    listed without actions;
+  - `adminBackupsTest.php` lost its API test (with `DatabaseApi`) and became `dumpBinaryTest.php`: it tests
+    `Dump`'s binary driver, not the admin;
+  - the menu's `backups` item and `structure.php`'s Backups link are left pointing to the removed page until
+    items 22 and 23, so `MagratheaAdminTests/adminMenuTest` fails 2 tests until then.
 
 ### 22. Checks (replaces Structure)
 - [ ] done

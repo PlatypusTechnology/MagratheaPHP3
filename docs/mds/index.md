@@ -63,6 +63,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | [Admin System Overview](admin/admin.md) | Admin panel manager |
 | [AdminManager](admin/admin-manager.md) | Admin singleton & runtime |
 | [Admin Features](admin/admin-features.md) | Pluggable admin feature system |
+| [Admin: Database Section](admin/admin-database.md) | Explorer, Queries and Query editor pages |
 
 ### Utilities
 | File | Description |

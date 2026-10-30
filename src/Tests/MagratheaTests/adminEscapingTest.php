@@ -19,6 +19,34 @@ class EscapingTestModel extends MagratheaModel {
 	public function Ref(): string { return (string)$this->name; }
 }
 
+// Database for Schema with one table, x (column a): answers its information_schema queries, records anything else
+class EscapingSchemaDatabase extends Database {
+	public $ran = [];
+	public function Escape($value): string {
+		return addslashes((string)$value);
+	}
+	public function QueryAll(string $sql) {
+		if(str_contains($sql, "information_schema.TABLES")) return [["name" => "x", "type" => "BASE TABLE", "engine" => "InnoDB", "rows" => 0, "collation" => "", "comment" => ""]];
+		if(str_contains($sql, "information_schema.COLUMNS")) return [["name" => "a", "type" => "varchar(9)", "nullable" => "YES", "default" => null, "extra" => "", "key" => ""]];
+		$this->ran[] = $sql;
+		return [];
+	}
+	public function QueryRow(string $sql): array|object {
+		if(str_contains($sql, "information_schema.TABLES") && str_contains($sql, "TABLE_NAME = 'x'")) return ["name" => "x"];
+		if(str_contains($sql, "information_schema")) return [];
+		$this->ran[] = $sql;
+		return [];
+	}
+	public function QueryStream(string $sql): \Generator {
+		$this->ran[] = $sql;
+		yield from [];
+	}
+	public function QueryMulti($queries, $killable = true) {
+		$this->ran[] = $queries;
+		return [];
+	}
+}
+
 class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 
 	const XSS = '"><script>alert(1)</script>';
@@ -94,6 +122,30 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringNotContainsString("<script>", $output);
 	}
 
+	function testTableEscapesTitlesFromKeys() {
+		TestsHelper::Print("testing Table() escapes titles taken from the rows' keys, not the ones passed in \$cols...");
+		$output = $this->Buffer(fn($e) => $e->Table([[self::XSS => "x", 3 => "y"]]));
+		$this->assertStringContainsString('<th scope="col">'.str_replace("&quot;", "&quot;", self::XSS_HTML).'</th>', $output);
+		$this->assertStringContainsString('<th scope="col">3</th>', $output);
+		$this->assertStringNotContainsString("<script>", $output);
+		$passed = $this->Buffer(fn($e) => $e->Table([["a" => "x"]], [["title" => "&nbsp;", "key" => "a"]]));
+		$this->assertStringContainsString('<th scope="col">&nbsp;</th>', $passed);
+	}
+
+	function testFindingsEscape() {
+		TestsHelper::Print("testing Findings() escapes messages and fixes, with `code` spans as <code>...");
+		$output = $this->Buffer(fn($e) => $e->Findings([
+			["level" => \Magrathea\TimezoneCheck::ERROR, "message" => "`t`.`c` ".self::XSS, "fix" => "ALTER TABLE `t` -- ".self::XSS],
+			["level" => \Magrathea\TimezoneCheck::OK, "message" => "fine"],
+			["level" => "bogus", "message" => "unknown level"],
+		]));
+		$this->assertEscaped($output);
+		$this->assertStringContainsString('<div class="alert alert-danger py-1 mb-1"><code>t</code>.<code>c</code> '.self::XSS_HTML, $output);
+		$this->assertStringContainsString('<pre class="code-light mb-0 mt-1">ALTER TABLE `t` -- '.self::XSS_HTML.'</pre>', $output);
+		$this->assertStringContainsString('<div class="alert alert-success py-1 mb-1">fine</div>', $output);
+		$this->assertStringContainsString('<div class="alert alert-secondary py-1 mb-1">unknown level</div>', $output);
+	}
+
 	function testFormElementsEscapeValues() {
 		TestsHelper::Print("testing Input, Textarea, Select, date and Checkbox escape their values...");
 		$this->assertEscaped($this->Buffer(fn($e) => $e->Input("text", "f", "F", self::XSS)), "input");
@@ -151,6 +203,25 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		$_POST = ["q" => "UPDATE x SET a = '".self::XSS."'"];
 		$output = $this->RenderAction("query-run-card");
 		$this->assertEscaped($output);
+	}
+
+	function testQueryEditorCardEscapes() {
+		TestsHelper::Print("testing the Query editor card escapes the PHP, the SQL and the spec it carries...");
+		class_exists(\Magrathea\DB\Query::class);
+		Database::MockClass(EscapingSchemaDatabase::Instance());
+		// a write, run but not confirmed: the card shows the PHP, the SQL and the spec to post again; nothing runs
+		$spec = ["type" => "delete", "table" => "x", "where" => [["column" => "a", "operator" => "LIKE", "value" => self::XSS]]];
+		$_POST = ["spec" => json_encode($spec), "run" => "1"];
+		$output = $this->RenderAction("query-editor-card");
+		$this->assertStringContainsString('class="code-light qe-php"', $output, "the card rendered");
+		$this->assertStringContainsString("confirm-spec", $output, "a write asks first");
+		$this->assertStringNotContainsString("<script>", $output);
+		$this->assertStringContainsString("&lt;script&gt;", $output);
+		$this->assertSame([], EscapingSchemaDatabase::Instance()->ran, "nothing ran");
+
+		$_POST = ["spec" => json_encode(["type" => "select", "table" => self::XSS])];
+		$output = $this->RenderAction("query-editor-card");
+		$this->assertEscaped($output, "the error names the table, escaped");
 	}
 
 }

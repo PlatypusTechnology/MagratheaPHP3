@@ -28,6 +28,8 @@ use Magrathea\Exceptions\MagratheaDBException;
 class SqlSplitter {
 
 	const CHUNK_SIZE = 65536;
+	/** first keywords of a read-only statement */
+	const READ_ONLY_KEYWORDS = ["SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"];
 
 	const NORMAL = 0;
 	const QUOTED = 1;
@@ -53,6 +55,35 @@ class SqlSplitter {
 	*/
 	public static function Split(string $sql): array {
 		return iterator_to_array(self::Statements([$sql]), false);
+	}
+
+	/**
+	* Whether SQL is read-only: exactly one statement, read-only by `IsReadOnlyStatement()`.
+	* The admin's Queries page and the CLI's `db:query` run anything else only once confirmed.
+	* A guard against mistakes, not an access control: the function a `SELECT` calls can still write.
+	* @param 	string 	$sql 	SQL, with any number of statements
+	* @return 	bool 			false too when it can't be split (a `DELIMITER` line without a delimiter)
+	*/
+	public static function IsReadOnly(string $sql): bool {
+		try {
+			$statements = self::Split($sql);
+		} catch(MagratheaDBException $ex) {
+			return false;
+		}
+		return count($statements) === 1 && self::IsReadOnlyStatement($statements[0]);
+	}
+
+	/**
+	* Whether one statement, as `Split()` gives it (comments removed), is read-only: it starts with `SELECT`, `SHOW`,
+	* `DESCRIBE`, `DESC` or `EXPLAIN`, and has no `INTO OUTFILE` or `INTO DUMPFILE` (they write a file on the server).
+	* Looked for anywhere, quoted text included: `SELECT 'into outfile'` is a write, which only asks for a confirmation.
+	* @param 	string 	$statement 	one statement
+	* @return 	bool
+	*/
+	public static function IsReadOnlyStatement(string $statement): bool {
+		if(!preg_match('/^\s*([A-Za-z]+)/', $statement, $keyword)) return false;
+		if(!in_array(strtoupper($keyword[1]), self::READ_ONLY_KEYWORDS, true)) return false;
+		return !preg_match('/\bINTO\s+(OUTFILE|DUMPFILE)\b/i', $statement);
 	}
 
 	/**

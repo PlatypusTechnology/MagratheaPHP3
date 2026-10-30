@@ -49,7 +49,8 @@ project, without the rest of the docs.
 | M13 | Every model table needs `created_at`/`updated_at` (already true, now checked); the admin's install schema uses `DATETIME` | No | Covered by M11's check; optional `last_login` fix | |
 | M14–M17 | New `DB\Schema`, `DB\SchemaCheck`, `ProjectCheck`, `DB\Dump`, `DB\SqlSplitter`; `AdminDatabase` keeps only its SQL file helpers; `Query()`, `QueryMulti()` and `ImportFile()` split SQL correctly | Only where the removed `AdminDatabase` methods are called; rarely, SQL that only ran because of the old split | Use `Schema`/`Dump` | |
 | M17a | `Query()` and `QueryTransaction()` throw `MagratheaDBException` on a failure with mysqli reporting off (they returned `false`) | Only with `mysqli_report(MYSQLI_REPORT_OFF)` and code checking their result for `false` | Catch the exception | |
-| M18–M23 | The admin's Database section (explorer, query editor, dumps, checks); menu items changed | Only for custom menus using removed items | Fix the menu | |
+| M18–M23 | The admin's Database section (explorer, query editor, dumps, checks); menu items changed; the `CreateBackupFile` API removed | Only for custom menus using removed items, or code calling that API | Fix the menu; use `Dump` | |
+| M20a | `Query::Insert()->Values()` and `Query::Update()->Set()`/`SetArray()` write `NULL` for `null` and `'0'` for `false` (both wrote `''`) | Only where code passes `null` or `false` and relied on `''` | Pass `""` there | |
 | M24–M26 | New `vendor/bin/magrathea` CLI; framework error pages print text in the CLI | No | Declare the bootstrap if it isn't `app/_inc.php` | |
 | M27–M28 | Setup Wizard rebuilt: dedicated entry file, token lock | Yes, for projects with a 2.x wizard entry file | Replace or delete that file | ⚠ |
 | M29 | CORS origins file read by `AllowFromFile()` and edited by the opt-in admin feature; `Vary: Origin`; `AllowAll()` drops credentials; `AddAcceptHeaders()` appends | Only for code relying on `AddAcceptHeaders()` replacing the list | Switch those calls to `SetAcceptHeaders()` | |
@@ -725,6 +726,7 @@ For each one whose result is checked for `false` (`=== false`, `if (!$rs)`, `or 
 ```bash
 grep -rnE 'GetDatabaseSection|GetItem\(.(backups|structure|mag-query).\)' --include='*.php' --exclude-dir=vendor .
 ```
+or calls the admin's `CreateBackupFile` API (see the Dumps item below).
 
 **What changed.**
 - The Database menu section has Explorer (`db-explorer`), Queries (`query`), Query editor
@@ -733,8 +735,48 @@ grep -rnE 'GetDatabaseSection|GetItem\(.(backups|structure|mag-query).\)' --incl
 - The keys `backups` and `structure` are gone: `GetItem()` returns `null` for them, and `Add(null)`
   adds nothing.
 - The Version page's "Server Time" card is now a link to the Server page's timezone check.
+- Explorer (M18) is new and read-only: tables, their models and drift status, each table's structure
+  and first 20 rows. Nothing to migrate.
+- `AdminElements::Table()` without `$cols` escapes the titles it takes from the rows' keys. A custom
+  page that relied on HTML in its rows' keys shows it as text: pass the titles in `$cols`.
+- Queries (M19): SQL that isn't one `SELECT`/`SHOW`/`DESCRIBE`/`DESC`/`EXPLAIN` statement
+  (`SqlSplitter::IsReadOnly()`) asks for a confirmation before it runs, and results stop at 1000 rows,
+  with column names in lower case. Nothing to migrate.
+- Query editor (M20) is new: it builds a `Query` from a form, shows its PHP chain and SQL, and runs it
+  with the Queries page's rules. Nothing to migrate; M20a is the one framework change it brought.
+- Dumps (M21) replaces Backups: it lists, exports, uploads (never run on upload), downloads, imports (after the
+  database's name is typed) and deletes the backups folder's `.sql` files, through `Dump` and the new
+  `Admin\DumpManager`. The Backups page and its API, `Admin\Api\DatabaseApi` (`CreateBackupFile`), are removed:
+  ```bash
+  grep -rnE 'CreateBackupFile|magrathea_api=Database|DatabaseApi|magrathea_page=backups' --include='*.php' --include='*.js' --exclude-dir=vendor .
+  ```
+  Replace an API call with `(new \Magrathea\DB\Dump())->Export($name)` (M17), and a link to `backups` with `dumps`.
 
 **What to do.** In custom menus, replace `backups` with `dumps` and `structure` with `checks`.
+
+## M20a. `QueryInsert` and `QueryUpdate` write `NULL` for `null` and `'0'` for `false`
+
+**What changed.** `Query::Insert()->Values([...])` and `Query::Update()->Set()`/`SetArray()` turned a `null`
+value into `''` (`Escape(null)` is `""`), so they could never write `NULL`. They now write `NULL`:
+`Values(["phone" => null])` gives `VALUES (NULL)`, `Set("phone", null)` gives `phone = NULL`. Booleans had the
+same problem (`Escape(false)` is `""` too): `false` now writes `'0'` and `true` `'1'` (as it already did). Any other
+value gives the same SQL as before. `MagratheaModel::Insert()`/`Update()` don't use these classes (they bind through
+`PrepareAndExecute()`): models are unaffected.
+
+**Applies if** the project builds inserts or updates with the query builder:
+```bash
+grep -rnE -- '->(Values|Set|SetArray)\(' --include='*.php' --exclude-dir=vendor .
+```
+Nothing found: skip.
+
+**What to do.** For each call that can pass `false`: a `TINYINT`/`BOOLEAN` column now gets `0` (it got `''`, an
+error in strict SQL mode, a silent `0` otherwise): nothing to do. A string column now gets `'0'` instead of `''`:
+pass `""` there if that's what it should store. For each call that can pass `null` (a variable, an optional
+field, `$_POST[...] ?? null`):
+- on a `NOT NULL` column without a default, the write now fails ("Column … cannot be null") where it wrote
+  `''`. Pass `""` (or `?? ""`) if `''` is what it should store;
+- on a nullable column, the row now stores `NULL` instead of `''`. Check code that reads it back with
+  `=== ""` or `WHERE col = ''`.
 
 ## M24–M26. The CLI
 
