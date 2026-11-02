@@ -12,23 +12,16 @@ return [
 
 	[
 		"id" => "setup-php",
-		"title" => "Bootstrap a project — setup.php",
+		"title" => "The Setup Wizard — public/setup.php",
 		"source" => "original",
-		"topics" => ["core/magrathea-php"],
+		"topics" => ["core/magrathea-php", "getting-started/setup-wizard"],
 		"code" => <<<'PHP'
 <?php
-
-die; // remove this line once configuration below is correct for your environment
-
-require "../vendor/autoload.php";
-
-Magrathea\MagratheaPHP::Instance()
-    ->AppPath(realpath(dirname(__FILE__)))
-    ->Dev()
-    ->Load();
-Magrathea\Bootstrap\Start::Instance()->Load();
+// Magrathea setup wizard: locked by a token only someone with access to the server's files can read
+require __DIR__."/../vendor/autoload.php";
+Magrathea\Bootstrap\Start::Instance()->AppPath(__DIR__."/../app")->Load();
 PHP,
-		"note" => "The `die;` is intentional: it stops the script from running until you've reviewed the config for the target environment, then you delete the line. Since 2.4.0 the wizard is also locked unless the active environment's config section has `bootstrap_unlocked = true`.",
+		"note" => "Don't call `MagratheaPHP::Load()` here: the wizard reads `configs/magrathea.conf` itself and works without one. Every visit asks for the 8-digit token in `configs/.setup-token` (`cat` it on the server); with a config, the active environment also needs `bootstrap_unlocked = true`. Delete the file on servers that don't need it.",
 	],
 
 	[

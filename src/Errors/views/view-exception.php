@@ -11,7 +11,6 @@
 		<style>
 			<?php include($bootstrapFolder."css/_variables.css"); ?>
 			<?php include($bootstrapFolder."css/styles.css"); ?>
-			<?php include($bootstrapFolder."css/steps.css"); ?>
 		</style>
 	</head>
 
@@ -30,7 +29,9 @@
 					<div class="col-sm-12">
 						<?=htmlspecialchars((string)$errorMessage)?>
 					</div>
-					<?php if(@$ex) { ?>
+					<?php
+					// the dump carries the trace's arguments (credentials, any object passed down the stack): DEV only
+					if(@$ex && \Magrathea\MagratheaPHP::Instance()->IsDev()) { ?>
 					<div class="col-sm-12">
 						<pre class="log-response" style="max-height: 500px;"><?=htmlspecialchars(print_r($ex, true))?></pre>
 					</div>

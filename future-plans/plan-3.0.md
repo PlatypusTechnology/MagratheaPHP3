@@ -1250,7 +1250,7 @@ text on stderr and exit code 1, instead of HTML and exit code 0.
 ## Group G — The Setup Wizard (Bootstrap, rebuilt)
 
 ### 27. Entry, modes and the token lock
-- [ ] done
+- [x] done
 
 **Error.**
 - The wizard needs a config just to decide whether it's unlocked (`Start::IsUnlocked()`,
@@ -1312,12 +1312,26 @@ text on stderr and exit code 1, instead of HTML and exit code 0.
   an action without a verified session gets 403; POSTs without the CSRF token are refused.
 - Docs: new `docs/mds/setup-wizard.md` (DocMap `getting-started`; src `Bootstrap/Start.php`).
 
+- **Decided while implementing** (Paulo's call: implemented together with item 28; removing `CreateDefaultConfigFile()`
+  and opening the wizard without a config broke every 2.x step, so there was no sane state in between):
+  - new `Bootstrap\SetupToken` owns the file (`Issue()`, `Check()`, `Token()`, `Hash()`, `Failures()`, `Delete()`,
+    `Normalize()`). Failures count over the token's life (a correct one doesn't reset them), and a request that waited
+    for the lock while another used up the 10th try is refused even with the right token;
+  - `Start::Handle($method, $get, $post, $files)` does everything without output, `Load()` renders it: locked 403;
+    locked out 403; folder not writable 503; POST without the CSRF token 403 (nothing runs, nothing counted); a correct
+    token 303 to the first step; any step or action without a verified session 403 with the token form (a bare visit
+    200); unknown step or action 404. `Start::ACTIONS` is now the POST actions (`action` => its step), `verify` apart;
+  - `Start::SetMagRoot()` (tests) and `ReloadConfig()` (also sets PHP's timezone from the config, as `Load()` would);
+  - the token page shows only `configs/.setup-token`, no absolute path, before verification;
+  - no `Debugger::SetDev()` in the wizard anymore (it made the error page dump traces);
+  - the "config missing" page shows the entry file and where the token is.
+
 **Impact ⚠** (M27). A project with a 2.x wizard entry file (`Bootstrap\Start::Instance()->…->Load()`,
 with or without `PreLoad()`) replaces it with the entry above, or deletes it. Using the wizard now
 also takes the token.
 
 ### 28. Steps
-- [ ] done
+- [x] done
 
 **Solution.** The server validates each step, and each step's handler refuses a request without a
 verified session.
@@ -1364,12 +1378,38 @@ verified session.
 is rejected; `CanCreateFirstUser()` guards the first user; step order; every handler refuses a
 request without a verified session.
 
+**Decided while implementing:**
+- **Contradiction, Paulo's call:** setup mode ends the moment step 2 writes the config, and `bootstrap_unlocked` was
+  offered only for `dev`, so any other environment locked itself out before steps 3–7. Now step 2 always writes
+  `bootstrap_unlocked = true` into the section it saves, and Finish removes it from every section but `[dev]` (and from
+  `[dev]` too, unless "keep" is checked: offered when `[dev]` has it). A wizard abandoned after step 2 leaves the flag
+  in place (still token-gated); Checks shows the WARNING outside `dev`.
+- **Contradiction, Paulo's call:** "the admin's compressed vendor assets" don't exist (the admin loads Bootstrap and
+  jQuery from CDNs too). The wizard loads nothing external and has no JavaScript: server-rendered forms, its own
+  `css/wizard.css`. `view-exception.php` still uses the CDN and `styles.css`/`sections/header.php` (kept for it);
+  `steps.css` is gone.
+- Paulo's call: the folders (`logs_path`, …) aren't created, only reported (Checks).
+- handlers in new `Bootstrap\Steps` (`View($step)`, `Run($action, $post, $files)`, one public method per step and
+  action); injectable `DumpManager`, `Install` and `Admin\Start`;
+- step 1 is new `ProjectCheck::Requirements($configFolder)` (PHP, `proc_open()`, `mysqli` WARNING, the configs folder
+  exists and is writable ERROR, under the web root WARNING); the web-root check is shared with `FolderFindings()`;
+- step 2: values go through new `ConfigFile::IsStorable()`, which also refuses `${…}` (the INI parser expands it) and
+  `yes`/`no`/`true`/`false`/`0` (read back as booleans), not only `"` and line breaks; plus `db_port` 1–65535,
+  `app_url` `http(s)://`, the environment `[A-Za-z][A-Za-z0-9_-]*` and not `general`, and `db_host`/`db_name`/`db_user`
+  all or none. `db_pass` is never sent back; in maintenance an empty one keeps it. Saving rewrites the file
+  (`ConfigFile::Save()`): comments are lost, the page says so;
+- step 3 runs on opening the step, with the saved config;
+- step 4 reuses `Admin\DumpManager` (upload only saves; import needs the database's name typed, like the admin);
+- step 5: the password typed twice; the admin link at Finish is `admin.php` (the skeleton's `public/admin.php`);
+- `tools.php` and every 2.x step, action and script are deleted; `Install::CreateAdminEntranceFile()`/`GetAdminCode()`
+  stay (not in this item's list).
+
 ---
 
 ## Group O — CORS origins
 
 ### 29. `AllowFromFile()` and the admin's CORS Origins feature
-- [ ] done
+- [x] done
 
 **Error.**
 - `MagratheaApi` only takes origins in code (`Allow([...])`, `MagratheaApi.php:129-135`). Projects
@@ -1444,6 +1484,13 @@ request without a verified session.
 - Projects with their own reader (MagratheaContacts) can replace it with `$this->AllowFromFile()`
   and their CORS admin page with `$this->LoadCors()`: same file, same location. A file that has
   invalid lines is still read; the admin refuses to save it until they're fixed.
+
+**Decided while implementing:**
+- `AdminElements::Textarea()` ignored its `$attributes` (`form-textarea.php` never printed them); fixed, so the
+  page's textarea gets `rows`. Changelog **fix:**.
+- `AcceptHeaders($headers)` is untouched: it still appends with `array_push()`, without dropping duplicates.
+- `IsValidOrigin()`'s regex uses `D`, so `$` doesn't accept a trailing newline.
+- The page's JS gets the feature id from PHP (`saveCorsOrigins(<id>)`), since `AddFeature($f, $key)` can rename it.
 
 ---
 

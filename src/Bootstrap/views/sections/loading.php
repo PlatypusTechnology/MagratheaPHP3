@@ -1,3 +1,0 @@
-<div id="loading" style="display: none;">
-	Loading...
-</div>

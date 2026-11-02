@@ -28,6 +28,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 
 ### Getting Started
 - [Installation & Quick Start](getting-started.md)
+- [Setup Wizard](setup-wizard.md): `public/setup.php`, the token lock (`configs/.setup-token`), setup and maintenance modes, the steps
 
 ### Core
 | File | Description |

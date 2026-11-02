@@ -6,8 +6,8 @@
 **Since:** 2.4.0
 
 Decides whether MySQL's session timezone follows PHP's (`db_sync_timezone`), and checks the
-timezone setup for the admin and the Bootstrap wizard. The troubleshooter (`Run()`) is only called
-from the admin's Server page and the wizard's config step, never on a normal request.
+timezone setup for the admin and the Setup Wizard. The troubleshooter (`Run()`) is only called
+from the admin's Server page and the wizard's Database step, never on a normal request.
 
 ---
 

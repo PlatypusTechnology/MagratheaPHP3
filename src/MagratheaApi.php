@@ -86,11 +86,12 @@ class MagratheaApi {
 
 	/**
 	 * Includes CORS headers to allow requests from any origin.
+	 * Doesn't send `Access-Control-Allow-Credentials`: browsers reject it together with `*`,
+	 * so credentialed requests need `Allow()` or `AllowFromFile()`.
 	 * @return MagratheaApi itself for method chaining.
 	 */
 	public function AllowAll(): MagratheaApi {
 		header('Access-Control-Allow-Origin: *');
-		header('Access-Control-Allow-Credentials: true');
 		header('Access-Control-Max-Age: 86400');    // cache for 1 day
 		return $this;
 	}
@@ -108,6 +109,9 @@ class MagratheaApi {
 
 	/**
 	 * Includes CORS headers to allow requests from a specific list of origins.
+	 * The request's `Origin` must match one of them exactly (`scheme://host[:port]`, no trailing slash).
+	 * Also sends `Vary: Origin` (appended to any other `Vary`), so caches don't serve one origin's
+	 * `Access-Control-Allow-Origin` to another.
 	 * @param 	array<string> 	$allowedOrigins 	An array of allowed origin URLs.
 	 * @return  MagratheaApi itself for method chaining.
 	 */
@@ -115,18 +119,78 @@ class MagratheaApi {
 		if (in_array(@$_SERVER["HTTP_ORIGIN"], $allowedOrigins)) {
 			header('Access-Control-Allow-Origin: '.$_SERVER["HTTP_ORIGIN"]);
 		}
+		header('Vary: Origin', false);
 		header('Access-Control-Allow-Credentials: true');
 		return $this;
+	}
+
+	/** File name of the allowed-origins file, inside the configs folder. */
+	const CORS_ORIGINS_FILE = "cors-origins.txt";
+
+	/**
+	 * Path of the allowed-origins file: `cors-origins.txt` in the configs folder (`MagratheaPHP::GetConfigRoot()`).
+	 * The admin's "CORS Origins" feature (`Admin::LoadCors()`) edits it.
+	 * @return string		full path (the file may not exist)
+	 */
+	public static function GetCorsOriginsFile(): string {
+		return MagratheaPHP::Instance()->GetConfigRoot()."/".self::CORS_ORIGINS_FILE;
+	}
+
+	/**
+	 * Reads an allowed-origins file: one origin per line, trimmed.
+	 * Empty lines and lines starting with `#` are skipped. Lines are not validated.
+	 * @param string|null $file		file to read (default: `GetCorsOriginsFile()`)
+	 * @return array<string>		origins; `[]` if the file is missing or unreadable
+	 */
+	public static function ReadCorsOrigins(?string $file = null): array {
+		$file = $file ?? self::GetCorsOriginsFile();
+		if(!is_file($file) || !is_readable($file)) return [];
+		$lines = @file($file, FILE_IGNORE_NEW_LINES);
+		if($lines === false) return [];
+		$origins = [];
+		foreach($lines as $line) {
+			$line = trim($line);
+			if($line === "" || str_starts_with($line, "#")) continue;
+			$origins[] = $line;
+		}
+		return $origins;
+	}
+
+	/**
+	 * Includes CORS headers for the origins listed in a file (`ReadCorsOrigins()`), through `Allow()`.
+	 * A missing file allows no origin. Doesn't change the accepted headers.
+	 * @param string|null $file		file to read (default: `configs/cors-origins.txt`, `GetCorsOriginsFile()`)
+	 * @return MagratheaApi itself for method chaining.
+	 */
+	public function AllowFromFile(?string $file = null): MagratheaApi {
+		return $this->Allow(self::ReadCorsOrigins($file));
 	}
 
 	/** @var array<string> An array of headers to be accepted by `Access-Control-Allow-Headers`. */
 	private array $acceptControlAllowHeaders = ["Authorization", "Content-Type"];
 	/**
-	 * Adds a header to the list of accepted headers for CORS.
+	 * Adds one or more headers to the list of accepted headers for CORS (default: `Authorization`, `Content-Type`).
+	 * Headers already in the list (case-insensitive) are skipped. Sends nothing: `AcceptHeaders()` does.
 	 * @param string|array<string> $accept The header(s) to add.
+	 * @return MagratheaApi itself for method chaining.
 	 */
-	public function AddAcceptHeaders($accept) {
-		$this->acceptControlAllowHeaders = $accept;
+	public function AddAcceptHeaders(string|array $accept): MagratheaApi {
+		$current = array_map("strtolower", $this->acceptControlAllowHeaders);
+		foreach((array)$accept as $header) {
+			if(in_array(strtolower($header), $current, true)) continue;
+			$this->acceptControlAllowHeaders[] = $header;
+			$current[] = strtolower($header);
+		}
+		return $this;
+	}
+	/**
+	 * Replaces the list of accepted headers for CORS. Sends nothing: `AcceptHeaders()` does.
+	 * @param array<string> $headers The headers to accept.
+	 * @return MagratheaApi itself for method chaining.
+	 */
+	public function SetAcceptHeaders(array $headers): MagratheaApi {
+		$this->acceptControlAllowHeaders = array_values($headers);
+		return $this;
 	}
 	/**
 	 * Sets the `Access-Control-Allow-Headers` CORS header.

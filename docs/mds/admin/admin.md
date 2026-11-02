@@ -319,6 +319,7 @@ Not registered by default, opt-in from your `Admin` subclass:
 | Feature ID | Description | How to enable |
 |-----------|-------------|---------------|
 | `ApiExplorer` | Browse registered API endpoints | `new ApiExplorer()`, `SetApi(...)`, `AddFeature(...)` |
+| `AdminFeatureCors` | Edit the API's allowed origins (`configs/cors-origins.txt`, read by `MagratheaApi::AllowFromFile()`) | `$this->LoadCors()` in `SetFeatures()` |
 
 The File Editor (`AdminFeatureFileEditor`, opt-in since 2.4.0 through `LoadFileEditor()`) was
 removed in 3.0: the admin no longer edits files on the server.

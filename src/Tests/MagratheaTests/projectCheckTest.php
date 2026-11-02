@@ -341,6 +341,44 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$this->AssertOne(TestableProjectCheck::Run(false), "outside the document root", TimezoneCheck::OK, "folders");
 	}
 
+	// REQUIREMENTS (the Setup Wizard, before there's a config)
+
+	function testRequirementsReadNoConfig() {
+		TestsHelper::Print("testing ProjectCheck::Requirements(): PHP, mysqli, the configs folder, without a config...");
+		$this->LoadConfig();
+		$findings = TestableProjectCheck::Requirements($this->folder."/configs");
+		$this->assertSame(["config", "folders"], $this->GroupsOf($findings));
+		$this->assertNotContains(TimezoneCheck::ERROR, $this->Levels($findings), json_encode($findings));
+		$this->AssertOne($findings, "PHP 8.3.0", TimezoneCheck::OK, "config");
+		$this->AssertOne($findings, "`mysqli` extension is loaded", TimezoneCheck::OK, "config");
+		$this->AssertOne($findings, "`".$this->folder."/configs` exists and is writable", TimezoneCheck::OK, "folders");
+		$this->assertSame([], $this->With($findings, "document root"), "the CLI can't know the web root");
+		$this->assertSame([], $this->db->log, "it doesn't connect");
+		$this->assertFileDoesNotExist($this->folder."/configs/magrathea.conf");
+
+		TestableProjectCheck::$php = "8.0.1";
+		TestableProjectCheck::$extensions = [];
+		TestableProjectCheck::$documentRoot = $this->folder;
+		$findings = TestableProjectCheck::Requirements($this->folder."/configs");
+		$this->AssertOne($findings, "needs PHP 8.1.0", TimezoneCheck::ERROR, "config");
+		$this->AssertOne($findings, "`mysqli` extension isn't loaded", TimezoneCheck::WARNING, "config");
+		$this->AssertOne($findings, "is under the document root", TimezoneCheck::WARNING, "folders");
+
+		$findings = TestableProjectCheck::Requirements($this->folder."/missing");
+		$this->AssertOne($findings, "`".$this->folder."/missing` doesn't exist", TimezoneCheck::ERROR, "folders");
+	}
+
+	function testRequirementsUnwritableConfigs() {
+		TestsHelper::Print("testing ProjectCheck::Requirements(): a configs folder that isn't writable is an ERROR...");
+		if(function_exists("posix_geteuid") && posix_geteuid() === 0) $this->markTestSkipped("root writes anywhere");
+		chmod($this->folder."/configs", 0555);
+		try {
+			$this->AssertOne(TestableProjectCheck::Requirements($this->folder."/configs"), "isn't writable", TimezoneCheck::ERROR, "folders");
+		} finally {
+			chmod($this->folder."/configs", 0777);
+		}
+	}
+
 	// DATABASE
 
 	function testWithoutDatabaseNeverConnects() {

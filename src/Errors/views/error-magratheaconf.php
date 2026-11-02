@@ -17,6 +17,16 @@ $sample = @file_get_contents(__DIR__."/../../Bootstrap/docs/magrathea.conf.sampl
 		We were looking for it at <pre class="inline code"><?=htmlspecialchars($fileLocation)?></pre>
 		<?php } ?>
 	</div>
+	<?php if(!file_exists($fileLocation)) { ?>
+	<div class="col-md-12 mt-2">
+		Create it with the <b>Setup Wizard</b>: add <pre class="inline code">public/setup.php</pre> to the web root
+		(the skeleton has it), with:
+		<pre class="code"><?=htmlspecialchars("<?php\nrequire __DIR__.\"/../vendor/autoload.php\";\nMagrathea\\Bootstrap\\Start::Instance()->AppPath(__DIR__.\"/../app\")->Load();")?></pre>
+		Open it in the browser. It asks for a token it writes to <pre class="inline code">configs/.setup-token</pre>,
+		next to the config: read it on the server (<pre class="inline code">cat configs/.setup-token</pre>).
+		Or write the config by hand, from the sample below.
+	</div>
+	<?php } ?>
 	<?php if($sample !== false) { ?>
 	<div class="col-md-12 mt-2">
 		Magrathea conf sample:

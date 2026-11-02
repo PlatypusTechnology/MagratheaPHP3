@@ -125,10 +125,26 @@ class ConfigFile {
 	*	@param 		any 		$value to be saved
 	*	@return 	string 		formatted value to be saved on config file
 	*/
-	private function SaveValueOnConfig($value) {
+	private static function SaveValueOnConfig($value) {
 		if (in_array($value, array("true", "1", "yes"), true)) return "true";
 		if (in_array($value, array("false", "0", "no"), true)) return "false";
 		return "\"".$value."\"";
+	}
+
+	/**
+	*	Can `Save()` write this value so that it reads back exactly as it is? `Save()` wraps values in `"…"` without
+	*	escaping, turns `yes`/`no`/`0` into booleans, and the INI parser expands `${…}`: a value with `"`, a line break,
+	*	or one that reads back different, isn't storable.
+	*	@param 		mixed 		$value 		the value
+	*	@return 	bool
+	*/
+	public static function IsStorable($value): bool {
+		if (is_int($value)) $value = (string)$value;
+		if (!is_string($value)) return false;
+		if (str_contains($value, "\"") || preg_match('/[\r\n]/', $value)) return false;
+		if ($value === "") return true;
+		$read = @parse_ini_string("value = ".self::SaveValueOnConfig($value));
+		return is_array($read) && ($read["value"] ?? null) === $value;
 	}
 
 	/**
@@ -152,20 +168,20 @@ class ConfigFile {
 					if(is_array($elem2)) { 
 						for($i=0;$i<count($elem2);$i++) { 
 							if(!@$elem2[$i]) continue;
-							$content .= "\t".$key2."[] = ".$this->SaveValueOnConfig($elem2[$i])."\n";
+							$content .= "\t".$key2."[] = ".self::SaveValueOnConfig($elem2[$i])."\n";
 						} 
 					} else if($elem2=="") $content .= "\t".$key2." = \n";
-					else $content .= "\t".$key2." = ".$this->SaveValueOnConfig($elem2)."\n";
+					else $content .= "\t".$key2." = ".self::SaveValueOnConfig($elem2)."\n";
 				}
 			}
 		} else {
 			foreach ($data as $key=>$elem) { 
 				if(is_array($elem)) { 
 					for($i=0;$i<count($elem);$i++) { 
-						$content .= $key."[] = ".$this->SaveValueOnConfig($elem[$i])."\n";
+						$content .= $key."[] = ".self::SaveValueOnConfig($elem[$i])."\n";
 					}
 				} else if($elem=="") $content .= $key." = \n";
-				else $content .= $key." = ".$this->SaveValueOnConfig($elem)."\n";
+				else $content .= $key." = ".self::SaveValueOnConfig($elem)."\n";
 			} 
 		} 
 		if(!is_writable($this->path)){

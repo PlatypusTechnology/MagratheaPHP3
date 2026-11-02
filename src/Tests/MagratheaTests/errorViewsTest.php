@@ -1,6 +1,7 @@
 <?php
 
 use Magrathea\Config;
+use Magrathea\Debugger;
 use Magrathea\Exceptions\MagratheaConfigException;
 
 // the HTML error page ErrorManager shows outside the CLI: rendered here without the `die`
@@ -9,6 +10,7 @@ class errorViewsTest extends \PHPUnit\Framework\TestCase {
 	private $folder;
 	private $previousPath;
 	private $previousFile;
+	private $previousDebug;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -17,10 +19,12 @@ class errorViewsTest extends \PHPUnit\Framework\TestCase {
 		mkdir($this->folder, 0777, true);
 		$this->previousPath = Config::Instance()->GetPath();
 		$this->previousFile = Config::Instance()->GetConfigFile();
+		$this->previousDebug = Debugger::Instance()->GetType();
 	}
 
 	protected function tearDown(): void {
 		Config::Instance()->SetConfig(null)->SetPath($this->previousPath)->SetConfigFile($this->previousFile);
+		Debugger::Instance()->SetType($this->previousDebug);
 		system('rm -rf -- '.escapeshellarg($this->folder));
 		parent::tearDown();
 	}
@@ -45,10 +49,26 @@ class errorViewsTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testTheExceptionIsEscaped() {
+		Debugger::Instance()->SetType(Debugger::DEV);
 		$ex = new \Exception("<img src=x onerror=alert(1)>");
 		$html = $this->Render($ex->getMessage(), $ex);
 		$this->assertStringNotContainsString("<img src=x", $html);
 		$this->assertSame(2, substr_count($html, "&lt;img src=x onerror=alert(1)&gt;"), "the message, and the message in print_r()");
+	}
+
+	// the dump carries the trace's arguments: credentials, any object passed down the stack
+	function testTheDumpIsShownOnlyInDev() {
+		$ex = (function($password) { return new \Exception("Can't connect"); })("db-secret-password");
+		Debugger::Instance()->SetType(Debugger::DEV);
+		$html = $this->Render($ex->getMessage(), $ex);
+		$this->assertStringContainsString("Can&#039;t connect", $html);
+		$this->assertStringContainsString("[trace:Exception:private]", $html);
+		foreach([Debugger::LOG, Debugger::NONE, Debugger::DEBUG] as $type) {
+			Debugger::Instance()->SetType($type);
+			$html = $this->Render($ex->getMessage(), $ex);
+			$this->assertStringContainsString("Can&#039;t connect", $html, "type ".$type);
+			$this->assertStringNotContainsString("[trace:Exception:private]", $html, "type ".$type);
+		}
 	}
 
 	function testMissingConfigPageDoesntThrow() {
@@ -58,6 +78,10 @@ class errorViewsTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString("Magrathea Configuration does not exists!", $html);
 		$this->assertStringContainsString(htmlspecialchars($this->folder."/<b>configs/magrathea.conf"), $html);
 		$this->assertStringNotContainsString("/<b>configs", $html);
+		// how to run the wizard
+		$this->assertStringContainsString("Setup Wizard", $html);
+		$this->assertStringContainsString("configs/.setup-token", $html);
+		$this->assertStringContainsString(htmlspecialchars('Magrathea\Bootstrap\Start::Instance()->AppPath(__DIR__."/../app")->Load();'), $html);
 		// the sample, as text
 		$sample = file_get_contents(__DIR__."/../../Bootstrap/docs/magrathea.conf.sample");
 		$this->assertStringContainsString(htmlspecialchars($sample), $html);

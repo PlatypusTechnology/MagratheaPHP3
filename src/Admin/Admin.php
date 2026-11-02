@@ -154,6 +154,13 @@ class Admin implements iAdmin {
 		$this->AddFeature(new \Magrathea\Admin\Features\Cache\AdminFeatureCache());
 	}
 	/**
+	 * Loads the CORS Origins feature, which edits `configs/cors-origins.txt` (read by `MagratheaApi::AllowFromFile()`).
+	 * Opt-in: `SetFeatures()` doesn't call it; call it from your Admin's `SetFeatures()`.
+	 */
+	protected function LoadCors() {
+		$this->AddFeature(new \Magrathea\Admin\Features\Cors\AdminFeatureCors());
+	}
+	/**
 	 * Loads User and UserLog features.
 	 */
 	protected function LoadUser() {
@@ -246,6 +253,8 @@ class Admin implements iAdmin {
 
 		if(@$this->adminFeatures["AdminFeatureAppConfig"])
 			$adminMenu->Add($this->adminFeatures["AdminFeatureAppConfig"]->GetMenuItem());
+		if(@$this->adminFeatures["AdminFeatureCors"])
+			$adminMenu->Add($this->adminFeatures["AdminFeatureCors"]->GetMenuItem());
 		$adminMenu
 			->Add($adminMenu->GetItem("htaccess"))
 			->Add($adminMenu->GetItem("caddy"))

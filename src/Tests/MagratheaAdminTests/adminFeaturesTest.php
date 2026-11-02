@@ -28,6 +28,29 @@ class adminFeaturesTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringNotContainsString("File Editor", $this->menuJson($admin));
 	}
 
+	public function testCorsIsNotADefaultFeature() {
+		TestsHelper::Print("Testing the CORS Origins feature is opt-in");
+		$admin = new Admin();
+		$admin->SetFeatures();
+		$this->assertArrayNotHasKey("AdminFeatureCors", $admin->GetFeatures());
+		$this->assertStringNotContainsString("CORS Origins", $this->menuJson($admin));
+	}
+
+	public function testLoadCorsAddsTheFeature() {
+		TestsHelper::Print("Testing LoadCors() adds the CORS Origins feature");
+		$admin = new class extends Admin {
+			public function SetFeatures() {
+				parent::SetFeatures();
+				$this->LoadCors();
+			}
+		};
+		$admin->SetFeatures();
+		$features = $admin->GetFeatures();
+		$this->assertArrayHasKey("AdminFeatureCors", $features);
+		$this->assertInstanceOf(\Magrathea\Admin\Features\Cors\AdminFeatureCors::class, $features["AdminFeatureCors"]);
+		$this->assertStringContainsString("CORS Origins", $this->menuJson($admin));
+	}
+
 	public function testFileEditorIsGone() {
 		TestsHelper::Print("Testing the File Editor is gone");
 		$this->assertFalse(method_exists(Admin::class, "LoadFileEditor"));

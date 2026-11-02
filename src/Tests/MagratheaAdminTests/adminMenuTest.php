@@ -140,6 +140,43 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		}
 	}
 
+	private function SetupSection(array $menu): array {
+		$this->assertSame(["title" => "Setup", "type" => "sub"], $menu[0]);
+		$section = [];
+		foreach(array_slice($menu, 1) as $item) {
+			if(($item["type"] ?? null) === "sub") break;
+			$section[] = $item;
+		}
+		return $section;
+	}
+
+	function testCorsMenuItemIsOptIn() {
+		TestsHelper::Print("testing the CORS Origins item is in Setup, after App Configuration, only when loaded...");
+		$admin = new \Magrathea\Admin\Admin();
+		$admin->SetFeatures();
+		$built = new AdminMenu();
+		$admin->AddMagratheaMenu($built);
+		$this->assertNotContains("AdminFeatureCors", array_column($built->GetMenu(), "feature"));
+
+		$admin = new class extends \Magrathea\Admin\Admin {
+			public function SetFeatures() {
+				parent::SetFeatures();
+				$this->LoadCors();
+			}
+		};
+		$admin->SetFeatures();
+		$built = new AdminMenu();
+		$admin->AddMagratheaMenu($built);
+		$setup = $this->SetupSection($built->GetMenu());
+		$features = array_column($setup, "feature");
+		$this->assertSame(["AdminFeatureAppConfig", "AdminFeatureCors"], $features);
+		$titles = array_column($setup, "title");
+		$this->assertSame(
+			array_search("App Configuration", $titles, true) + 1,
+			array_search("CORS Origins", $titles, true)
+		);
+	}
+
 	function testAddIgnoresNull() {
 		TestsHelper::Print("testing AdminMenu::Add() ignores null items...");
 		$menu = new AdminMenu();

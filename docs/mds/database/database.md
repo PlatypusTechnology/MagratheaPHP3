@@ -84,7 +84,7 @@ zone as PHP's `now()`.
 - It's set up by `MagratheaPHP::Connect()`. A second database (`ReportsDb`) configured with
   `SetConnection()` doesn't sync unless you call `ReportsDb::Instance()->SetTimezoneSync(true)`.
 
-`TimezoneCheck::Run()` (shown on the admin's Server page and the Bootstrap wizard's config step) reports
+`TimezoneCheck::Run()` (shown on the admin's Server page and the Setup Wizard's Database step) reports
 the sync state and whether the offset fallback was used.
 
 ### Query errors

@@ -60,31 +60,84 @@ $api->SetAddress("/api/v1");
 Returns the current base address.
 
 ### `AllowAll(): MagratheaApi`
-Set `Access-Control-Allow-Origin: *` (CORS open to all origins).
+Set `Access-Control-Allow-Origin: *` (CORS open to all origins) and `Access-Control-Max-Age: 86400`.
+Fine for development.
 
 ```php
 $api->AllowAll();
 ```
 
+It doesn't send `Access-Control-Allow-Credentials`: browsers reject it together with `*`, so
+requests with cookies or `Authorization` sent as credentials need `Allow()` or `AllowFromFile()`.
+(Before 3.0 it sent `Access-Control-Allow-Credentials: true`, which never worked.)
+
 ### `Allow(array $allowedOrigins): MagratheaApi`
-Restrict CORS to specific origins.
+Restrict CORS to specific origins. When the request's `Origin` is in the list, it's echoed back in
+`Access-Control-Allow-Origin`; `Access-Control-Allow-Credentials: true` is always sent.
 
 ```php
 $api->Allow(["https://myapp.com", "https://admin.myapp.com"]);
 ```
 
+The comparison is exact, so each entry must be what a browser sends in `Origin`:
+`scheme://host[:port]`, lowercase, with no path and no trailing slash (`https://myapp.com`, not
+`https://myapp.com/`).
+
+`Allow()` also sends `Vary: Origin` (appended, so it doesn't replace another `Vary` header): the
+response depends on the origin, and without it a cache or proxy could serve one origin's
+`Access-Control-Allow-Origin` to another.
+
+### `AllowFromFile(?string $file = null): MagratheaApi`
+`Allow()` with the origins listed in a file, so they can change without a deploy. The default file
+is `configs/cors-origins.txt` (`GetCorsOriginsFile()`), which the admin's opt-in
+[CORS Origins feature](../admin/admin-features.md#cors-origins-feature) edits. A missing file allows no
+origin. It doesn't change the accepted headers.
+
+```php
+$api->AllowFromFile();                       // configs/cors-origins.txt
+$api->AllowFromFile("/etc/myapp/origins.txt");
+```
+
+```text
+# configs/cors-origins.txt: one origin per line, # starts a comment
+https://myapp.com
+http://localhost:3000
+capacitor://localhost
+```
+
+### `ReadCorsOrigins(?string $file = null): array` (static)
+Reads an origins file: one origin per line, trimmed; empty lines and lines starting with `#` are
+skipped. Lines aren't validated (the admin feature validates them before saving). A missing or
+unreadable file returns `[]`.
+
+### `GetCorsOriginsFile(): string` (static)
+The default origins file: `MagratheaPHP::Instance()->GetConfigRoot()."/".MagratheaApi::CORS_ORIGINS_FILE`,
+that is `configs/cors-origins.txt`. The file may not exist.
+
 ### `DisableCache(): MagratheaApi`
 Send `Cache-Control: no-cache` headers.
 
-### `AddAcceptHeaders(string|array $accept): void`
-Append allowed request headers.
+### `AddAcceptHeaders(string|array $accept): MagratheaApi`
+Append headers to the list sent in `Access-Control-Allow-Headers` (default: `Authorization`,
+`Content-Type`). Headers already in the list are skipped (case-insensitive). It sends nothing:
+`AcceptHeaders()` does.
 
 ```php
 $api->AddAcceptHeaders(["X-Api-Key", "X-Custom-Header"]);
 ```
 
+Before 3.0 it replaced the list instead; use `SetAcceptHeaders()` for that.
+
+### `SetAcceptHeaders(array $headers): MagratheaApi`
+Replace the list of accepted request headers. It sends nothing.
+
+```php
+$api->SetAcceptHeaders(["Authorization", "Content-Type", "X-Api-Key"]);
+```
+
 ### `AcceptHeaders(?array $headers): void`
-Set the full list of accepted request headers.
+Append `$headers` (if given) to the list and send `Access-Control-Allow-Headers` with it. The CORS
+preflight (`OPTIONS`) calls it.
 
 ### `SetRaw(): MagratheaApi`
 Disable JSON encoding of responses — return raw output.

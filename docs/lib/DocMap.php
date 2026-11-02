@@ -22,6 +22,7 @@ class DocMap {
 				"icon" => "rocket",
 				"pages" => [
 					"getting-started" => ["title" => "Installation & Quick Start", "md" => "getting-started.md", "src" => []],
+					"setup-wizard" => ["title" => "Setup Wizard", "md" => "setup-wizard.md", "src" => ["Bootstrap/Start.php", "Bootstrap/SetupToken.php", "Bootstrap/Steps.php"]],
 				],
 			],
 			"core" => [
@@ -65,7 +66,7 @@ class DocMap {
 				"pages" => [
 					"admin" => ["title" => "Admin System Overview", "md" => "admin/admin.md", "src" => ["Admin/Admin.php", "Admin/AdminManager.php", "Admin/AdminFiles.php"]],
 					"admin-manager" => ["title" => "AdminManager", "md" => "admin/admin-manager.md", "src" => ["Admin/AdminManager.php"]],
-					"admin-features" => ["title" => "Admin Features", "md" => "admin/admin-features.md", "src" => ["Admin/AdminFeature.php"]],
+					"admin-features" => ["title" => "Admin Features", "md" => "admin/admin-features.md", "src" => ["Admin/AdminFeature.php", "Admin/Features/Cors/AdminFeatureCors.php"]],
 					"admin-database" => ["title" => "Admin: Database Section", "md" => "admin/admin-database.md", "src" => ["Admin/DatabaseExplorer.php", "Admin/QueryRunner.php", "Admin/QueryEditor.php", "Admin/DumpManager.php", "Admin/CheckReport.php"]],
 				],
 			],

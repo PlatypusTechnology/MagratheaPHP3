@@ -187,43 +187,27 @@ $app->Prod();
 
 ---
 
-## Setup Wizard (Bootstrap)
+## Setup Wizard
 
-`Magrathea\Bootstrap\Start::Instance()->Load()` renders a setup wizard: folder structure, config
-editing, DB connection test, a raw SQL runner, admin install and admin password reset. That's a
-remote control for your server, so it's **locked by default** (since 2.4.0).
+`public/setup.php` runs a browser wizard that writes the config, checks the database, imports a dump,
+installs the admin and its first user, and runs the project's checks:
 
-It only opens when the **active environment's section** has the flag:
-
-```ini
-[dev]
-	db_host = "localhost"
-	; ...
-	bootstrap_unlocked = true
+```php
+<?php
+require __DIR__."/../vendor/autoload.php";
+Magrathea\Bootstrap\Start::Instance()->AppPath(__DIR__."/../app")->Load();
 ```
 
-- Only the active environment counts. The flag in `[general]` or in another environment's section
-  does nothing, so a `[dev]` flag never unlocks `[production]` in the same file.
-- `true`, `1`, `on` and `yes` (quoted or not) unlock it. Anything else, or no flag at all, means
-  locked.
-- Locked, `Load()` answers **403** with a page that says "Bootstrap is locked" and the active
-  environment's name, nothing else.
-- The wizard can't unlock itself: the check runs before any step or action.
-- Only known actions can be called (`?action=run-query`, `save-config`, …). Any other `action`
-  value gets a **404**.
-
-The sample config (`src/Bootstrap/docs/magrathea.conf.sample`) has `bootstrap_unlocked = true` in
-`[dev]` only. Keep it out of production. If you really need the wizard there (e.g. to reset a
-locked-out admin password with `user-reset`), add the flag, do what you need, and remove it.
-
-**Known gap:** `Start::PreLoad()` copies the sample when there's no config file at all, and the
-copy comes up as `dev` + unlocked. It has no real DB credentials at that point, so the SQL runner
-has nothing to reach. Still, don't leave a wizard entry file deployed.
+It works with no config at all, and it's locked: every visit needs the 8-digit token it writes to
+`configs/.setup-token`, which only someone with access to the server's files can read. With a config,
+it also needs `bootstrap_unlocked = true` in the active environment. Ten wrong tokens lock it until
+`configs/.setup-locked` is deleted. See [Setup Wizard](setup-wizard.md).
 
 ---
 
 ## Next Steps
 
+- [Setup Wizard →](setup-wizard.md)
 - [Configuration reference →](core/config.md)
 - [Database & Query Builder →](database/database.md)
 - [ORM Model →](database/orm-model.md)

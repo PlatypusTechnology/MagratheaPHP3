@@ -65,7 +65,7 @@ timezone identifier (`America/Sao_Paulo`, `UTC`...):
   `db_sync_timezone = false` in the same section (see the Database page).
 
 `time_zone` (with an underscore) is **not** a config key: older samples and docs used it, and it was
-always ignored. The admin's Server page and the Bootstrap wizard's config step run a timezone check
+always ignored. The admin's Server page and the Setup Wizard's Database step run a timezone check
 (`TimezoneCheck`) that flags it, along with invalid names and PHP/MySQL clocks out of sync.
 
 ### Environment variable interpolation
@@ -230,13 +230,19 @@ Config::Instance()->SetConfig([
 
 A lower-level, non-singleton counterpart to `Config`: it reads/writes *any* INI file you
 point it at (`SetPath()` + `SetFile()`), not just the app's `magrathea.conf`. The admin's
-Configuration File page and the Bootstrap wizard's config editor use it.
+Configuration File page and the [Setup Wizard](../setup-wizard.md)'s Configuration step use it.
 
 ```php
 $fileControl = new \Magrathea\ConfigFile();
 $fileControl->SetPath($dir)->SetFile("some.conf");
 $data = $fileControl->GetConfig(); // whole file, or "section" / "section/key" like Config::GetConfig()
 ```
+
+`Save()` writes every value as `key = "value"` without escaping (and `true`/`1`/`yes`,
+`false`/`0`/`no` as bare booleans), then the INI parser reads it back expanding `${…}`. So a value
+with `"` or a line break breaks the file, and `yes`, `0` or `${HOME}` don't read back as written.
+`ConfigFile::IsStorable($value)` tells whether a value survives the round trip; the Setup Wizard
+refuses the ones that don't. `Save()` rewrites the whole file: comments are lost.
 
 `GetConfig()` throws `MagratheaConfigException` both when the file is missing and when it
 exists but fails to parse as valid INI (`parse_ini_file()` returning `false`) — the same

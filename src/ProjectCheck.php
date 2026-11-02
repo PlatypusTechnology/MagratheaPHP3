@@ -71,6 +71,31 @@ class ProjectCheck {
 	}
 
 	/**
+	* What the Setup Wizard checks before there's a config: PHP's version, `proc_open()`, the `mysqli` extension
+	* (WARNING: only a project with a database needs it), the configs folder (exists and is writable, or the
+	* wizard can't write `magrathea.conf`: ERROR) and, on the web, the configs folder outside the document root.
+	* Reads no config and doesn't connect.
+	* @param 	string 	$configFolder 	the configs folder (`<magRoot>/configs`)
+	* @return 	array 	findings, in the `config` and `folders` groups
+	*/
+	public static function Requirements(string $configFolder): array {
+		$findings = static::PhpFindings();
+		$findings[] = static::HasExtension("mysqli")
+			? self::Finding(self::CONFIG, TimezoneCheck::OK, "The `mysqli` extension is loaded.")
+			: self::Finding(self::CONFIG, TimezoneCheck::WARNING, "The `mysqli` extension isn't loaded: a project with a database can't reach it.");
+		if(!is_dir($configFolder)) {
+			$findings[] = self::Finding(self::FOLDERS, TimezoneCheck::ERROR, "The configs folder `".$configFolder."` doesn't exist.");
+		} else if(!is_writable($configFolder)) {
+			$findings[] = self::Finding(self::FOLDERS, TimezoneCheck::ERROR, "The configs folder `".$configFolder."` isn't writable: `magrathea.conf` can't be saved.");
+		} else {
+			$findings[] = self::Finding(self::FOLDERS, TimezoneCheck::OK, "The configs folder `".$configFolder."` exists and is writable.");
+		}
+		$webRoot = static::WebRootFinding($configFolder);
+		if($webRoot) $findings[] = $webRoot;
+		return $findings;
+	}
+
+	/**
 	* PHP's version and `proc_open()` (used by dumps)
 	* @return 	array 	findings
 	*/
@@ -193,16 +218,25 @@ class ProjectCheck {
 			$findings[] = self::Finding(self::FOLDERS, TimezoneCheck::WARNING, "Backups: the folder can't be found: ".$ex->getMessage());
 		}
 
-		// the CLI can't know the web root
+		$webRoot = static::WebRootFinding($config->GetPath());
+		if($webRoot) $findings[] = $webRoot;
+		return $findings;
+	}
+
+	/**
+	* The configs folder under the document root: WARNING. Null in the CLI (it can't know the web root) or when a
+	* folder doesn't exist.
+	* @param 	string 	$folder 	the configs folder
+	* @return 	array|null 	finding
+	*/
+	private static function WebRootFinding(string $folder): ?array {
 		$documentRoot = static::DocumentRoot();
 		$documentRoot = $documentRoot ? realpath($documentRoot) : false;
-		$configs = realpath($config->GetPath());
-		if($documentRoot && $configs) {
-			$findings[] = ($configs === $documentRoot || str_starts_with($configs, rtrim($documentRoot, "/")."/"))
-				? self::Finding(self::FOLDERS, TimezoneCheck::WARNING, "The configs folder `".$configs."` is under the document root (`".$documentRoot."`): unless the web server blocks it, the config, with the database password, can be downloaded.")
-				: self::Finding(self::FOLDERS, TimezoneCheck::OK, "The configs folder is outside the document root.");
-		}
-		return $findings;
+		$configs = realpath($folder);
+		if(!$documentRoot || !$configs) return null;
+		return ($configs === $documentRoot || str_starts_with($configs, rtrim($documentRoot, "/")."/"))
+			? self::Finding(self::FOLDERS, TimezoneCheck::WARNING, "The configs folder `".$configs."` is under the document root (`".$documentRoot."`): unless the web server blocks it, the config, with the database password and the Setup Wizard's token, can be downloaded.")
+			: self::Finding(self::FOLDERS, TimezoneCheck::OK, "The configs folder is outside the document root.");
 	}
 
 	/**

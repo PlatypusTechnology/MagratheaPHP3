@@ -83,6 +83,43 @@ Before, any logged-in admin could write or delete any file the web server can re
 
 ---
 
+### CORS Origins Feature
+
+**Path:** `src/Admin/Features/Cors/`
+
+Edits the API's allowed-origins file, `configs/cors-origins.txt`
+(`MagratheaApi::GetCorsOriginsFile()`), which [`MagratheaApi::AllowFromFile()`](../api/magrathea-api.md)
+reads on every request. Opt-in (since 3.0): call `$this->LoadCors()` in your `Admin`'s `SetFeatures()`.
+
+```php
+class MyAdmin extends \Magrathea\Admin\Admin {
+    public function SetFeatures() {
+        parent::SetFeatures();
+        $this->LoadCors();
+    }
+}
+```
+
+The page shows the file's path ("not created yet" when it doesn't exist) and its content in a
+textarea. **Save** (`Save`, POST only) posts it back:
+- each line is trimmed and empty lines are dropped; `#` comment lines are kept;
+- every other line must pass `AdminFeatureCors::IsValidOrigin()`, that is exactly what browsers send
+  in `Origin`: `scheme://host[:port]`, lowercase, no path, no trailing slash. `https://app.com`,
+  `http://localhost:3000`, `capacitor://localhost` and `http://[::1]:3000` pass; `*`, `null`,
+  `https://app.com/`, `HTTPS://app.com` fail. `Allow()` compares origins exactly, so a failing line
+  could never match;
+- if any line fails, nothing is written and a danger alert lists the failing lines. Otherwise the
+  file is written (with a lock); if it can't be written, the alert shows the path.
+
+Errors answer HTTP 200 with an alert (the admin's `ajax()` drops non-JSON error bodies); only a
+non-POST `Save` answers 405. The file must be writable by the web server's user, and like everything
+in `configs/`, it must not be reachable from the web.
+
+**Menu item:** "CORS Origins", in the Setup section after App Configuration
+**Feature ID:** `AdminFeatureCors`
+
+---
+
 ### CRUD Object Feature
 
 **Path:** `src/Admin/Features/CrudObject/`
@@ -290,7 +327,7 @@ The first two rows go through `views/index.php`, which defaults `magrathea_featu
 
 **Which methods the URL can call** (since 2.4.0): all three dispatch points first check `AdminFeature::IsDispatchable($method)`. It accepts only a public, non-static method of the feature with no required parameters, named `^[A-Za-z]\w*$`, that isn't one of `AdminFeature`'s own methods (`AddJs`, `SetClassPath`, `HasPermission`, `GetMenuItem`, …, even when overridden), except `GetPage` and `Index`. Anything else answers 404 ("action not found" from `CheckFeature()`, a "Page not found" alert in the layout). Before 2.4.0, any public method could be called, setters included.
 
-**Actions that change data must refuse GET.** The admin checks its CSRF token on POST only, so a GET link (or an `<img src>` in something an admin opens) can call any dispatchable action. The built-in ones that write answer 405 unless it's a POST (CRUD `Save`/`Delete`, App Config `Import`, Cache `ClearCache`), or do nothing without posted data (Cache `Save`/`Remove`, the password change). Do the same in your own features:
+**Actions that change data must refuse GET.** The admin checks its CSRF token on POST only, so a GET link (or an `<img src>` in something an admin opens) can call any dispatchable action. The built-in ones that write answer 405 unless it's a POST (CRUD `Save`/`Delete`, App Config `Import`, Cache `ClearCache`, CORS Origins `Save`), or do nothing without posted data (Cache `Save`/`Remove`, the password change). Do the same in your own features:
 
 ```php
 public function Archive() {

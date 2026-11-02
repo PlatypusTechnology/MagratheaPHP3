@@ -1,102 +1,98 @@
 <?php
-	global $stepActive;
-	$action = @$_GET["action"];
-	if(!empty($action)) {
-		$actionFile = \Magrathea\Bootstrap\Start::Instance()->GetActionFile($action);
-		if(!$actionFile) {
-			http_response_code(404);
-			die("action not found");
-		}
-		include($actionFile);
-		die;
-	}
-	$stepActive = @$_GET["step"];
-	if(empty($stepActive)) $stepActive = 1;
+/**
+ * The Setup Wizard's page. Variables: $page (Start::Handle()'s result) and $wizard (Start).
+ * Everything that comes from the config, the filesystem, the database or the request is escaped ($h).
+ * No external assets and no JavaScript: every form posts to the server, which validates it.
+ */
 
-	function linkTo($step) {
-		return \Magrathea\Bootstrap\Start::Instance()->GetStepLink($step);
+use Magrathea\Admin\AdminCsrf;
+use Magrathea\Bootstrap\Start;
+use Magrathea\MagratheaPHP;
+
+$h = fn($value) => htmlspecialchars((string)$value, ENT_QUOTES);
+// escapes a message, then shows its `code` spans
+$md = fn($message) => preg_replace('/`([^`]+)`/', '<code>$1</code>', $h($message));
+$csrfField = function() use ($h) {
+	return '<input type="hidden" name="csrf" value="'.$h(AdminCsrf::Instance()->GetToken()).'">';
+};
+$findings = function(array $list) use ($h, $md) {
+	foreach($list as $finding) {
+		$level = (string)($finding["level"] ?? \Magrathea\TimezoneCheck::INFO);
+		echo '<div class="alert level-'.$h($level).'"><span class="badge">'.$h($level).'</span>'.$md($finding["message"] ?? "");
+		if(!empty($finding["fix"])) echo '<pre>'.$h($finding["fix"]).'</pre>';
+		echo '</div>';
 	}
-	
+};
+$fieldError = function(array $errors, string $field) use ($md) {
+	if(!empty($errors[$field])) echo '<div class="field-error">'.$md($errors[$field]).'</div>';
+};
+
+$view = $page["view"];
+$step = $page["step"] ?? null;
+$data = $page["data"] ?? null;
+$result = $page["result"] ?? null;
+$version = MagratheaPHP::Instance()->Version();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>Magrathea Bootstrap</title>
-		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="robots" content="noindex, nofollow">
+		<title>Magrathea Setup Wizard</title>
 		<style>
-			<?php include("css/_variables.css"); ?>
-			<?php include("css/styles.css"); ?>
-			<?php include("css/steps.css"); ?>
+			<?php include(__DIR__."/css/_variables.css"); ?>
+			<?php include(__DIR__."/css/wizard.css"); ?>
 		</style>
 	</head>
 	<body>
-		<main>
-			<?php include("sections/header.php"); ?>
-			<div class="container">
-				<div class="row">
-					<div class="col-4">
-					<?php include("sections/steps.php"); ?>
-					<?php include("sections/loading.php"); ?>
-					</div>
-					<div class="col-8">
-						<div class="card">
-							<?php
-							$showCommands = true;
-							switch($stepActive) {
-								default:
-								case 1:
-									include("steps/structure.php");
-									break;
-								case 2:
-									include("steps/config-file.php");
-									include("steps/config-edit.php");
-									break;
-								case 3:
-									include("steps/log-and-debug.php");
-									break;
-								case 4:
-									include("steps/db-connect.php");
-									break;
-								case 5:
-									include("steps/db-run.php");
-									break;
-								case 6:
-									include("steps/install-admin.php");
-									break;
-								case 7:
-									include("steps/develop.php");
-									break;
-								case -1:
-									$showCommands = false;
-									include("tools.php");
-									break;
-								}
-							?>
-						</div>
-						<?php if($showCommands) { ?>
-						<div class="actions">
-							<?php if ($stepActive > 1) { ?>
-								<button class="btn btn-primary left" onclick="window.location.href='<?=linkTo($stepActive-1)?>'">Back</button>
-							<?php 
-								}
-								if($stepActive != 8) {
-							?>
-								<button class="btn btn-success" onclick="window.location.href='<?=linkTo($stepActive+1)?>'">Next</button>
-							<?php } ?>
-						</div>
-						<?php } ?>
-					</div>
-				</div>
+		<header class="wizard-header">
+			<?php include(__DIR__."/logo.svg"); ?>
+			<span class="title">Magrathea Setup Wizard</span>
+			<span class="meta">
+				MagratheaPHP <?=$h($version)?><br/>
+				<?=$h($page["mode"])?> mode<?=!empty($page["environment"]) ? " &middot; environment <b>".$h($page["environment"])."</b>" : ""?>
+			</span>
+		</header>
 
-			</div>
+		<?php if($view === "step") { ?>
+		<div class="wizard">
+			<nav class="wizard-nav">
+				<ol>
+					<?php
+					$past = true;
+					foreach(Start::STEPS as $key => $title) {
+						$class = ($key === $step) ? "current" : ($past ? "done" : "");
+						if($key === $step) $past = false;
+						echo '<li><a class="'.$class.'" href="'.$h($wizard->GetStepLink($key)).'">'.$h($title).'</a></li>';
+					}
+					?>
+				</ol>
+			</nav>
+			<main class="wizard-main">
+				<?php
+				if(!empty($page["error"])) echo '<div class="alert level-error">'.$md($page["error"]).'</div>';
+				// after "finish" the session isn't verified: only its result is left to show
+				if(($step !== null && $data !== null) || ($step === "finish" && $result !== null)) {
+					include(__DIR__."/steps/".$step.".php");
+				}
+				if($step !== null && $step !== "finish") {
+					$keys = array_keys(Start::STEPS);
+					$at = array_search($step, $keys, true);
+					?>
+					<div class="actions">
+						<span><?php if($at > 0) { ?><a class="button secondary" href="<?=$h($wizard->GetStepLink($keys[$at - 1]))?>">Back</a><?php } ?></span>
+						<span><?php if($at < count($keys) - 1) { ?><a class="button" href="<?=$h($wizard->GetStepLink($keys[$at + 1]))?>">Next: <?=$h(Start::STEPS[$keys[$at + 1]])?></a><?php } ?></span>
+					</div>
+					<?php
+				}
+				?>
+			</main>
+		</div>
+		<?php } else { ?>
+		<main class="narrow">
+			<?php include(__DIR__."/".$view.".php"); ?>
 		</main>
+		<?php } ?>
 	</body>
-	<script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
-	<script type="text/javascript">
-		<?php include("javascript/scripts.js"); ?>
-		<?php include("javascript/config.js"); ?>
-		<?php include("javascript/database.js"); ?>
-	</script>
 </html>

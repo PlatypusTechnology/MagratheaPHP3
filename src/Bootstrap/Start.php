@@ -1,85 +1,156 @@
 <?php
 
 namespace Magrathea\Bootstrap;
-use Exception;
-use Magrathea\DB\Dump;
+
+use Magrathea\Admin\AdminCsrf;
 use Magrathea\Config;
-use Magrathea\Debugger;
-use Magrathea\Logger;
+use Magrathea\Errors\ErrorManager;
 use Magrathea\MagratheaPHP;
 
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
+####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Bootstrap Start created: 2022-12 by Paulo Martins
+####    Rebuilt (token lock, modes, steps): 2026-11
 ####
 #######################################################################################
 
 /**
- * Class for handling and loading Magrathea's Bootstrap system
- */
-class Start extends \Magrathea\Singleton { 
+* The Setup Wizard. Its entry file (`public/setup.php`) only sets the app's path and calls `Load()`:
+* ```php
+* Magrathea\Bootstrap\Start::Instance()->AppPath(__DIR__."/../app")->Load();
+* ```
+* It reads `<magRoot>/configs/magrathea.conf` itself and never calls `MagratheaPHP::Load()`, so it works with no config.
+* - setup mode: there's no config file. It needs the token;
+* - maintenance mode: the config exists and the active environment has `bootstrap_unlocked = true`. It needs the token too;
+* - anything else is locked (403).
+* The token is in `configs/.setup-token` (`SetupToken`); a correct one verifies the session. Every POST needs the
+* admin's CSRF token, and every step and action a verified session.
+*/
+class Start extends \Magrathea\Singleton {
 
-	protected $appPath;
-	private $structure = [];
+	const SETUP = "setup";
+	const MAINTENANCE = "maintenance";
+	const LOCKED = "locked";
 
-	/**
-	 * Actions that can be called through `?action=` (files in `views/actions/`)
-	 */
-	const ACTIONS = [
-		"database-test",
-		"install-admin",
-		"install-admin-preview",
-		"run-query",
-		"save-config",
-		"show-tables",
-		"user-reset",
-		"users-get",
+	/** where a verified session keeps `hash("sha256", $token)` */
+	const SESSION_KEY = "magrathea_setup";
+
+	/** the steps, in order: key => title */
+	const STEPS = [
+		"requirements" => "Requirements",
+		"configuration" => "Configuration",
+		"database" => "Database",
+		"import" => "Import",
+		"admin" => "Admin",
+		"checks" => "Checks",
+		"finish" => "Finish",
 	];
 
+	/** the POST actions (`action`), and the step each one belongs to; "verify" (the token form) is the only one without a verified session */
+	const ACTIONS = [
+		"save-config" => "configuration",
+		"upload-dump" => "import",
+		"import-dump" => "import",
+		"install-admin" => "admin",
+		"create-admin" => "admin",
+		"finish" => "finish",
+	];
+	const VERIFY = "verify";
+
+	protected ?string $magRoot = null;
+	private ?SetupToken $token = null;
+	private ?Steps $steps = null;
+
 	/**
-	* Shows Bootstrap UI
-	* Only available when the active environment has `bootstrap_unlocked = true`;
-	* otherwise, a "locked" page is shown with a 403 status.
-	* @return 	void
+	* Sets the app's folder: `MagratheaPHP::AppPath()`, so `magRoot` is its parent. Points `Config` at
+	* `<magRoot>/configs`.
+	* @param 	string 	$path 	the app's folder
+	* @return 	Start
 	*/
-	public function Load() {
-		if (!$this->IsUnlocked()) {
-			http_response_code(403);
-			$environment = $this->GetEnvironmentName();
-			include("views/locked.php");
-			return;
-		}
-		Debugger::Instance()->SetDev();
-		if (!$this->appPath) {
-			$this->appPath = MagratheaPHP::Instance()->appRoot;
-		}
-		include("views/index.php");
+	public function AppPath(string $path): Start {
+		MagratheaPHP::Instance()->AppPath($path);
+		$root = MagratheaPHP::Instance()->magRoot;
+		return $this->SetMagRoot($root ?: rtrim($path, "/")."/..");
 	}
 
 	/**
-	 * Checks if bootstrap is unlocked:
-	 * the active environment section must have `bootstrap_unlocked = true`.
-	 * A missing key, a false value or an unreadable config means locked.
-	 * @return bool		is bootstrap unlocked?
-	 */
+	* Sets the project's root (the folder with `configs/`) without touching `MagratheaPHP`
+	* @param 	string 	$root 	the root folder
+	* @return 	Start
+	*/
+	public function SetMagRoot(string $root): Start {
+		$this->magRoot = rtrim($root, "/");
+		$this->token = null;
+		$this->ReloadConfig();
+		return $this;
+	}
+
+	/** @return 	string|null 	the project's root */
+	public function GetMagRoot(): ?string {
+		if($this->magRoot === null && !empty(MagratheaPHP::Instance()->magRoot)) {
+			$this->SetMagRoot(MagratheaPHP::Instance()->magRoot);
+		}
+		return $this->magRoot;
+	}
+
+	/** @return 	string 	`<magRoot>/configs` */
+	public function ConfigFolder(): string {
+		return $this->GetMagRoot()."/configs";
+	}
+	/** @return 	string 	`<magRoot>/configs/magrathea.conf` */
+	public function ConfigFilePath(): string {
+		return $this->ConfigFolder()."/magrathea.conf";
+	}
+	/** @return 	bool 	does the config file exist? */
+	public function HasConfig(): bool {
+		return $this->GetMagRoot() !== null && is_file($this->ConfigFilePath());
+	}
+
+	/**
+	* Points `Config` at the configs folder, dropping what it cached (after the wizard writes the file, too), and
+	* sets PHP's timezone from the config, as `MagratheaPHP::Load()` does
+	*/
+	public function ReloadConfig(): void {
+		if($this->magRoot === null) return;
+		Config::Instance()->SetConfig(null)->SetEnvironment(null)->SetPath($this->ConfigFolder())->SetConfigFile("magrathea.conf");
+		if(!$this->HasConfig()) return;
+		try {
+			$timezone = Config::Instance()->Get("timezone");
+			if($timezone && in_array($timezone, timezone_identifiers_list(), true)) date_default_timezone_set($timezone);
+		} catch(\Throwable $ex) { }
+	}
+
+	/**
+	* Checks if the config unlocks the wizard: the active environment's section must have
+	* `bootstrap_unlocked = true`. A missing key, a false value or an unreadable config means locked.
+	* @return bool		is it unlocked?
+	*/
 	public function IsUnlocked(): bool {
 		try {
 			$unlocked = Config::Instance()->Get("bootstrap_unlocked");
-		} catch(\Exception $ex) {
+		} catch(\Throwable $ex) {
 			return false;
 		}
 		return filter_var($unlocked, FILTER_VALIDATE_BOOLEAN);
 	}
 
 	/**
-	 * Gets the active environment's name, or null if config can't be read
-	 * @return string|null	environment name
-	 */
-	private function GetEnvironmentName(): ?string {
+	* @return 	string 	SETUP (no config), MAINTENANCE (a config with `bootstrap_unlocked`) or LOCKED
+	*/
+	public function Mode(): string {
+		if(!$this->HasConfig()) return self::SETUP;
+		return $this->IsUnlocked() ? self::MAINTENANCE : self::LOCKED;
+	}
+
+	/**
+	* @return 	string|null 	the active environment's name, or null when the config can't be read
+	*/
+	public function GetEnvironmentName(): ?string {
+		if(!$this->HasConfig()) return null;
 		try {
 			return Config::Instance()->GetEnvironment();
 		} catch(\Throwable $ex) {
@@ -87,184 +158,202 @@ class Start extends \Magrathea\Singleton {
 		}
 	}
 
-	/**
-	 * Gets the file for an action, if it is a valid one
-	 * @param mixed $action		action name (from `$_GET["action"]`)
-	 * @return string|null		file path, or null for an unknown action
-	 */
-	public function GetActionFile($action): ?string {
-		if (!is_string($action) || !in_array($action, self::ACTIONS, true)) {
-			return null;
-		}
-		return __DIR__."/views/actions/".$action.".php";
+	/** @return 	SetupToken 	the token in the configs folder */
+	public function Token(): SetupToken {
+		if($this->token === null) $this->token = new SetupToken($this->ConfigFolder());
+		return $this->token;
 	}
 
-	/**
-	 * Gets link to step
-	 * @param int $step		step to go
-	 * @return string			step url
-	 */
-	public function GetStepLink($step) {
-		$url = self::GetBootstrapURL();
-		return $url."?step=".$step;
+	/** @return 	Steps 	the steps' handlers */
+	public function Steps(): Steps {
+		if($this->steps === null || $this->steps->Start() !== $this) $this->steps = new Steps($this);
+		return $this->steps;
 	}
-
-	public static function GetBootstrapURL() {
-		return strtok($_SERVER["REQUEST_URI"], '?');
-	}
-
 	/**
-	* Sets project's path
-	* @param 	string 	$path 	main path of the project
+	* Replaces the steps' handlers (tests)
+	* @param 	Steps|null 	$steps 		null: the default
 	* @return 	Start
 	*/
-	public function setPath($path) {
-		$this->appPath = $path;
+	public function SetSteps(?Steps $steps): Start {
+		$this->steps = $steps;
 		return $this;
 	}
 
 	/**
-	* Check if the class has everything it needs to survive
-	* @return 	boolean
+	* Is this session verified? Its hash must match the token file's (deleting or replacing the file revokes it),
+	* and the wizard must not be locked or locked out.
+	* @return 	bool
 	*/
-	public function CheckSelf() {
-		if(empty($this->appPath)) {
-			return false;
-		}
+	public function IsVerified(): bool {
+		$session = $_SESSION[self::SESSION_KEY] ?? null;
+		if(!is_string($session) || $session === "") return false;
+		if($this->GetMagRoot() === null || $this->Mode() === self::LOCKED) return false;
+		$token = $this->Token();
+		if($token->IsLockedOut()) return false;
+		$hash = $token->Hash();
+		return $hash !== null && hash_equals($hash, $session);
+	}
+
+	/**
+	* Checks a typed token (`SetupToken::Check()`, which counts the failures). A correct one regenerates the
+	* session's id and keeps the token's hash in it.
+	* @param 	mixed 	$input 	the typed token
+	* @return 	bool 	verified?
+	*/
+	public function Verify($input): bool {
+		if($this->Mode() === self::LOCKED) return false;
+		$token = $this->Token();
+		if(!$token->Check($input)) return false;
+		if(session_status() === PHP_SESSION_ACTIVE) session_regenerate_id(true);
+		$_SESSION[self::SESSION_KEY] = $token->Hash();
 		return true;
 	}
 
-	/**
-	* Check folders (printing in the way)
-	* @return	boolean 	Folder OK or not
-	*/
-	private function CheckFolder($path, $retry=false) {
-		$realPath = realpath($path);
-		if(!$realPath) {
-			echo "folder does not exist!<br/>";
-			echo "creating folder [".$path."]<br/>";
-			try {
-				$success = @mkdir($path);
-			} catch(Exception $ex) {
-				echo "<span class='error'>ERROR: Could not create [".$path."]".$ex->getMessage()."</span>";
-			}
-			if(!$success) {
-				echo "... ERROR!<br/>";
-				if($retry) {
-					echo " Could not create folder.<br/>";
-					return false;
-				}
-			} else {
-				echo "... DONE!<br/>";
-			}
-			return $this->CheckFolder($path, true);
-		} else {
-			echo "&gt;&gt; directory path: [".$realPath."]<br/>";
-			return true;
-		}
+	/** Forgets the session's verification */
+	public function EndSession(): void {
+		unset($_SESSION[self::SESSION_KEY]);
 	}
 
 	/**
-	* Create folders path
-	* @return 	void
+	* Handles a request, without output: what `Load()` renders
+	* @param 	string 	$method 	the HTTP method
+	* @param 	array 	$get 		the query string (`step`)
+	* @param 	array 	$post 		the form (`action`, `csrf`, the action's fields)
+	* @param 	array 	$files 		uploaded files
+	* @return 	array 	["status" => HTTP status, "view" => "locked", "locked-out", "no-folder", "token", "redirect" or
+	* 					"step", plus the view's keys: "mode", "environment", "error", "step", "data", "result", "location"]
 	*/
-	private function Structurate() {
-		$path = $this->appPath;
-		if(empty($path)) {
-			throw new Exception("invalid path: ".$path);
-		}
-		$this->structure = array(
-			'Config' => $this->GetConfigPath(),
-			'Logs' => Logger::Instance()->GetLogPath(),
-			// 'Models' => $this->appPath."/../Models",
-			// 'Models-Base' => $this->appPath."/../Models/Base",
-			'Backups' => Dump::Folder(),
-		);
-	}
-
-	/**
-	* Validate project's structure
-	* @return 	void
-	*/
-	public function ValidateStructure() {
-		$this->Structurate();
-		echo "<ul>";
-		foreach($this->structure as $name => $value) {
-			echo "<li>";
-			echo "<b>".$name."</b><br/>";
-			$this->CheckFolder($value);
-			echo "<br/>";
-			echo "</li>";
-		}
-		echo "</ul>";
-	}
-
-	/**
-	* Get config file path
-	* @return 	string		path for config file
-	*/
-	public function GetConfigPath() {
-		$configPath = realpath($this->appPath."/../configs");
-		if(empty($configPath)) {
-			throw new Exception("invalid config path: ".$configPath);
-		}
-		return $configPath;
-	}
-	/**
-	* Get config file path
-	* @return 	string		path for config file
-	*/
-	public function GetConfigFilePath() {
-		$this->Structurate();
-		$configPath = $this->GetConfigPath();
-		$configFile = $configPath."/magrathea.conf";
-		if(empty($configPath)) {
-			throw new Exception("invalid config path: ".$configPath);
-		}
-		return $configFile;
-	}
-
-	/**
-	* Create default config file
-	* @return 	boolean		true if file was created, false if don't
-	*/
-	public function CreateDefaultConfigFile() {
-		$configFile = $this->GetConfigFilePath();
-		if(file_exists($configFile)) {
-			echo "file [".$configFile."] already exists";
-			return false;
-		}
-
-		$configDefaultPath = realpath(dirname(__FILE__)."/docs");
-		$configDefaultFile = $configDefaultPath."/magrathea.conf.sample";
-		echo "creating config file [".$configFile."] from [".$configDefaultFile."]";
+	public function Handle(string $method, array $get = [], array $post = [], array $files = []): array {
+		// a config exception (no config yet, in LOG mode) shows the error page and dies from its constructor: it throws instead
+		$previous = ErrorManager::Instance()->ThrowErrors(true);
 		try {
-			$success = @copy($configDefaultFile, $configFile);
-		} catch(Exception $ex) {
-			throw new Exception("could not copy file [".$configDefaultFile."] to [".$configFile."]");
+			return $this->HandleRequest($method, $get, $post, $files);
+		} finally {
+			ErrorManager::Instance()->ThrowErrors($previous);
 		}
-		if(!$success) {
-			echo "<br/><br/>could not create config file!<br/>base file:<br/>";
-			echo "<pre>".file_get_contents($configDefaultFile)."</pre>";
-			echo "<br/><hr/>";
+	}
+
+	private function HandleRequest(string $method, array $get, array $post, array $files): array {
+		$mode = $this->Mode();
+		$page = ["mode" => $mode, "environment" => $this->GetEnvironmentName(), "error" => null];
+		if($mode === self::LOCKED) return ["status" => 403, "view" => "locked"] + $page;
+
+		$token = $this->Token();
+		if($token->IsLockedOut()) return ["status" => 403, "view" => "locked-out", "file" => $token->LockedPath()] + $page;
+		try {
+			$token->Issue();
+		} catch(\Throwable $ex) {
+			return ["status" => 503, "view" => "no-folder", "folder" => $token->Folder(), "error" => $ex->getMessage()] + $page;
 		}
-		return true;
+		$page["tokenFile"] = $token->Path();
+
+		$isPost = strtoupper($method) === "POST";
+		$action = $isPost ? ($post["action"] ?? null) : null;
+		$requested = $isPost || array_key_exists("step", $get);
+		if($isPost && !AdminCsrf::Instance()->Validate(is_string($post["csrf"] ?? null) ? $post["csrf"] : null)) {
+			return ["status" => 403, "view" => $this->IsVerified() ? "step" : "token",
+				"error" => "The form expired (or didn't come from this page): try again.",
+				"step" => $this->StepOf($get), "data" => null, "result" => null] + $page;
+		}
+
+		if($action === self::VERIFY) {
+			if($this->Verify($post["token"] ?? null)) {
+				return ["status" => 303, "view" => "redirect", "location" => $this->GetStepLink(array_key_first(self::STEPS))] + $page;
+			}
+			if($token->IsLockedOut()) return ["status" => 403, "view" => "locked-out", "file" => $token->LockedPath()] + $page;
+			$left = SetupToken::MAX_FAILURES - $token->Failures();
+			return ["status" => 403, "view" => "token", "error" => "Wrong token: ".$left." tries left before the wizard locks itself."] + $page;
+		}
+
+		if(!$this->IsVerified()) return ["status" => $requested ? 403 : 200, "view" => "token"] + $page;
+
+		$steps = $this->Steps();
+		$result = null;
+		if($isPost) {
+			if(!is_string($action) || !array_key_exists($action, self::ACTIONS)) {
+				return ["status" => 404, "view" => "step", "error" => "Unknown action.", "step" => $this->StepOf($get), "data" => null, "result" => null] + $page;
+			}
+			$step = self::ACTIONS[$action];
+			try {
+				$result = $steps->Run($action, $post, $files);
+			} catch(\Throwable $ex) {
+				$page["error"] = $ex->getMessage();
+			}
+		} else {
+			$step = $this->StepOf($get);
+			if($step === null) return ["status" => 404, "view" => "step", "error" => "Unknown step.", "step" => null, "data" => null, "result" => null] + $page;
+		}
+
+		// after "finish", the session isn't verified anymore: the step shows its result alone
+		$data = null;
+		if($this->IsVerified()) {
+			try {
+				$data = $steps->View($step);
+			} catch(\Throwable $ex) {
+				$page["error"] = $page["error"] ?? $ex->getMessage();
+			}
+		}
+		// the mode may have changed (save-config writes the file)
+		$page["mode"] = $this->Mode();
+		$page["environment"] = $this->GetEnvironmentName();
+		return ["status" => 200, "view" => "step", "step" => $step, "data" => $data, "result" => $result] + $page;
 	}
 
 	/**
-	* Prints config file
-	* @return 	void
+	* @param 	array 	$get 	the query string
+	* @return 	string|null 	its `step` (the first one when it's missing), or null when it isn't a step
 	*/
-	public function ViewConfigFile() {
-		$this->Structurate();
-		$configPath = realpath($this->structure["Config"]);
-		$configFile = $configPath."/magrathea.conf";
-		echo file_get_contents($configFile);
+	private function StepOf(array $get): ?string {
+		$step = $get["step"] ?? null;
+		if($step === null || $step === "") return array_key_first(self::STEPS);
+		return (is_string($step) && array_key_exists($step, self::STEPS)) ? $step : null;
 	}
 
-	public function PreLoad($appRoot) {
-		$this->appPath = $appRoot;
-		$this->CreateDefaultConfigFile();
+	/**
+	* Shows the wizard: handles the request (`Handle()`) and renders it
+	*/
+	public function Load(): void {
+		if($this->GetMagRoot() === null) {
+			http_response_code(500);
+			echo "Magrathea Setup Wizard: call AppPath() first: Magrathea\\Bootstrap\\Start::Instance()->AppPath(__DIR__.\"/../app\")->Load();";
+			return;
+		}
+		if(session_status() === PHP_SESSION_NONE && !headers_sent()) session_start();
+		$page = $this->Handle($_SERVER["REQUEST_METHOD"] ?? "GET", $_GET, $_POST, $_FILES);
+		http_response_code($page["status"]);
+		if($page["view"] === "redirect") {
+			header("Location: ".$page["location"]);
+			return;
+		}
+		$this->Render($page);
+	}
+
+	/**
+	* Renders what `Handle()` returned
+	* @param 	array 	$page 	Handle()'s result
+	*/
+	public function Render(array $page): void {
+		$wizard = $this;
+		$previous = ErrorManager::Instance()->ThrowErrors(true);
+		try {
+			include(__DIR__."/views/index.php");
+		} finally {
+			ErrorManager::Instance()->ThrowErrors($previous);
+		}
+	}
+
+	/**
+	* Gets link to step
+	* @param string $step		step to go
+	* @return string			step url
+	*/
+	public function GetStepLink($step) {
+		return self::GetBootstrapURL()."?step=".urlencode((string)$step);
+	}
+
+	/** @return 	string 	the wizard's URL, without the query string */
+	public static function GetBootstrapURL() {
+		return strtok($_SERVER["REQUEST_URI"] ?? "", '?') ?: "";
 	}
 
 }

@@ -27,7 +27,7 @@ has set the database's credentials yet (it calls `MagratheaPHP::Connect()`).
 ## `Run(bool $withDatabase = true): array`
 
 Runs every check, group by group. `$withDatabase = false` skips everything that connects: the
-`database`, `timezone` and `schema` groups. The Setup Wizard uses that before a database exists.
+`database`, `timezone` and `schema` groups.
 
 Each finding has [`TimezoneCheck::Run()`](timezone.md)'s shape, plus a `group`:
 
@@ -50,6 +50,23 @@ didn't run, not that it's clean.
 - **A partly configured database**, or no `mysqli` extension: `ERROR`, and those groups are skipped.
 - **The connection fails**: one `ERROR`, and `timezone` and `schema` are skipped. They would only
   report the same failure again.
+
+---
+
+## `Requirements(string $configFolder): array`
+
+What the [Setup Wizard](../setup-wizard.md)'s first step shows, before there's a config. It reads no
+config and doesn't connect:
+
+| Check | Level when it fails |
+|-------|---------------------|
+| PHP 8.1+ | `ERROR` |
+| `proc_open()` | `INFO` (dumps can't use `mysqldump`/`mysql`) |
+| the `mysqli` extension | `WARNING` (only a project with a database needs it) |
+| `$configFolder` exists and is writable | `ERROR` (`magrathea.conf` can't be saved) |
+| `$configFolder` outside the document root (web only) | `WARNING` |
+
+Groups `config` and `folders`, same shape as `Run()`'s.
 
 ---
 
@@ -87,7 +104,7 @@ used. `logs_path` and `backups_path` have defaults, so leaving them out isn't a 
 message says when the default was used.
 
 On the web, a `configs/` folder under `$_SERVER["DOCUMENT_ROOT"]` is a `WARNING`: unless the web server
-blocks it, the config (with the database password) can be downloaded. It's not checked from the CLI,
+blocks it, the config (with the database password) and the Setup Wizard's token can be downloaded. It's not checked from the CLI,
 which can't know the web root.
 
 ### `database`

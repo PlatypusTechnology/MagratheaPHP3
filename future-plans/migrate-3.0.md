@@ -833,14 +833,26 @@ grep -rn 'bootstrap_unlocked' configs/ 2>/dev/null
 
 **What changed.**
 - The wizard (`Magrathea\Bootstrap\Start`) has its own entry file, and works with no config at
-  all.
+  all: it reads `configs/magrathea.conf` itself and never calls `MagratheaPHP::Load()`.
 - Every visit needs an **8-digit token** (`xxxx-xxxx`) that the wizard writes to
-  `configs/.setup-token`, where only someone with access to the server's files can read it. Ten
-  wrong tries lock the wizard until `configs/.setup-locked` is deleted.
+  `configs/.setup-token` (mode `0600`), where only someone with access to the server's files can
+  read it. Ten wrong tries lock the wizard until `configs/.setup-locked` is deleted. Deleting the
+  token file ends every wizard session.
 - With a config present, it also needs `bootstrap_unlocked = true` in the active environment, as in
-  2.4.0.
-- `PreLoad()` is gone. It copied the sample config, which arrived unlocked.
+  2.4.0. Its Configuration step writes the flag into the section it saves; its Finish step removes
+  it from every section but `[dev]` (and from `[dev]` too, unless kept) and deletes the token.
+- New steps: Requirements, Configuration, Database, Import, Admin, Checks, Finish. Every form posts
+  with the admin's CSRF token. The pages load nothing from CDNs and have no JavaScript.
+- Removed: `PreLoad()` (it copied the sample config, which arrived unlocked) and
+  `CreateDefaultConfigFile()`, `setPath()`, `CheckSelf()`, `ValidateStructure()`,
+  `GetConfigPath()`, `GetConfigFilePath()`, `ViewConfigFile()`, `GetActionFile()`; the 2.x steps,
+  `tools.php` and the `?action=` endpoints (`run-query`, `user-reset`, `users-get`, `show-tables`,
+  `install-admin`, `install-admin-preview`, `database-test`, `save-config`). The wizard runs no
+  arbitrary SQL and writes no admin entry file.
 - The wizard's admin password reset is now `vendor/bin/magrathea admin:reset-password <email>`.
+- The framework's HTML error page shows the exception's dump (stack trace and arguments) only when
+  the Debugger is `DEV`; otherwise the message alone. A production error page no longer shows the
+  trace: read the log for it.
 
 **What to do.**
 1. Replace the old entry file's content with:
@@ -850,11 +862,13 @@ grep -rn 'bootstrap_unlocked' configs/ 2>/dev/null
    Magrathea\Bootstrap\Start::Instance()->AppPath(__DIR__."/../app")->Load();
    ```
    Adjust the paths to the project's layout. If the project doesn't need the wizard, delete the
-   file.
+   file. If the old one called `MagratheaPHP::Load()` or `PreLoad()` before the wizard, drop that.
 2. **⚠ Servers:** `configs/` must not be reachable from the web: it holds `magrathea.conf` and the
-   token. The admin's Checks page warns when it's under the document root (the CLI can't tell).
-   Ask the human to confirm the web root.
+   token. The admin's Checks page and the wizard's Requirements step warn when it's under the
+   document root (the CLI can't tell). Ask the human to confirm the web root.
 3. Remove `bootstrap_unlocked` from every section except `dev`.
+4. The wizard's token is for a human with server access: an agent never needs it. Write the config
+   by hand and use `vendor/bin/magrathea check`.
 
 ## M29. CORS origins
 
@@ -878,7 +892,9 @@ grep -rn 'AddAcceptHeaders(' --include='*.php' --exclude-dir=vendor .
    gives the same result either way.
 2. Optional: a project that reads its own origins file (`cors-origins.txt` in `configs/`) can
    replace that code with `$this->AllowFromFile()` and its own CORS admin page with
-   `$this->LoadCors()`. The file stays where it is.
+   `$this->LoadCors()`. The file stays where it is. `AllowFromFile()` reads it as it is, invalid
+   lines included (they just never match); the admin refuses to save it until they're fixed.
+   Detect a hand-rolled reader: `grep -rn 'cors-origins' --include='*.php' --exclude-dir=vendor .`
 
 ## M30–M34. AI docs and packaging
 

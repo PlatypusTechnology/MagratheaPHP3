@@ -139,7 +139,7 @@ Keys are quoted strings; indentation with a tab under each section header is the
 
 **Timezone:** the key is `timezone`, in each environment section (never `time_zone`, which is ignored, and never in `[general]`, which `Get()` doesn't read). `Load()` sets it as PHP's timezone, and since 2.4.0 `Connect()` also sets MySQL's session `time_zone` to PHP's on every connection, so `NOW()`/`CURRENT_TIMESTAMP` agree with `now()`. `db_sync_timezone = false` in the same section turns that off. Always set `timezone`; if MySQL lacks its timezone tables, the offset (`-03:00`) is used instead, which doesn't follow DST. The admin's Server page shows a timezone check (`Magrathea\TimezoneCheck::Run()`).
 
-**Bootstrap setup wizard** (`Magrathea\Bootstrap\Start`, since 2.4.0): locked unless the **active** environment's section has `bootstrap_unlocked = true` (`true`/`1`/`on`/`yes`); locked, it answers 403. Put the flag in `[dev]` only, never in `[production]` (except temporarily, removed right after). In `[general]` it's ignored. Projects that don't use the wizard don't need it.
+**Setup Wizard** (`Magrathea\Bootstrap\Start`, rebuilt in 3.0): a browser wizard, entry file `public/setup.php` with only `require __DIR__."/../vendor/autoload.php"; Magrathea\Bootstrap\Start::Instance()->AppPath(__DIR__."/../app")->Load();` (never `MagratheaPHP::Load()` there: the wizard works without a config). Every visit needs the 8-digit token it writes to `configs/.setup-token` (only a human with access to the server's files can read it: ask them, never guess it; 10 wrong tries lock it until `configs/.setup-locked` is deleted). With a config, it also needs `bootstrap_unlocked = true` in the **active** environment's section, or it answers 403. Its Configuration step writes the flag; its Finish step removes it everywhere but `[dev]`. An agent doesn't need the wizard: write `configs/magrathea.conf` by hand and use `vendor/bin/magrathea` (`check`, `admin:reset-password`). Projects that don't use the wizard delete `public/setup.php`.
 
 ### Reading config in code
 
@@ -553,7 +553,7 @@ class MyAppApi extends MagratheaApi {
     }
 
     public function Initialize() {
-        $this->AllowAll();
+        $this->AllowAll(); // production: $this->AllowFromFile(); (configs/cors-origins.txt)
         $this->SetAddress("/api/v1");
         $this->HealthCheck(true); // includes "database": "ok"|"fail" in response
         $this->SetAuth();
@@ -597,7 +597,8 @@ return new \App\MyAppApi();
 **Key rules:**
 - Group routes into private methods by domain (Auth, Articles, etc.)
 - `Run()` is called only in the HTTP entry point, never inside the class
-- `AllowAll()` is fine for development; use `Allow([...])` in production
+- `AllowAll()` is fine for development (it sends no `Access-Control-Allow-Credentials`). In production use `AllowFromFile()`, which reads `configs/cors-origins.txt` (one `scheme://host[:port]` per line, `#` comments; the admin edits it with `$this->LoadCors()`), or `Allow([...])` for a fixed list. Origins match exactly: no trailing slash
+- `AddAcceptHeaders([...])` appends to the accepted headers (`Authorization`, `Content-Type`); `SetAcceptHeaders([...])` replaces them
 - Route params use `:name` syntax — they arrive as `$params["name"]` in the controller
 
 ---

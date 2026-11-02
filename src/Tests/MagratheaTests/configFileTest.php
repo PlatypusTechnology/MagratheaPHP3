@@ -119,6 +119,21 @@ class configFileTest extends \PHPUnit\Framework\TestCase {
 		$this->assertEquals($var, "ok3");
 	}
 
+
+	function testIsStorable() {
+		TestsHelper::Print("testing ConfigFile::IsStorable(): only what Save() writes and reads back the same...");
+		foreach(["abc", "", "1", 3306, "p\$ss;#=word", "a'b", "https://x.com/?a=b&c", "Europe/Lisbon", " lead"] as $value) {
+			$this->assertTrue(ConfigFile::IsStorable($value), var_export($value, true));
+		}
+		foreach(["a\"b", "a\nb", "a\rb", "\${HOME}", "yes", "no", "0", "true", "false", null, ["x"], 1.5] as $value) {
+			$this->assertFalse(ConfigFile::IsStorable($value), var_export($value, true));
+		}
+		// what IsStorable() accepts, Save() writes back exactly
+		$values = ["a" => "p\$ss;#=word", "b" => "a'b", "c" => "1", "d" => ""];
+		$this->magConfig->SetConfig(["s" => $values])->Save(true);
+		$this->assertSame($values, parse_ini_file($this->configPath."/".$this->fileName, true)["s"]);
+	}
+
 }
 
 
