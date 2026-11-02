@@ -36,6 +36,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | [Config](core/config.md) | INI-based configuration |
 | [TimezoneCheck](core/timezone.md) | PHP/MySQL timezone sync and troubleshooter |
 | [ProjectCheck](core/project-check.md) | The project's health as findings: config, folders, database, timezone, schema |
+| [CLI](core/cli.md) | `vendor/bin/magrathea`: the commands (`check`, `db:*`, `models:verify`, …), write flags, the bootstrap, `--json`, exit codes, error pages in the CLI |
 | [Singleton](core/singleton.md) | Base singleton pattern |
 | [MagratheaHelper](core/helper.md) | Utility / helper functions |
 | [Global Functions](core/global-functions.md) | Procedural helpers & autoloader |

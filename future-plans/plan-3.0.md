@@ -1145,7 +1145,7 @@ that tests can cover with fake schema rows; the views stay thin.
 ## Group F — The CLI for agents
 
 ### 24. The `bin/magrathea` runner
-- [ ] done
+- [x] done
 
 **Error.** Agents work in a shell. Without a CLI, everything above is reachable only through a
 browser.
@@ -1181,16 +1181,28 @@ browser.
 text on stderr and exit code 1, instead of HTML and exit code 0.
 
 ### 25. Writes from the CLI need explicit flags
-- [ ] done
+- [x] done
 
 **Solution.**
 - A command that writes refuses to run without its flag, with exit code `2`: `db:query` with SQL
   that isn't read-only needs `--write`, and `db:import` needs `--yes`.
 - There are no interactive prompts, since agents can't answer them. The flag is the consent.
 - Tests: refused without the flag; runs with it.
+- **Decided while implementing** (Paulo's call: implemented together with item 26, since the two commands it
+  guards are 26's):
+  - the hook is `Command::ConsentFlag(array $arguments): ?string` (default `null`): the flag this run needs, which
+    must be one of the command's `Options()`. `Console::Run()` checks it after binding the arguments and **before
+    the bootstrap**, so a refused write connects to nothing: `UsageException("[db:query] writes: it runs only with
+    --write")`, exit 2. `--help` swaps in `help`, so it never needs the flag;
+  - `db:query` asks for `--write` whenever `SqlSplitter::IsReadOnly()` says no (two `SELECT`s included, as on the
+    Queries page) and when the SQL can't be split; SQL with no statement asks for nothing and fails in `Execute()`
+    with "No SQL to run" (exit 2). `Execute()` passes `--write` to `QueryRunner::Run()` as the confirmation, so a
+    `CONFIRM` status can't leak through;
+  - `db:dump` (writes only a new file) and `admin:reset-password` (its name is the consent) have no flag;
+  - tests in `cliCommandsTest.php`: refused without the flag (nothing ran, bootstrap not loaded), runs with it.
 
 ### 26. Commands
-- [ ] done
+- [x] done
 
 **Solution.**
 
@@ -1208,6 +1220,30 @@ text on stderr and exit code 1, instead of HTML and exit code 0.
 
 - Tests: each command, against fakes.
 - `skills.MD` gets a "Verify your work" section (item 30).
+- **Decided while implementing:**
+  - one class per command in `Magrathea\Cli\Commands` (`CheckCommand`, `DbTablesCommand`, …), listed in
+    `Console::CommandClasses()`. Each takes what it uses as an optional constructor argument (`Schema`,
+    `DatabaseExplorer`, `QueryRunner`, `Dump`, `SchemaCheck`, `AdminUserControl`; `check` takes a `ProjectCheck`
+    class name, since `Run()` is static), created only when it runs: `help` constructs every command and must not
+    touch the database;
+  - new `Cli\Text` for the text output: `Table()`, `Findings()` (`LEVEL   [group] message`, fixes indented, then
+    the counts), `Counts()`, `WorstLevel()`, `ExitCode()`;
+  - `db:describe` reuses `DatabaseExplorer::Table()`, which gets `bool $preview = true`: the CLI passes `false`, so
+    it reads no rows (they'd land in an agent's context) and `preview` is left out. Its findings don't change the
+    exit code; `models:verify` is the one that does;
+  - `db:query` runs through `Admin\QueryRunner` (so 1000 rows per statement at most, and the first error stops
+    it): exit 1 when a statement fails, with the statements that ran in the result;
+  - `db:dump`/`db:import` take a file **name** in the backups folder: a `/` or `\` is a usage error naming the
+    folder. `--driver` other than `binary`/`php` and an empty `--tables` are usage errors. `db:import --continue`
+    exits 1 when any statement failed;
+  - `models:verify <Class>` accepts the full name or a short name only one found model has (a shared one is a usage
+    error); a class not found in the code folders still goes through `CheckModel()`, without timestamps;
+  - `admin:reset-password` generates 16 hex characters (`random_bytes(8)`), prints them once (`password` in the JSON
+    only then), refuses a password under 8 characters as a usage error, an unknown e-mail as exit 1, and warns about
+    an inactive user without activating it;
+  - `version` also prints PHP's version;
+  - `Console::Parse()`'s "Invalid option" message now says an argument starting with `--` goes after a `--` (SQL
+    that opens with a `-- comment` hit it).
 
 ---
 
@@ -1263,6 +1299,13 @@ text on stderr and exit code 1, instead of HTML and exit code 0.
   config, after the token.
 - `src/Errors/views/error-magratheaconf.php`, the "config missing" page that `MagratheaPHP::Load()`
   shows, explains how to run the wizard. `Load()` itself doesn't change.
+- `src/Errors/views/view-exception.php` (the error page `ErrorManager` shows outside the CLI)
+  prints the exception's `print_r()` dump, stack trace and arguments included, only when the
+  Debugger type is `DEV`. Otherwise it shows the message alone: on a production request the
+  trace's arguments can carry database credentials or any object passed down the stack. Since
+  item 24 the page escapes the dump, but escaping it doesn't stop the leak. Tests (in
+  `errorViewsTest.php`): with `DEV` the dump is there; with `LOG`/`NONE`/`DEBUG` it isn't, and the
+  message still is. Changelog **fix:**; M27 says a production error page no longer shows the trace.
 - Tests (`bootstrapTest.php`, rewritten): the token's format and `0600` mode; normalization and
   `hash_equals()`; 10 failures lock it, and deleting the lock issues a new token; setup needs only
   the token, maintenance needs the flag and the token; changing the token file revokes the session;

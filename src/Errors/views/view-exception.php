@@ -28,11 +28,11 @@
 						There was a fatal error:
 					</div>
 					<div class="col-sm-12">
-						<?=$errorMessage?>
+						<?=htmlspecialchars((string)$errorMessage)?>
 					</div>
 					<?php if(@$ex) { ?>
 					<div class="col-sm-12">
-						<pre class="log-response" style="max-height: 500px;"><?php print_r($ex); ?></pre>
+						<pre class="log-response" style="max-height: 500px;"><?=htmlspecialchars(print_r($ex, true))?></pre>
 					</div>
 					<?php } ?>
 				</div>

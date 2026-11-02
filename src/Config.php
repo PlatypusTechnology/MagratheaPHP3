@@ -73,6 +73,13 @@ class Config extends Singleton {
 		return $this;
 	}
 	/**
+	* gets the name of the config file (`magrathea.conf` unless `SetConfigFile()` changed it)
+	* @return 	string 	name of file
+	*/
+	public function GetConfigFile(): string {
+		return $this->configFile;
+	}
+	/**
 	 * sets config
 	 * @param 	array 	$c	configuration
 	 * @return 	Config

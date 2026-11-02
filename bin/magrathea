@@ -1,0 +1,28 @@
+#!/usr/bin/env php
+<?php
+
+// MagratheaPHP's CLI: `vendor/bin/magrathea help`. The work is in Magrathea\Cli\Console.
+
+if(PHP_SAPI !== "cli") {
+	http_response_code(403);
+	echo "magrathea runs only from the command line\n";
+	exit(2);
+}
+
+$autoload = $GLOBALS["_composer_autoload_path"] ?? null;  // Composer 2.2+'s bin proxy
+if(!$autoload || !is_file($autoload)) {
+	$autoload = null;
+	foreach([__DIR__."/../vendor/autoload.php", __DIR__."/../../../autoload.php"] as $file) {
+		if(is_file($file)) {
+			$autoload = $file;
+			break;
+		}
+	}
+}
+if(!$autoload) {
+	fwrite(STDERR, "magrathea: Composer's autoloader wasn't found: run `composer install`\n");
+	exit(1);
+}
+require $autoload;
+
+exit(Magrathea\Cli\Console::Run($argv, STDOUT, STDERR));

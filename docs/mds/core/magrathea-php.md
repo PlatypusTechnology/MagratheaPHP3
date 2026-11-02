@@ -54,7 +54,9 @@ Returns the currently set application root path.
 Returns the framework's own root path.
 
 ### `MinVersion(string $version, bool $throwEx = false): MagratheaPHP`
-Asserts the running framework version is at least `$version`. If `$throwEx` is true, throws an exception on failure.
+Asserts the running framework version is at least `$version`. On failure it shows the framework's
+error page and stops, or with `$throwEx`, throws `MagratheaException` (code 206). In the CLI, the error
+page is text on stderr and exit code 1 (since 3.0.0; see [CLI](cli.md#error-pages-in-the-cli)).
 
 ```php
 MagratheaPHP::Instance()->MinVersion("2.1.0");
@@ -96,7 +98,8 @@ doesn't touch PHP's `display_errors`: turn that off in `php.ini` (or with `ini_s
 Loads the configuration file. Must be called after `AppPath()` and the desired mode. If the active
 environment has a `timezone` key, it's set as PHP's timezone (`date_default_timezone_set()`); an
 invalid name is ignored and PHP stays on php.ini's default. The key is `timezone`, not `time_zone`
-(see the Config page).
+(see the Config page). A config file that's missing or can't be parsed shows the framework's error
+page and stops (in the CLI: text on stderr, exit code 1).
 
 ### `GetConfigRoot(): string`
 Returns the path to the configuration directory: `configs/` in `AppPath()`'s parent folder (`<magRoot>/configs`).

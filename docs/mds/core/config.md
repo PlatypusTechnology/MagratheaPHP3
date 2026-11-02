@@ -109,6 +109,10 @@ Change the config filename (default: `magrathea.conf`).
 Config::Instance()->SetConfigFile("app.conf");
 ```
 
+### `GetConfigFile(): string`
+Returns the config filename. Unlike `GetFilePath()`, it doesn't check that the file exists, so the
+error page for a missing config uses it (with `GetPath()`) to say where it looked.
+
 ### `SetEnvironment(string $e): Config`
 Sets the active environment for `Get()` / `GetConfigFromDefault()`. Does not itself read
 or validate anything — the environment section is only looked up (and can throw) the next

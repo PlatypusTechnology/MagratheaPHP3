@@ -14,6 +14,7 @@
 			"src/_FunctionsDebug.php"
 		]
 	},
+	"bin": ["bin/magrathea"],
 	"authors": [
 		{
 			"name": "Platypus Technology"

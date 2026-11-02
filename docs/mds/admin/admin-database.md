@@ -42,7 +42,8 @@ Database → Explorer (`?magrathea_page=db-explorer`) is read-only. Its data com
   models and their findings, and the first 20 rows (`DatabaseExplorer::PREVIEW_ROWS`). The name must be
   exactly one that `Schema::Tables()` lists, or the page shows "Unknown table" and runs no other query; the
   preview backtick-quotes it. A preview that fails (a view over a dropped table) shows its error, and the
-  rest of the page still shows.
+  rest of the page still shows. `Table($name, false)` reads no rows and leaves `preview` out: that's the
+  CLI's [`db:describe`](../core/cli.md#commands).
 
 `DatabaseExplorer`'s constructor takes an optional `Database`, `Schema` and `SchemaCheck` (defaults:
 `Database::Instance()`, a `Schema` on it, a `SchemaCheck` on that), so tests can pass fakes.

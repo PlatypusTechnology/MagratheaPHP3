@@ -790,19 +790,38 @@ field, `$_POST[...] ?? null`):
 
 **What changed.** There's a new `vendor/bin/magrathea`:
 - commands: `check`, `db:tables`, `db:describe`, `db:query`, `db:dump`, `db:import`,
-  `models:verify`, `admin:reset-password` and `version`;
-- `--json` for machine-readable output;
-- commands that write need `--write` (`db:query`) or `--yes` (`db:import`).
+  `models:verify`, `admin:reset-password` and `version`, and `help` for their usage;
+- `--json` for machine-readable output: one JSON document on stdout, errors included;
+- exit codes: `0` ok, `1` an ERROR finding or a failed command, `2` a usage error;
+- commands that write need `--write` (`db:query` with SQL that isn't one read-only statement) or
+  `--yes` (`db:import`): without it they exit with 2 and touch nothing. There are no prompts;
+- `db:dump` and `db:import` take a file name in the backups folder, not a path; SQL that starts with
+  `--` goes after a `--` (`magrathea db:query -- "-- note\nSELECT 1"`).
 
-In the CLI, framework error pages (a missing config, a failed version check) now print text to
+Every command but `help` loads the project's bootstrap: `--bootstrap=<file>`, else
+`extra.magrathea.bootstrap` in the nearest `composer.json` above the current folder, else
+`app/_inc.php` next to that `composer.json`.
+
+In the CLI, framework error pages (a missing config, a failed `MinVersion()`) now print text to
 stderr and exit with code 1, instead of HTML and exit code 0. Cron jobs and workers that hit one now
 show up as failed.
 
-**What to do.** If the project's bootstrap isn't `app/_inc.php`, declare it in `composer.json`:
-```json
-"extra": { "magrathea": { "bootstrap": "src/bootstrap.php" } }
+**Applies if** the project's bootstrap isn't `app/_inc.php`, or a script checks a CLI run's output
+for the error page's HTML:
+```bash
+ls app/_inc.php
+grep -rn 'Magrathea Fatal Error' --include='*.php' --include='*.sh' --exclude-dir=vendor .
 ```
-The file must not print anything. Check with `vendor/bin/magrathea version`.
+
+**What to do.**
+1. If `app/_inc.php` doesn't exist, declare the project's bootstrap in `composer.json`:
+   ```json
+   "extra": { "magrathea": { "bootstrap": "src/bootstrap.php" } }
+   ```
+   The path is relative to `composer.json`. The file must not print anything: what it prints is
+   discarded, with a warning on stderr. Check with `vendor/bin/magrathea version` (exit code 0).
+2. A script that read a CLI run's stdout for the error page now gets the error on stderr and exit
+   code 1: check the exit code instead.
 
 ## M27–M28. ⚠ The Setup Wizard
 

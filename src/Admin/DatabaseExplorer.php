@@ -76,10 +76,12 @@ class DatabaseExplorer {
 	* @return 	array 	["name", "type", "columns" (`Schema::Columns()` rows, plus "magrathea_type": `Schema::MagratheaType()`, or null),
 	* 					"indexes" (`Schema::Indexes()`), "create" (`SHOW CREATE TABLE`), "models" (class names),
 	* 					"findings" (`SchemaCheck::CheckModel()` for each model and `CheckTimestamps()`; none when no model maps it),
-	* 					"preview" => ["rows" => the first PREVIEW_ROWS rows, "error" => the query's error message, or null]]
+	* 					"preview" => ["rows" => the first PREVIEW_ROWS rows, "error" => the query's error message, or null]
+	* 					(only with `$preview`)]
+	* @param 	bool 	$preview 	false reads no rows (`magrathea db:describe`), and leaves "preview" out
 	* @throws 	MagratheaDBException 	unknown table, or when the database can't be read
 	*/
-	public function Table(string $table): array {
+	public function Table(string $table, bool $preview = true): array {
 		$info = null;
 		foreach($this->schema->Tables() as $row) {
 			if($row["name"] === $table) {
@@ -95,7 +97,7 @@ class DatabaseExplorer {
 			$this->schema->Columns($name));
 		$this->FindModels();
 		$models = $this->ModelsOf($name);
-		return [
+		$rs = [
 			"name" => $name,
 			"type" => $info["type"],
 			"columns" => $columns,
@@ -103,8 +105,9 @@ class DatabaseExplorer {
 			"create" => $this->schema->CreateStatement($name),
 			"models" => $models,
 			"findings" => empty($models) ? [] : $this->ModelFindings($name, $models),
-			"preview" => $this->Preview($name),
 		];
+		if($preview) $rs["preview"] = $this->Preview($name);
+		return $rs;
 	}
 
 	/**
