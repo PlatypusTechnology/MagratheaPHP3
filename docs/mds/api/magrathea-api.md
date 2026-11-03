@@ -295,9 +295,11 @@ If `$data` is a `MagratheaPagination` instance, a paginated envelope is returned
 `total` is only included when it was computed (see `MagratheaModelControl::GetPagination()`). Just return a `MagratheaPagination` from a controller action — no other code changes needed:
 
 ```php
-public function List(array $params = []): MagratheaPagination {
+// GET /articles?page=0. Query strings are read from $_GET: $params has only route params
+// (and is false on a route without them)
+public function List(): MagratheaPagination {
     $query = Query::Select()->Obj(new Article())->Where(["published" => 1])->Order("created_at DESC");
-    return ArticleControl::GetPagination($query, page: (int)($params["page"] ?? 0), limit: 20);
+    return ArticleControl::GetPagination($query, page: (int)($_GET["page"] ?? 0), limit: 20);
 }
 ```
 

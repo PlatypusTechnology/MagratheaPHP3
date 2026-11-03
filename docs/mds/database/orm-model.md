@@ -41,7 +41,7 @@ class Product extends MagratheaModel {
     // Required: database table name
     protected $dbTable = "products";
 
-    // Optional: primary key column (default: "id")
+    // Required: primary key column (no default: an unset $dbPk breaks every PK operation)
     protected $dbPk = "id";
 
     // Required: column definitions [column_name => type]
@@ -189,7 +189,7 @@ accept native types. Typed hydration exists since MagratheaPHP `2.3.0`; it's the
 | `$dbPk` | `string` | Primary key column name |
 | `$dbValues` | `array` | Column → type definitions |
 | `$dbAlias` | `array` | Alias → column mappings |
-| `$relations` | `array` | Related object definitions |
+| `$relations` | `array` | Related object definitions; every key is optional. `external`: field → model class (`GetFields()` and the CRUD admin's relation select). `properties`: name → value, read and written through `Get()`/`Set()` and included in `ToArray()`. `lazyload`/`methods`: name → `true` / method name; the first read of a `null` lazyload property calls its method (a lazyload property without a method throws `MagratheaModelException`) |
 | `$dirtyValues` | `array` | Fields set through `Set()`/`Assign()` since the last save (cleared after `Insert()`/`Update()`) |
 | `$autoload` | `array\|null` | Relations `GetById()` loads with a join (default `null`) |
 | `$created_at`, `$updated_at` | `string\|null` | Public row timestamps (default `null`) — see [Timestamps](#timestamps-created-at-updated-at) |
@@ -461,13 +461,23 @@ Returns the primary key column name.
 Returns the column definitions array.
 
 ### `GetFields(): array`
-Returns the list of column names.
+Returns `GetProperties()` with two overrides: the primary key's type becomes `"pk"`, and each
+`$relations["external"]` field's type becomes its related model class.
+
+```php
+// with "category_id" => "int" in $dbValues and
+// $relations = ["external" => ["category_id" => "Category"]]:
+$product->GetFields();
+// ["id" => "pk", "name" => "string", ..., "category_id" => "Category",
+//  "created_at" => "datetime", "updated_at" => "datetime"]
+```
 
 ### `GetFieldsForSelect(): string`
 Returns a comma-separated SQL field list with table prefix.
 
 ### `GetProperties(): array`
-Returns the model's current field values as an associative array.
+Returns the column **types**, not values: `$dbValues` plus `created_at` and `updated_at`, both
+`"datetime"`. For values, use `ToArray()`.
 
 ### `IsEmpty(): bool`
 Returns `true` if the PK is not set (model not loaded from DB).
@@ -476,7 +486,7 @@ Returns `true` if the PK is not set (model not loaded from DB).
 Returns the class short name.
 
 ### `Ref(): string`
-Returns a human-readable reference string (e.g., `"Product#42"`).
+Returns a human-readable reference string: `ModelName()." [".GetID()."]"` (e.g., `"Product [42]"`).
 
 ---
 

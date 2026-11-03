@@ -48,7 +48,9 @@ under the new names.
       loads (views, docs):
       `grep -rnE "Magrathea2|magratheaphp2|MagratheaPHP2" src docs skills.MD instructions.MD README.md composer.json`.
       It must find only what item 2 leaves alone, the `### 3.0.0` changelog lines that name the old
-      namespace on purpose and, after item 34, `docs/mds/migrations/migrate-3.0.md`. Drop
+      namespace on purpose, `skills.MD`'s frontmatter `description` (it sends 2.x projects to the
+      `magrathea-php2` skill, on purpose), `docs/CLAUDE.md`'s note on the 2.x docs URL and, after
+      item 34, `docs/mds/migrations/migrate-3.0.md`. Drop
       `instructions.MD` from the command once item 31 deletes it;
    4. update the narrative docs in `docs/mds/`. Signatures are read live from `src/`; only the
       prose needs care;
@@ -1497,7 +1499,7 @@ request without a verified session.
 ## Group H — AI-facing docs and packaging
 
 ### 30. `skills.MD` for 3.0
-- [ ] done
+- [x] done
 
 **Error.** In 3.0, `skills.MD` takes the code generator's place: every inaccuracy becomes a bug in
 generated code. It still:
@@ -1690,6 +1692,134 @@ The wizard has no favicon at all.
 
 **Impact.** Visual only. Each logo copy drops from ~126 KB to ~31 KB, and the admin favicon to
 ~4 KB. That's smaller inline SVG on every admin page.
+
+---
+
+## Found bugs
+
+Bugs found while implementing the items, outside their scope. Each one is fixed (or decided) on
+Paulo's go-ahead, following the same rules as the items (tests, suite green, docs, changelog,
+migration guide when it breaks something). Line numbers are as of 2026-11-03.
+
+### B1. Pagination examples read the page from `$params` (found in item 30)
+- [x] done
+
+**Error.** A route without `:params` passes `false` to its action (`MagratheaApi::GetParamsFromRoute()`,
+`MagratheaApi.php:440-451`), and query strings never reach `$params`. Two doc examples declare
+`List(array $params = [])` and read `$params["page"]`: on a route without params, PHP throws a
+`TypeError` (`false` given for `array`); with the type removed, the page is always 0 (plus an "array
+offset on bool" warning):
+- `docs/mds/database/orm-control.md:161-163`;
+- `docs/mds/api/magrathea-api.md:298-300`.
+
+`skills.MD` had the same bug; item 30 fixed it there (`$_GET["page"]`, no `array` type).
+
+**Solution.** In both examples, drop the parameter (or leave it untyped) and read
+`(int)($_GET["page"] ?? 0)`. Doc-only: no changelog line. Effort: ~5 min.
+
+### B2. `MagratheaModel` reads `$relations` keys without checking them (found in item 30)
+- [x] done
+
+**Error.**
+- `ToArray()` (`MagratheaModel.php:728`) reads `$this->relations["properties"]` unguarded (the `@`
+  covers only the first operand): a model whose `$relations` has `"external"` but no `"properties"`
+  (the shape the CRUD admin needs for a relation select, `AdminCrudObject::GetField()`) gets
+  "Undefined array key" on every `ToArray()`, and so on every `ToJson()`. `skills.MD` §4 works around
+  it by declaring `"properties" => []`.
+- `Get()` (`:594-595`) reads `["lazyload"][$key]` and `["methods"][$key]` unguarded: a warning with a
+  half-filled `$relations` (a property without its lazyload/method entry). Lower priority.
+- `Set()` (`:633`) assigns `$method_set`, never read: dead code.
+
+**Solution.** `ToArray()`: `foreach(($this->relations["properties"] ?? []) as …)`. `Get()`:
+`!empty($this->relations["lazyload"][$key])` and `$this->relations["methods"][$key] ?? null` (throw
+`MagratheaModelException` naming the property when lazyload is set without a method). Delete
+`$method_set`. Tests: `ToArray()`/`ToJson()` on a model with only `"external"` give no warning.
+Changelog **fix:**. Once done, `skills.MD` §4 can drop `"properties" => []` from its example.
+Effort: ~15 min.
+
+### B3. `orm-model.md` describes four members wrongly (found in item 30)
+- [x] done
+
+**Error.** `docs/mds/database/orm-model.md`:
+- `:44`: "Optional: primary key column (default: "id")". `$dbPk` has no default (`protected $dbPk;`,
+  `null`): a model must set it;
+- `GetProperties()` (`:469`): "the model's current field values". It returns the `$dbValues` **types**,
+  plus `created_at`/`updated_at` as `datetime`;
+- `GetFields()` (`:463`): "the list of column names". It returns `GetProperties()` with the PK's type
+  as `"pk"` and each `$relations["external"]` field's type as its model class;
+- `Ref()` (`:478`): example `"Product#42"`. It returns `"Product [42]"` (`ModelName()." [".GetID()."]"`).
+
+**Solution.** Fix the four descriptions. Doc-only (it can go with item 33). Effort: ~10 min.
+
+### B4. `docs/data/examples.php` returns `ToArray()` (found in item 30)
+- [x] done
+
+**Error.** Since timestamps left `$dbValues` (items 6, 10, 11), `ToArray()` doesn't include
+`created_at`/`updated_at`; `skills.MD` now returns the model itself from API actions (its public
+properties are encoded, timestamps included). Two examples tagged `"source" => "skills.MD"` still
+return `$article->ToArray()` (`:73`, `:158`). Item 33 rereads this file anyway.
+
+**Solution.** Return the model (`->Reload()` after a write when the response needs the timestamps).
+Effort: ~10 min, or as part of item 33.
+
+### B6. `docs/data/examples.php`'s `api-controller` example is broken (found in B4)
+- [x] done
+
+**Error.** In the `api-controller` example (tagged `"original"`):
+- `GetList()` reads `$this->request["page"]`: `MagratheaApiControl` has no `$request` property (B1's
+  bug in another form);
+- `Get($id)` treats its argument as the id, but an action receives the route's params array
+  (`MagratheaApiControl::Read()`): `(int)$id` on `["id" => 42]` is `1`, so it always loads row 1;
+- `if (!$article->id) throw … 404` never runs: `new Article($id)` on a missing row already throws
+  `MagratheaModelException` (`GetById()`, `MagratheaModel.php:314`/`:325`).
+
+**Solution.** `(int)($_GET["page"] ?? 0)`; `Get($params = false)` with the `skills.MD` §6 `Read()`
+pattern (`ValidateId($params["id"])`, `ArticleControl::GetRowWhere()`, 404 when it returns nothing).
+Doc-only: no changelog line.
+
+### B5. No CLI command creates the first admin user (found in item 30)
+- [x] decided (option 1, 2026-11-03)
+- [x] done
+
+**Error.** On a fresh project an agent can install the admin's tables
+(`magrathea db:query --write "$(cat …/src/Admin/database.sql)"`), but not create a user:
+`admin:reset-password` needs an existing one (`AdminUserControl::GetByEmail()`), and the first super
+admin is created only by a human, through `public/admin.php`'s setup form (while
+`Admin\Start::CanCreateFirstUser()`) or the wizard's Admin step. `skills.MD` §1 says so. That's a hole
+in "agents do the setup".
+
+**Options.**
+1. (recommended) `admin:create-user <email> [--password=…] --yes`, allowed **only while there are no
+   users** (`CanCreateFirstUser()`, else exit 1), through `Admin\Install::CreateFirstUser()`. Without
+   `--password`, it generates one and prints it once, like `admin:reset-password`. It stays a bootstrap
+   step, not a way around the admin's user management.
+2. The same command for any user (with a role option): broader, and an agent could add a super admin
+   to a live install.
+3. Nothing: the first user stays a human's job, on purpose.
+
+**Solution (option 1).** New `Cli\Commands\AdminCreateUserCommand` (modeled on
+`AdminResetPasswordCommand`, `ConsentFlag()` → `yes`), added to `Console::CommandClasses()`; tests
+in-process through `Console::Run()` (no users → created; users → exit 1, nothing written; no `--yes`
+→ exit 2 before the bootstrap; short password → usage error); `docs/mds/core/cli.md` (commands
+table), changelog **new:**, the migration guide's M24–M26 command list, and `skills.MD` §1 and §20.
+Effort: ~1–2 h.
+
+**Decided** (Paulo, 2026-11-03), changing the solution above:
+- **no `--yes`**: like `admin:reset-password`, the name is the consent, and the zero-users guard is the real
+  safety. No `ConsentFlag()`; the bootstrap loads as for any command;
+- **12 characters minimum** (`Bootstrap\Steps::MIN_PASSWORD`, the wizard's) for a given `--password`, and
+  `admin:reset-password` goes from 8 to 12 too (in the command, before any user is read).
+  `AdminUserControl::SetNewPassword()` keeps 8, so the admin's own password form is unchanged.
+
+**Decided while implementing:**
+- the guard is `AdminUserControl::CountUsers() > 0`, not `Admin\Start::CanCreateFirstUser()`:
+  `Start::Instance()` starts a PHP session and a CSRF token (pointless from a shell), and
+  `CanCreateFirstUser()` turns a database error (admin tables not installed) into `false`, which would
+  read as "already has users". A database error now exits 1 with its own message;
+- the e-mail is trimmed and checked with `FILTER_VALIDATE_EMAIL` (usage error), as in the wizard;
+- usage errors (e-mail, password) come before any user is read;
+- also documented in `docs/mds/setup-wizard.md` (Admin step) and `docs/mds/admin/admin.md` (first-run
+  setup); DocMap's `cli` entry lists the new file.
 
 ---
 

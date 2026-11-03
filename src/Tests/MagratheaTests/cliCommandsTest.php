@@ -3,7 +3,9 @@
 use Magrathea\Admin\DatabaseExplorer;
 use Magrathea\Admin\Features\User\AdminUser;
 use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\Admin\Install;
 use Magrathea\Admin\QueryRunner;
+use Magrathea\Cli\Commands\AdminCreateUserCommand;
 use Magrathea\Cli\Commands\AdminResetPasswordCommand;
 use Magrathea\Cli\Commands\CheckCommand;
 use Magrathea\Cli\Commands\DbDescribeCommand;
@@ -144,6 +146,12 @@ class CliCmdUserControl extends AdminUserControl {
 	public $users = [];
 	public $set = [];
 	public $saved = true;
+	public $count = 0;
+	public $counted = 0;
+	public function CountUsers(): int {
+		$this->counted++;
+		return $this->count;
+	}
 	public function GetByEmail(string $email): AdminUser|null {
 		return $this->users[$email] ?? null;
 	}
@@ -152,6 +160,18 @@ class CliCmdUserControl extends AdminUserControl {
 		$this->set[] = [$user->email, $pwd];
 		$user->SetPassword($pwd);
 		return ["success" => $this->saved];
+	}
+}
+
+// the admin's install: CreateFirstUser() recorded, nothing written
+class CliCmdInstall extends Install {
+	public $calls = [];
+	public function CreateFirstUser($username, $password): AdminUser {
+		$this->calls[] = [$username, $password];
+		$user = new AdminUser();
+		$user->id = 1;
+		$user->email = $username;
+		return $user;
 	}
 }
 
@@ -164,6 +184,7 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 	private CliCmdCheck $check;
 	private CliCmdDump $dump;
 	private CliCmdUserControl $users;
+	private CliCmdInstall $install;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -190,6 +211,7 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 		$this->check = new CliCmdCheck();
 		$this->dump = new CliCmdDump();
 		$this->users = new CliCmdUserControl();
+		$this->install = new CliCmdInstall();
 		CliCmdProjectCheck::$findings = [];
 		CliCmdProjectCheck::$calls = [];
 		CliCmdConsole::$commands = [
@@ -200,6 +222,7 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 			new DbDumpCommand($this->dump),
 			new DbImportCommand($this->dump),
 			new ModelsVerifyCommand($this->check),
+			new AdminCreateUserCommand($this->users, $this->install),
 			new AdminResetPasswordCommand($this->users),
 			new VersionCommand(),
 		];
@@ -240,7 +263,7 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 
 	function testConsoleListsEveryCommand() {
 		$this->assertSame(
-			["help", "check", "db:tables", "db:describe", "db:query", "db:dump", "db:import", "models:verify", "admin:reset-password", "version"],
+			["help", "check", "db:tables", "db:describe", "db:query", "db:dump", "db:import", "models:verify", "admin:create-user", "admin:reset-password", "version"],
 			array_keys(Console::Commands())
 		);
 	}
@@ -253,6 +276,7 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame("db:dump [file] [--tables=…] [--driver=…]", $usages["db:dump"]);
 		$this->assertSame("db:import <file> [--yes] [--driver=…] [--continue]", $usages["db:import"]);
 		$this->assertSame("models:verify [class]", $usages["models:verify"]);
+		$this->assertSame("admin:create-user <email> [--password=…]", $usages["admin:create-user"]);
 		$this->assertSame("admin:reset-password <email> [--password=…]", $usages["admin:reset-password"]);
 	}
 
@@ -509,6 +533,53 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame(["model:Nope"], $this->check->checked);
 	}
 
+	// admin:create-user (B5)
+
+	function testCreateUserGeneratesOne() {
+		[$code, $doc] = $this->CliJson("admin:create-user", "a@b.c");
+		$this->assertSame(Console::OK, $code);
+		$this->assertSame(1, $GLOBALS["cliCmdBootstrap"], "no consent flag: it runs with the bootstrap");
+		$password = $doc["data"]["password"];
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', $password);
+		$this->assertSame(["email" => "a@b.c", "id" => 1, "generated" => true, "password" => $password], $doc["data"]);
+		$this->assertSame([["a@b.c", $password]], $this->install->calls);
+		[, $out] = $this->Cli("admin:create-user", "x@b.c");
+		$this->assertStringContainsString("Created the first admin user, a super admin: x@b.c.", $out);
+		$this->assertStringContainsString("It isn't shown again.", $out);
+	}
+
+	function testCreateUserWithAGivenOne() {
+		[$code, $out] = $this->Cli("admin:create-user", " a@b.c ", "--password=twelve chars");
+		$this->assertSame(Console::OK, $code);
+		$this->assertSame([["a@b.c", "twelve chars"]], $this->install->calls, "the e-mail is trimmed");
+		$this->assertStringNotContainsString("twelve chars", $out, "a given password isn't printed");
+		[, $doc] = $this->CliJson("admin:create-user", "a@b.c", "--password=twelve chars");
+		$this->assertArrayNotHasKey("password", $doc["data"]);
+		$this->assertFalse($doc["data"]["generated"]);
+	}
+
+	function testCreateUserOnlyWhileThereAreNoUsers() {
+		$this->users->count = 1;
+		[$code, $doc] = $this->CliJson("admin:create-user", "a@b.c");
+		$this->assertSame(Console::FAILED, $code);
+		$this->assertStringStartsWith("The admin already has users: the first one is created only once.", $doc["error"]);
+		$this->assertStringContainsString("admin:reset-password", $doc["error"]);
+		$this->assertSame([], $this->install->calls, "nothing written");
+	}
+
+	function testCreateUserUsageErrors() {
+		[$code, $doc] = $this->CliJson("admin:create-user", "not-an-email");
+		$this->assertSame(Console::USAGE, $code);
+		$this->assertSame("[not-an-email] isn't a valid e-mail", $doc["error"]);
+
+		[$code, $doc] = $this->CliJson("admin:create-user", "a@b.c", "--password=eleven char");
+		$this->assertSame(Console::USAGE, $code);
+		$this->assertSame("The password must have at least 12 characters", $doc["error"]);
+
+		$this->assertSame(0, $this->users->counted, "a usage error reads no users");
+		$this->assertSame([], $this->install->calls);
+	}
+
 	// admin:reset-password
 
 	private function User(string $email, bool $active = true): AdminUser {
@@ -533,12 +604,12 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 
 	function testResetPasswordWithAGivenOne() {
 		$this->User("a@b.c", false);
-		[$code, $out] = $this->Cli("admin:reset-password", "a@b.c", "--password=long enough");
+		[$code, $out] = $this->Cli("admin:reset-password", "a@b.c", "--password=long enough!");
 		$this->assertSame(Console::OK, $code);
-		$this->assertSame([["a@b.c", "long enough"]], $this->users->set);
-		$this->assertStringNotContainsString("long enough", $out, "a given password isn't printed");
+		$this->assertSame([["a@b.c", "long enough!"]], $this->users->set);
+		$this->assertStringNotContainsString("long enough!", $out, "a given password isn't printed");
 		$this->assertStringContainsString("The user is inactive", $out);
-		[, $doc] = $this->CliJson("admin:reset-password", "a@b.c", "--password=long enough");
+		[, $doc] = $this->CliJson("admin:reset-password", "a@b.c", "--password=long enough!");
 		$this->assertArrayNotHasKey("password", $doc["data"]);
 	}
 
@@ -548,9 +619,10 @@ class cliCommandsTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame("No admin user with the e-mail [who@b.c]", $doc["error"]);
 
 		$this->User("a@b.c");
-		[$code, $doc] = $this->CliJson("admin:reset-password", "a@b.c", "--password=short");
+		[$code, $doc] = $this->CliJson("admin:reset-password", "a@b.c", "--password=eleven char");
 		$this->assertSame(Console::USAGE, $code);
-		$this->assertSame("Password must be at least 8 chars long", $doc["error"]);
+		$this->assertSame("The password must have at least 12 characters", $doc["error"], "12, like the first super admin's (B5)");
+		$this->assertSame([], $this->users->set);
 
 		$this->users->saved = false;
 		[$code] = $this->CliJson("admin:reset-password", "a@b.c");

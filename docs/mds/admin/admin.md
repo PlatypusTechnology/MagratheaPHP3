@@ -152,7 +152,8 @@ Start with default built-in features (user management, cache, config, file edito
 On every request, `Start()` decides what to show (`Admin\Start::GetInstallState()`):
 
 - **No admin users at all** → the first-run setup form, which creates a **super admin**. This is
-  the only case where it appears.
+  the only case where it appears. From a shell, `vendor/bin/magrathea admin:create-user <email>`
+  creates the same first user, under the same rule (see [CLI](../core/cli.md)).
 - **Database error** (server down, wrong credentials, admin tables not installed) → a 500 error
   page: "Database error: the admin can't be loaded right now." The exception message is added only
   in DEV, and the exception is logged. The setup form is never shown on a DB error.

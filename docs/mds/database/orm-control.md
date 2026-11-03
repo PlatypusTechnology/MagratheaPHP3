@@ -157,10 +157,11 @@ By default (`$withTotal = false`) it avoids an extra `COUNT(*)` query: it fetche
 use Magrathea\DB\Query;
 use App\Controls\ProductControl;
 
-// In an API controller:
-public function List(array $params = []): \Magrathea\MagratheaPagination {
+// In an API controller, for GET /products?page=0.
+// Query strings are read from $_GET: $params has only route params (and is false on a route without them)
+public function List(): \Magrathea\MagratheaPagination {
     $query = Query::Select()->Obj(new \App\Models\Product())->Where(["active" => 1])->Order("name ASC");
-    return ProductControl::GetPagination($query, page: (int)($params["page"] ?? 0), limit: 20);
+    return ProductControl::GetPagination($query, page: (int)($_GET["page"] ?? 0), limit: 20);
 }
 ```
 

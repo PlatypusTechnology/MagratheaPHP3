@@ -69,8 +69,11 @@ $article->Save(); // existing PK -> UPDATE
 // Delete
 $article->Delete();
 
-// Serialize for an API response
-return $article->ToArray();
+// In an API action, return the model itself: its public properties are
+// encoded, created_at/updated_at included (ToArray() leaves those out)
+$article = new Article(42);
+return $article;
+// After Insert()/Save() the timestamps are null: return $article->Reload();
 PHP,
 	],
 
@@ -142,7 +145,7 @@ use App\Controls\ArticleControl;
 class ArticleApi extends MagratheaApiControl {
 
     public function GetList() {
-        $page  = (int)($this->request["page"] ?? 0);
+        $page  = (int)($_GET["page"] ?? 0);
         $query = \Magrathea\DB\Query::Select()
             ->Obj(new \App\Models\Article())
             ->Where(["published" => 1]);
@@ -150,12 +153,14 @@ class ArticleApi extends MagratheaApiControl {
         return ArticleControl::GetPagination($query, page: $page, limit: 20);
     }
 
-    public function Get($id) {
-        $article = new \App\Models\Article((int)$id);
-        if (!$article->id) {
+    // GET /articles/:id: the action receives the route's params array
+    public function Get($params = false) {
+        $id = (new \App\Models\Article())->ValidateId($params["id"]); // malformed id: code 400 → HTTP 400
+        $article = ArticleControl::GetRowWhere(["id" => $id]);
+        if (!$article) {
             throw new MagratheaApiException("Article not found", 404);
         }
-        return $article->ToArray();
+        return $article;
     }
 }
 PHP,

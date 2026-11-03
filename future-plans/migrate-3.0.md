@@ -54,7 +54,7 @@ project, without the rest of the docs.
 | M24–M26 | New `vendor/bin/magrathea` CLI; framework error pages print text in the CLI | No | Declare the bootstrap if it isn't `app/_inc.php` | |
 | M27–M28 | Setup Wizard rebuilt: dedicated entry file, token lock | Yes, for projects with a 2.x wizard entry file | Replace or delete that file | ⚠ |
 | M29 | CORS origins file read by `AllowFromFile()` and edited by the opt-in admin feature; `Vary: Origin`; `AllowAll()` drops credentials; `AddAcceptHeaders()` appends | Only for code relying on `AddAcceptHeaders()` replacing the list | Switch those calls to `SetAcceptHeaders()` | |
-| M30–M34 | `skills.MD` rewritten for 3.0; `instructions.MD` removed; the docs ship in `vendor/` | Only for agent configs pointing at `instructions.MD` | Update those pointers | |
+| M30–M34 | `skills.MD` rewritten for 3.0; `instructions.MD` removed; the docs ship in `vendor/` | Only for agent configs pointing at `instructions.MD`, and entry points printing exceptions with `p_r($ex)` | Update those pointers; log instead of printing | |
 
 **Coming from 2.3?** This table covers only 3.0. A 2.3 project also inherits the 2.4.0 changes,
 and some of them break silently: section 3 lists them.
@@ -790,7 +790,8 @@ field, `$_POST[...] ?? null`):
 
 **What changed.** There's a new `vendor/bin/magrathea`:
 - commands: `check`, `db:tables`, `db:describe`, `db:query`, `db:dump`, `db:import`,
-  `models:verify`, `admin:reset-password` and `version`, and `help` for their usage;
+  `models:verify`, `admin:create-user` (the first super admin, only while the admin has no users),
+  `admin:reset-password` and `version`, and `help` for their usage;
 - `--json` for machine-readable output: one JSON document on stdout, errors included;
 - exit codes: `0` ok, `1` an ERROR finding or a failed command, `2` a usage error;
 - commands that write need `--write` (`db:query` with SQL that isn't one read-only statement) or
@@ -912,7 +913,18 @@ grep -rn 'instructions.MD' --include='*.md' --include='*.MD' --exclude-dir=vendo
   `vendor/platypustechnology/magratheaphp/docs/mds/`.
 
 **What to do.** Point the project's agent instructions at `skills.MD` and `docs/mds/index.md`. If
-the project has no `AGENTS.md`, `skills.MD` §17 has a five-line stub.
+the project has no `AGENTS.md`, `skills.MD`'s "Complete Application Skeleton" section has a
+five-line stub.
+
+Agents that wrote 2.x code from the old `skills.MD` learned patterns 3.0 drops; the new one
+teaches single-class models and controls, and entry points that log exceptions instead of printing
+them with `p_r($ex)`. An existing project doesn't need to change for this: its code keeps working
+(see "Optional: merge Base classes"). Do replace a `p_r($ex)` in an entry point's `catch` (it prints
+the exception's details on a production page):
+```bash
+grep -rn 'p_r(\$ex)' --include='*.php' --exclude-dir=vendor .
+```
+Log it (`error_log((string) $ex);`) and answer a generic 500 instead.
 
 ---
 

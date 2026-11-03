@@ -60,6 +60,7 @@ class Console {
 			Commands\DbDumpCommand::class,
 			Commands\DbImportCommand::class,
 			Commands\ModelsVerifyCommand::class,
+			Commands\AdminCreateUserCommand::class,
 			Commands\AdminResetPasswordCommand::class,
 			Commands\VersionCommand::class,
 		];

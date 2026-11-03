@@ -590,11 +590,12 @@ abstract class MagratheaModel{
 			$real_key = $this->dbAlias[$key];
 			return $this->$real_key;
 		} else if( @is_array($this->relations["properties"]) && array_key_exists($key, $this->relations["properties"]) ){
-			if( is_null($this->relations["properties"][$key]) ){
-				if( $this->relations["lazyload"][$key] ){
-					$loadFunction = $this->relations["methods"][$key];
-					$this->relations["properties"][$key] = $this->$loadFunction();
+			if( is_null($this->relations["properties"][$key]) && !empty($this->relations["lazyload"][$key]) ){
+				$loadFunction = $this->relations["methods"][$key] ?? null;
+				if( empty($loadFunction) ){
+					throw new MagratheaModelException("Relation ".$key." of ".get_class($this)." is lazyload but has no method in \$relations[\"methods\"]");
 				}
+				$this->relations["properties"][$key] = $this->$loadFunction();
 			}
 			return $this->relations["properties"][$key];
 		} else {
@@ -630,8 +631,7 @@ abstract class MagratheaModel{
 			$this->$real_key = $value;
 			$this->dirtyValues[$real_key] = $value;
 		} else if( @is_array($this->relations["properties"]) && array_key_exists($key, $this->relations["properties"]) ){
-			$method_set = $this->relations["methods"][$key];
- 			$this->relations["properties"][$key] = $value;
+			$this->relations["properties"][$key] = $value;
 		} else {
 			if($supressException) { return; }
 			throw new MagratheaModelException("Property ".$key." does not exists in ".get_class($this)."!");
@@ -725,10 +725,8 @@ abstract class MagratheaModel{
 		foreach($this->dbValues as $field => $type){
 			$arr[$field] = $this->$field;
 		}
-		if(@$this->relations && $this->relations["properties"]) {
-			foreach($this->relations["properties"] as $prop => $value) {
-				$arr[$prop] = $value;
-			}
+		foreach(($this->relations["properties"] ?? []) as $prop => $value) {
+			$arr[$prop] = $value;
 		}
 		return $arr;
 	}

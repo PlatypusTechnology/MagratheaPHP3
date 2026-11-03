@@ -70,6 +70,7 @@ instance) becomes an `error` document with exit code 1. Invalid UTF-8 is replace
 | `db:dump [file] [--tables=a,b] [--driver=binary\|php]` | `Dump::Export()` | into the backups folder; the default name is `Dump::GetDefaultFileName()` (`backup_<Ymd>.sql`), and an existing file is never overwritten |
 | `db:import <file> --yes [--driver=binary\|php] [--continue]` | `Dump::Import()` | from the backups folder. With `--continue`, exit `1` when any statement failed |
 | `models:verify [Class]` | `SchemaCheck` | every model (`CheckAll()`), or one (`CheckModel()` and its table's `CheckTimestamps()`). Exit `1` on any ERROR |
+| `admin:create-user <email> [--password=…]` | `AdminUserControl::CountUsers()` + `Install::CreateFirstUser()` | the admin's **first** user, a super admin, only while there are no users. Without `--password`, it generates one (16 hex characters) and prints it once |
 | `admin:reset-password <email> [--password=…]` | `AdminUserControl::GetByEmail()` + `SetNewPassword()` | without `--password`, it generates one (16 hex characters) and prints it once |
 | `version` | `MagratheaPHP::Version()`, `AppVersion()` | and PHP's |
 
@@ -79,9 +80,15 @@ instance) becomes an `error` document with exit code 1. Invalid UTF-8 is replace
   only one model found in the code folders has it, the short one (`Article`, case-insensitive). A short
   name two models share is a usage error. A class that isn't found is still checked: `CheckModel()` says
   what's wrong with it.
-- **`admin:reset-password`** doesn't activate an inactive user (it says so). A password given with
-  `--password` lands in the shell's history: leave it out to get a generated one. A password shorter
-  than 8 characters is a usage error.
+- **`admin:create-user`** is a setup step, not user management: when the admin already has a user, it
+  creates nothing and exits with `1` (add more users in the admin). It's what the admin's first-run form
+  and the Setup Wizard's Admin step do, from a shell; the admin's tables must be installed first (a
+  missing table is a database error, exit `1`). An invalid e-mail is a usage error.
+- **`admin:reset-password`** doesn't activate an inactive user (it says so).
+- **Passwords** given with `--password` land in the shell's history: leave it out to get a generated
+  one. Both `admin:` commands refuse one shorter than 12 characters (`Bootstrap\Steps::MIN_PASSWORD`,
+  the wizard's) as a usage error, before reading any user. The admin's own password form
+  (`AdminUserControl::SetNewPassword()`) still takes 8.
 - **Findings** print one per line, `LEVEL   [group] message`, each `fix` indented below, then the count
   per level. With `--json`, `check` and `models:verify` answer `{"level", "counts", "findings"}` (plus
   `"class"` for `models:verify`).
@@ -103,7 +110,8 @@ Affected rows: 12
 There are no prompts, since agents can't answer them: the flag is the consent. The refusal comes
 **before** the bootstrap loads, so nothing connects. Two `SELECT`s in one call need `--write` too, as
 on the admin's Queries page. `--help` never needs the flag. `db:dump` writes only a new file, and
-`admin:reset-password` is named for what it does, so neither has one.
+`admin:create-user` (which runs only on an admin with no users) and `admin:reset-password` are named
+for what they do, so none of them has one.
 
 ---
 

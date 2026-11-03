@@ -160,7 +160,8 @@ error. Without it, the first error stops the import and is shown.
   missing;
 - **The first super admin**: an e-mail and a password of 12 or more characters (`Steps::MIN_PASSWORD`),
   typed twice, only when `Admin\Start::CanCreateFirstUser()` allows it (there are no users yet). Then
-  `Install::CreateFirstUser()`.
+  `Install::CreateFirstUser()`. From a shell, `vendor/bin/magrathea admin:create-user <email>` does the
+  same, with the same rules (no users yet, 12+ characters).
 
 The admin's entry file (`public/admin.php`) comes with the skeleton: the wizard doesn't write it. A
 forgotten password is `vendor/bin/magrathea admin:reset-password <email>`: shell access proves

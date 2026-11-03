@@ -3,6 +3,7 @@
 namespace Magrathea\Cli\Commands;
 
 use Magrathea\Admin\Features\User\AdminUserControl;
+use Magrathea\Bootstrap\Steps;
 use Magrathea\Cli\Command;
 use Magrathea\Cli\Result;
 use Magrathea\Cli\UsageException;
@@ -20,12 +21,15 @@ use Magrathea\Cli\UsageException;
 /**
 * `magrathea admin:reset-password <email> [--password=…]`: sets an admin user's password
 * (`AdminUserControl::SetNewPassword()`, which logs `change-password`). Without `--password` it generates one
-* (`GENERATED_BYTES` random bytes, in hex) and prints it, once. It doesn't activate an inactive user
+* (`GENERATED_BYTES` random bytes, in hex) and prints it, once. A given one needs `MIN_PASSWORD` characters, like
+* the first super admin's (`admin:create-user`, the Setup Wizard). It doesn't activate an inactive user
 */
 class AdminResetPasswordCommand extends Command {
 
 	/** a generated password: 16 hex characters */
 	const GENERATED_BYTES = 8;
+	/** the minimum password length: the Setup Wizard's (`AdminUserControl::SetNewPassword()` alone takes 8) */
+	const MIN_PASSWORD = Steps::MIN_PASSWORD;
 
 	private ?AdminUserControl $control;
 
@@ -40,12 +44,15 @@ class AdminResetPasswordCommand extends Command {
 	public function Options(): array { return ["password" => true]; }
 
 	public function Execute(array $arguments, array $options): Result {
+		$generated = !isset($options["password"]);
+		$password = $generated ? bin2hex(random_bytes(self::GENERATED_BYTES)) : $options["password"];
+		if(!is_string($password) || mb_strlen($password) < self::MIN_PASSWORD) {
+			throw new UsageException("The password must have at least ".self::MIN_PASSWORD." characters");
+		}
 		$this->control ??= new AdminUserControl();
 		$email = $arguments["email"];
 		$user = $this->control->GetByEmail($email);
 		if(!$user) throw new \RuntimeException("No admin user with the e-mail [".$email."]");
-		$generated = !isset($options["password"]);
-		$password = $generated ? bin2hex(random_bytes(self::GENERATED_BYTES)) : $options["password"];
 		$rs = $this->control->SetNewPassword($user, $password);
 		if(!empty($rs["error"])) throw new UsageException($rs["error"]);
 		if(empty($rs["success"])) throw new \RuntimeException("The password for [".$email."] couldn't be saved");
