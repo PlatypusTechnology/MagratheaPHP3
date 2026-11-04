@@ -5,7 +5,6 @@ namespace Magrathea\Admin;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    AdminFiles created: 2026-10 by Paulo Martins

@@ -10,7 +10,6 @@ use Magrathea\MagratheaApi;
 #######################################################################################
 ####
 ####    MAGRATHEA Admin CORS Origins PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin created: 2026-11 by Paulo Martins

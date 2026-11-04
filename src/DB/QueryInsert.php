@@ -5,7 +5,6 @@ namespace Magrathea\DB;
 #######################################################################################
 ####
 ####	MAGRATHEA Query Insert
-####	v. 2.0
 ####
 ####	Magrathea by Paulo Henrique Martins
 ####	Platypus technology

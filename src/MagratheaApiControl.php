@@ -11,7 +11,6 @@ use \Firebase\JWT\BeforeValidException;
 #######################################################################################
 ####
 ####    MAGRATHEA API CONTROL PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Magrathea created: 2023-04 by Paulo Martins

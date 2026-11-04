@@ -9,7 +9,6 @@ use Magrathea\Admin\Features\AppConfig\AppConfigControl;
 ####
 ####    MAGRATHEA PHP
 ####		Class for controlling the App configuration (the one that are stored in a database)
-####    v. 1.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Magrathea created: 2023-11 by Paulo Martins

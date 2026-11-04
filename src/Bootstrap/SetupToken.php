@@ -7,7 +7,6 @@ use Magrathea\Exceptions\MagratheaException;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    SetupToken created: 2026-11 by Paulo Martins

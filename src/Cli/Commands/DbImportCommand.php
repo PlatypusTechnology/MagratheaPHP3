@@ -10,7 +10,6 @@ use Magrathea\DB\Dump;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    DbImportCommand created: 2026-11 by Paulo Martins

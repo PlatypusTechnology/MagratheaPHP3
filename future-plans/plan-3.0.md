@@ -1974,16 +1974,17 @@ query first. `HasUuidPk()` stays lenient: an auto-increment `Insert()` doesn't n
 
 ## Release (after every item is done)
 
-- [ ] `src/version` → `3.0.0` (Paulo).
-- [ ] The `### 3.0.0` changelog section has its date line, the migration `**note:**` first, and every
+- [x] `src/version` → `3.0.0` (Paulo).
+- [x] The `### 3.0.0` changelog section has its date line, the migration `**note:**` first, and every
       `**removed:**` line.
-- [ ] Remove the version line from the `####` file banners in `src/` (`####    v. 2.0`, one
+- [x] Remove the version line from the `####` file banners in `src/` (`####    v. 2.0`, one
       `v. 1.0`, tab or spaces after `####`): nobody keeps those numbers up to date, and they'd be
       wrong again from 3.1. Leave the rest of each banner. This is a release step, not an item,
       because deleting lines would break the line numbers the items cite, and a new item would
       shift the item and **M\<n\>** numbering. Check:
       `grep -rnE "^####[[:space:]]+v\. " src` finds nothing. No changelog line.
-- [ ] Full suite green; record the counts here.
+- [x] Full suite green; record the counts here. 2026-11-04, PHP 8.4.27, PHPUnit 10.5.9: 791 tests,
+      3791 assertions, 0 failures, 3 deprecations (all `firebase/php-jwt`, `JWT::decode()`/`encode()`).
 - [ ] After Paulo commits: `git archive HEAD | tar -t` matches item 32.
 - [ ] Split the local skill in two:
   - `~/.claude/skills/magrathea-php2/` stays the frozen 2.x cookbook. Only its frontmatter

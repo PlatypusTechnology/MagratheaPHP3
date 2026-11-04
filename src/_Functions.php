@@ -6,7 +6,6 @@ use Magrathea\DB\Database;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####	Magrathea1 created: 2012-12 by Paulo Martins

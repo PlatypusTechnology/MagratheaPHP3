@@ -13,7 +13,6 @@ use Magrathea\MagratheaPHP;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin created: 2022-12 by Paulo Martins

@@ -8,7 +8,6 @@ use Magrathea\Singleton;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    ErrorManeger created: 2024-04 by Paulo Martins

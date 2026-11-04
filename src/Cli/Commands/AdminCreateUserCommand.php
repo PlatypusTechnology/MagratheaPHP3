@@ -12,7 +12,6 @@ use Magrathea\Cli\UsageException;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    AdminCreateUserCommand created: 2026-11 by Paulo Martins

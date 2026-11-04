@@ -8,7 +8,6 @@ use Magrathea\Exceptions\MagratheaApiException;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin Api created: 2023-04 by Paulo Martins

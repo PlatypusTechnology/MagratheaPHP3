@@ -10,7 +10,6 @@ use Magrathea\Cli\Text;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    DbDescribeCommand created: 2026-11 by Paulo Martins

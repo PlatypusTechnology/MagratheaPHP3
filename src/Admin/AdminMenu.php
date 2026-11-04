@@ -9,7 +9,6 @@ use Magrathea\Singleton;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    AdminMenu created: 2023-07 by Paulo Martins

@@ -13,7 +13,6 @@ use Magrathea\MagratheaModelControl;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP Admin Object
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin created: 2023-12 by Paulo Martins

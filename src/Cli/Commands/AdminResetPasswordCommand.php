@@ -11,7 +11,6 @@ use Magrathea\Cli\UsageException;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    AdminResetPasswordCommand created: 2026-11 by Paulo Martins

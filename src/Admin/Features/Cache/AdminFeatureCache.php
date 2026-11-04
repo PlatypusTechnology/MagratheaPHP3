@@ -15,7 +15,6 @@ use Magrathea\MagratheaHelper;
 #######################################################################################
 ####
 ####    MAGRATHEA Admin Config PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Admin created: 2023-02 by Paulo Martins

@@ -8,7 +8,6 @@ use Magrathea\TimezoneCheck;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    CheckReport created: 2026-10 by Paulo Martins

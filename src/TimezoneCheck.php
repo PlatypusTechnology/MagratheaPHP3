@@ -7,7 +7,6 @@ use Magrathea\DB\Database;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    TimezoneCheck created: 2026-10 by Paulo Martins

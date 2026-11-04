@@ -10,7 +10,6 @@ use Magrathea\DB\SchemaCheck;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 3.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    ProjectCheck created: 2026-10 by Paulo Martins

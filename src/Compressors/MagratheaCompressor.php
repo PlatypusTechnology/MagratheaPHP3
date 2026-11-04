@@ -5,7 +5,6 @@ namespace Magrathea\Compressors;
 #######################################################################################
 ####
 ####    MAGRATHEA COMPRESSOR PARENT
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Magrathea created: 2023-12 by Paulo Martins

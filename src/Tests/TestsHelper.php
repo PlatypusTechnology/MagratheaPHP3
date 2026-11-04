@@ -7,7 +7,6 @@ use Magrathea\Debugger;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Test Helper created: 2023-03 by Paulo Martins

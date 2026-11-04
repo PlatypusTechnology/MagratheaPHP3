@@ -9,7 +9,6 @@ use Magrathea\Exceptions\MagratheaDBException;
 #######################################################################################
 ####
 ####    MAGRATHEA PHP
-####    v. 2.0
 ####    Magrathea by Paulo Henrique Martins
 ####    Platypus technology
 ####    Magrathea created: 2022-11 by Paulo Martins
