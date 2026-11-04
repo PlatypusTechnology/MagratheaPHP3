@@ -11,28 +11,24 @@ The runtime singleton for the admin panel. Manages initialization, authenticatio
 ## Starting the Admin
 
 ### `Start(Admin $admin): AdminManager`
-Initialize with a custom configured `Admin` object.
+Runs the admin with your `Admin` object: calls its `Initialize()` and `SetFeatures()`, then handles the
+whole request (first-run setup, login, auth, CSRF, and the requested page, feature or action). It
+renders the page itself, so it's the last call of the entry point.
 
 ```php
-$admin = new Admin();
-$admin->SetTitle("My App Admin")
-      ->SetPrimaryColor("#3498DB")
-      ->AddFeaturesArray([
-          new ProductAdminFeature(),
-          new OrderAdminFeature(),
-      ]);
-
-AdminManager::Instance()->Start($admin);
+// public/admin.php, after the bootstrap and StartSession()
+AdminManager::Instance()->Start(new \App\MyAppAdmin()); // an Admin subclass, see Admin System Overview
 ```
 
 ### `StartDefault(?string $title = null, ?string $color = null): AdminManager`
-Start with default configuration and all built-in features enabled.
+`Start()` with a plain `Admin`, optionally titled and colored.
 
 ```php
 AdminManager::Instance()->StartDefault("My App", "#e74c3c");
 ```
 
-Built-in features included by default: user management, user logs, app config, cache, file editor, API explorer.
+Built-in features included by default: App Config, Cache, Users and User Logs. The API Explorer, the
+CORS Origins feature and your CRUD features need an `Admin` subclass.
 
 ### `GetAdmin(): ?Admin`
 Returns the current `Admin` configuration object.
@@ -42,14 +38,8 @@ Returns the current `Admin` configuration object.
 ## Authentication
 
 ### `Auth(): bool`
-Check whether the current HTTP session contains a valid admin user.
-
-```php
-if (!AdminManager::Instance()->Auth()) {
-    header("Location: /admin/login");
-    exit;
-}
-```
+Runs `Admin::Auth()` on the logged-in user. `Start()` calls it on every request once someone is logged
+in; it expects a logged-in user (check `GetLoggedUser()` first when you call it yourself).
 
 ### `GetLoggedUser(): AdminUser|null`
 Return the currently logged-in `AdminUser` object, or `null`.
@@ -66,17 +56,11 @@ A user deleted or deactivated (`active = 0`) since logging in gets `null`, and t
 logged out. (Since 3.0.)
 
 ### `PermissionDenied(): void`
-Render the permission-denied error page and exit.
-
-```php
-if (!AdminManager::Instance()->Auth()) {
-    AdminManager::Instance()->PermissionDenied();
-    exit;
-}
-```
+Ends the request with "Permission denied!". Features call it when `HasPermission()` refuses, and the
+CSRF check when a POST has no valid token.
 
 ### `ErrorPage(string $message): void`
-Render a generic error page with a custom message.
+Renders the admin's message page with `$message` and ends the request.
 
 ```php
 AdminManager::Instance()->ErrorPage("Database connection failed.");
@@ -124,27 +108,16 @@ echo AdminManager::Instance()->GetFaviconTag();
 ## Feature Management
 
 ### `GetFeature(string $featureId): AdminFeature|null`
-Retrieve a registered feature by its ID.
+Retrieve a registered feature by its ID (`$featureId`: the built-in ones are named after their class,
+e.g. `AdminFeatureCache`).
 
 ```php
-$cacheFeature = AdminManager::Instance()->GetFeature("cache");
-if ($cacheFeature) {
-    $cacheFeature->Handle();
-}
+$cacheFeature = AdminManager::Instance()->GetFeature("AdminFeatureCache");
 ```
 
 ### `GetActiveFeature(): AdminFeature|null`
-Returns the feature matching the current URL segment. Used by the admin router.
-
-```php
-$feature = AdminManager::Instance()->GetActiveFeature();
-if ($feature) {
-    $feature->Handle();
-    $feature->Render();
-} else {
-    // show dashboard
-}
-```
+Returns the feature named by `?magrathea_feature=` (by `$featureId`), or `null`. The admin's layout
+uses it to render the feature's page (see Feature Routing in Admin Features).
 
 ---
 
@@ -154,26 +127,22 @@ if ($feature) {
 Set the current admin menu.
 
 ### `GetMenu(): AdminMenu`
-Returns the current `AdminMenu` object for rendering.
-
-```php
-$menu = AdminManager::Instance()->GetMenu();
-$menu->Render();
-```
+Returns the current `AdminMenu` object. The layout builds it with `Admin::BuildMenu()`; override
+`BuildMenu()` in your `Admin` subclass to change the sidebar.
 
 ---
 
 ## Asset Management
 
 ### `AddJs(string $file): AdminManager`
-Add a JavaScript file to the admin bundle.
+Add a JavaScript file (absolute path on disk) to the admin bundle.
 
 ```php
-AdminManager::Instance()->AddJs("/admin/assets/charts.js");
+AdminManager::Instance()->AddJs(__DIR__ . "/assets/charts.js");
 ```
 
 ### `GetJs(): string`
-Returns all registered JS files bundled and minified.
+Returns all registered JS files concatenated, as they are (not minified: `GetCode()`).
 
 ```php
 echo "<script>" . AdminManager::Instance()->GetJs() . "</script>";
@@ -183,14 +152,15 @@ echo "<script>" . AdminManager::Instance()->GetJs() . "</script>";
 Returns the underlying `JavascriptCompressor` instance for advanced use.
 
 ### `AddCss(string $file): AdminManager`
-Add a CSS/SCSS file to the admin bundle.
+Add a CSS file (absolute path on disk) to the admin bundle. Plain CSS only: the bundle isn't
+compiled, so SCSS would be printed as is.
 
 ```php
-AdminManager::Instance()->AddCss("/admin/assets/custom.scss");
+AdminManager::Instance()->AddCss(__DIR__ . "/assets/custom.css");
 ```
 
 ### `GetCss(): string`
-Returns all CSS/SCSS compiled and minified.
+Returns all registered CSS files concatenated, as they are (`GetCode()`).
 
 ```php
 echo "<style>" . AdminManager::Instance()->GetCss() . "</style>";
@@ -220,56 +190,30 @@ AdminManager::Instance()->Log(
 
 ```php
 <?php
-// admin/index.php
-require_once __DIR__ . '/../vendor/autoload.php';
-
+// public/admin.php
 use Magrathea\MagratheaPHP;
 use Magrathea\Admin\AdminManager;
-use App\Admin\ProductAdminFeature;
-use App\Admin\OrderAdminFeature;
 
-MagratheaPHP::Instance()
-    ->AppPath(__DIR__ . '/..')
-    ->AddRootCodeFolder("models", "controls", "admin")
-    ->Prod()
-    ->Load()
-    ->Connect()
-    ->StartSession();
-
-$manager = AdminManager::Instance()
-    ->StartDefault("My App Admin", "#2c3e50");
-
-// Custom features
-$manager->GetAdmin()->AddFeaturesArray([
-    new ProductAdminFeature(),
-    new OrderAdminFeature(),
-]);
-
-// Authentication gate
-if (!$manager->Auth()) {
-    header("Location: /admin/login.php");
-    exit;
+try {
+    require __DIR__ . "/../app/_inc.php";       // the shared bootstrap: Load(), Connect()
+    MagratheaPHP::Instance()->StartSession();    // admin auth needs the session
+    AdminManager::Instance()->Start(new \App\MyAppAdmin());
+} catch (\Throwable $ex) {
+    error_log((string) $ex);                     // never print the exception on the page
+    http_response_code(500);
+    echo "Internal Server Error";
 }
-
-// Route to the active feature or show dashboard
-$feature = $manager->GetActiveFeature();
-if ($feature) {
-    $feature->Handle();
-}
-
-// Build menu
-$menu = $manager->GetAdmin()->BuildMenu();
-$manager->SetMenu($menu);
-
-// Render layout
-include __DIR__ . '/layout.php';
 ```
+
+Features, the title, the color, the logo and the menu all go in the `Admin` subclass (see
+[Admin System Overview](admin.md) and [Admin Features](admin-features.md)), not in the entry point:
+`Start()` renders the page as soon as it's called.
 
 ---
 
 ## Notes
 
-- `AdminManager` must be initialized before calling any other admin method.
-- `StartDefault()` is the fastest way to get a functional admin panel. Use `Start()` for full customization.
-- Asset methods (`GetJs()`, `GetCss()`) compile files on first call and cache the result for the request.
-- Feature routing is URL-based — the first path segment after `/admin/` maps to a feature ID.
+- `Start()` (or `StartDefault()`) must run before the other admin methods: they read the `Admin` it stores.
+- `StartDefault()` is the fastest way to get a functional admin panel. Use `Start()` with an `Admin` subclass for full customization.
+- Asset methods (`GetJs()`, `GetCss()`) read the files on every call, and the layout calls each once per page. See [Compressors](../utilities/compressors.md).
+- Routing is query-string based: `?magrathea_page=`, `?magrathea_subpage=` and `?magrathea_feature=` (see [Admin System Overview](admin.md#built-in-pages-and-actions) and Feature Routing in [Admin Features](admin-features.md#feature-routing)).

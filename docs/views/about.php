@@ -47,6 +47,6 @@ from-scratch replacement for the previous phpDocumentor-generated site.</p>
 	</a>
 	<a class="card" href="<?= $baseUrl ?>/?p=md-files">
 		<h3>MD Files</h3>
-		<p>View or download skill.md and instructions.md</p>
+		<p>View or download skill.md and AGENTS.md</p>
 	</a>
 </div>

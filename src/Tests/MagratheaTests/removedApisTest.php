@@ -28,4 +28,13 @@ class removedApisTest extends \PHPUnit\Framework\TestCase {
 		$this->assertTrue(method_exists(\Magrathea\MagratheaPHP::class, "StartDB"), "StartDB() stays until 4.0");
 	}
 
+	/**
+	 * B9: `Authentication` couldn't encode on php-jwt 6/7; controllers' jwtEncode() replaces it.
+	 */
+	function testAuthenticationClassIsRemoved() {
+		TestsHelper::Print("testing the Authentication class is gone...");
+		$this->assertFalse(class_exists("\\Magrathea\\Authentication"));
+		$this->assertTrue(method_exists(\Magrathea\MagratheaApiControl::class, "jwtEncode"));
+	}
+
 }

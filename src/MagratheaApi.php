@@ -503,8 +503,8 @@ class MagratheaApi {
 	}
 
 	private function ExecuteRoute($fullUrl, $method) {
-		$url = explode("/", $fullUrl);
-		$url = array_filter($url);
+		// reindexed: CompareRoute() and GetParamsFromRoute() read segments by position
+		$url = array_values(array_filter(explode("/", $fullUrl)));
 
 		if(count($url) == 0) {
 			if(is_callable($this->fallback)) {

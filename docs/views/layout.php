@@ -5,7 +5,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . " — " : "" ?>MagratheaPHP Documentation</title>
-<link rel="icon" href="<?= $baseUrl ?>/assets/img/logo.svg">
+<link rel="icon" href="<?= $baseUrl ?>/assets/favicons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="<?= $baseUrl ?>/assets/favicons/favicon.ico" sizes="any">
+<link rel="icon" href="<?= $baseUrl ?>/assets/favicons/favicon-32x32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="<?= $baseUrl ?>/assets/favicons/favicon-16x16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="<?= $baseUrl ?>/assets/favicons/apple-touch-icon.png" sizes="180x180">
+<link rel="manifest" href="<?= $baseUrl ?>/assets/favicons/site.webmanifest">
 <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
 </head>
 <body>

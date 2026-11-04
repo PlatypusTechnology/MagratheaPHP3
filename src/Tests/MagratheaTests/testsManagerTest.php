@@ -19,6 +19,17 @@ class RecordingTestsManager extends TestsManager {
 	}
 }
 
+// a RecordingTestsManager that looks for PHPUnit in the given files
+class CandidatesTestsManager extends RecordingTestsManager {
+	public array $candidates = [];
+	protected function PhpUnitCandidates(): array {
+		return $this->candidates;
+	}
+	public function DefaultCandidates(): array {
+		return parent::PhpUnitCandidates();
+	}
+}
+
 class testsManagerTest extends \PHPUnit\Framework\TestCase {
 
 	private RecordingTestsManager $manager;
@@ -149,6 +160,59 @@ class testsManagerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertInvalidPath(fn() => $this->manager->GetTestsFromFolder($this->root."/outside"));
 		$this->assertInvalidPath(fn() => $this->manager->GetMethodsFromTest($this->root."/outside/EvilTest.php"));
 		$this->assertInvalidPath(fn() => $this->manager->GetMethodsFromTest("/etc/passwd"));
+	}
+
+	public function testDefaultPhpUnitCandidates() {
+		TestsHelper::Print("Testing PHPUnit is looked for in Composer's vendor/bin, then the framework's phpunit.phar");
+		$candidates = CandidatesTestsManager::Instance()->DefaultCandidates();
+		$vendor = dirname((new \ReflectionClass(\Composer\Autoload\ClassLoader::class))->getFileName(), 2);
+		$this->assertSame([$vendor."/bin/phpunit", dirname(__DIR__, 3)."/phpunit.phar"], $candidates);
+	}
+
+	public function testRunsTheFirstPhpUnitFound() {
+		TestsHelper::Print("Testing the run methods use the first PHPUnit that exists");
+		$manager = CandidatesTestsManager::Instance()->Reset();
+		$manager->AddTest([$this->root."/tests"], "app");
+		$bin = $this->root."/phpunit";
+		$phar = $this->root."/phpunit.phar";
+		file_put_contents($phar, "");
+		try {
+			$manager->candidates = [$bin, $phar];
+			$manager->RunFolder($this->root."/tests");
+			$this->assertStringStartsWith("php -d display_errors=on ".escapeshellarg($phar)." ", $manager->commands[0]);
+
+			file_put_contents($bin, "");
+			$manager->RunFolder($this->root."/tests");
+			$this->assertStringStartsWith("php -d display_errors=on ".escapeshellarg($bin)." ", $manager->commands[1]);
+			$this->assertSame(">> $ phpunit .../models/ArticleTest.php", $manager->RunFunction($this->root."/tests/models/ArticleTest.php", "testSave", false)[0]);
+		} finally {
+			@unlink($bin);
+			@unlink($phar);
+		}
+	}
+
+	public function testRunWithoutPhpUnitSaysSo() {
+		TestsHelper::Print("Testing the run methods throw an explicit error without PHPUnit, and listing still works");
+		$manager = CandidatesTestsManager::Instance()->Reset();
+		$manager->AddTest([$this->root."/tests"], "app");
+		$manager->candidates = [$this->root."/vendor/bin/phpunit", $this->root."/phpunit.phar"];
+		foreach([
+			fn() => $manager->RunFolder($this->root."/tests"),
+			fn() => $manager->RunFile($this->root."/tests/models/ArticleTest.php"),
+			fn() => $manager->RunFunction($this->root."/tests/models/ArticleTest.php", "testSave"),
+			fn() => $manager->RunAllTests(),
+		] as $run) {
+			try {
+				$run();
+				$this->fail("expected MagratheaException");
+			} catch(MagratheaException $ex) {
+				$this->assertStringStartsWith("PHPUnit not found", $ex->getMessage());
+				$this->assertStringContainsString("composer require --dev phpunit/phpunit", $ex->getMessage());
+				$this->assertStringContainsString($this->root."/vendor/bin/phpunit", $ex->getMessage());
+			}
+		}
+		$this->assertSame([], $manager->commands);
+		$this->assertSame(["ArticleTest.php"], array_values($manager->GetTestsFromFolder($this->root."/tests/models")));
 	}
 
 	public function testNothingIsAllowedWithoutRegisteredTests() {

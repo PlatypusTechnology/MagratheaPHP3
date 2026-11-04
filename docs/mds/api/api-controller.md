@@ -30,35 +30,27 @@ use App\Controls\ProductControl;
 
 class ProductApiControl extends MagratheaApiControl {
 
+    // Read(), Create(), Update() and Delete() work on this model as they are (see CRUD Methods)
+    protected $model = \App\Models\Product::class;
+
+    // List() calls $this->service->GetAll(): without a service, override it
     public function List(): array {
         return ProductControl::GetAll();
     }
 
-    public function Read($params = []): object|array {
-        $id = $params["id"] ?? null;
+    // Override one to change it, e.g. a 404 instead of the model's exception
+    public function Read($params = false) {
+        if (!$params) return $this->List();
+        $id = (new \App\Models\Product())->ValidateId($params["id"]); // malformed id: HTTP 400
         $product = ProductControl::GetRowWhere(["id" => $id]);
         if (!$product) throw new MagratheaApiException("Product not found", 404);
-        return $product->ToJson();
-    }
-
-    public function Create($data = []): object {
-        $post = $this->GetPost();
-        // validate, create, return
-    }
-
-    public function Update($params): object {
-        $put = $this->GetPut();
-        // find, update, return
-    }
-
-    public function Delete($params = []): bool {
-        $id = $params["id"] ?? null;
-        $product = ProductControl::GetRowWhere(["id" => $id]);
-        if (!$product) throw new MagratheaApiException("Not found", 404);
-        return $product->Delete();
+        return $product; // the model itself: its public properties are encoded, timestamps included
     }
 }
 ```
+
+Return models (or arrays of them) from actions, not `ToArray()` (no timestamps) or `ToJson()` (a
+`{object, id, created_at, updated_at, fields}` wrapper).
 
 ---
 
@@ -108,12 +100,13 @@ $raw = $this->GetPhpInput();
 ## JWT Authentication Methods
 
 ### `GetSecret(): string`
-Returns the JWT secret from the application config. Override this to use a custom secret.
+Returns the JWT secret: `jwt_key` from the active environment's config. Override it only to read
+another key.
 
 ```php
 // In your AuthControl:
 public function GetSecret(): string {
-    return Config::Instance()->Get("jwt_secret");
+    return Config::Instance()->Get("api_jwt_secret");
 }
 ```
 
@@ -122,9 +115,9 @@ Encodes a payload into a JWT token string.
 
 ```php
 $token = $this->jwtEncode([
-    "user_id" => 42,
-    "role"    => "admin",
-    "exp"     => time() + 3600,
+    "id"   => 42,        // the user's id: GetUserId() reads "id"
+    "role" => "admin",
+    "exp"  => time() + 3600,
 ]);
 ```
 
@@ -133,7 +126,7 @@ Decodes a JWT token and returns the payload as an object.
 
 ```php
 $payload = $this->jwtDecode($token);
-echo $payload->user_id;
+echo $payload->id;
 ```
 
 Decode failures from the underlying `firebase/php-jwt` library are translated into
@@ -180,11 +173,13 @@ Returns the decoded user payload set during authorization.
 
 ```php
 $user = $this->GetUserInfo();
-echo $user->user_id;
+echo $user->role;
 ```
 
 ### `GetUserId(): int|null`
-Returns the `user_id` from the decoded token, or `null` if not set.
+Returns the decoded token's `id` claim, or its `user_id` claim when there's no `id`, or `null`. Put
+the user's id in the payload as `"id"`, as `MagratheaApiAuth::ResponseLogin()` does. (Before 3.0,
+only `id` was read: a `"user_id"` token got `null`.)
 
 ```php
 $userId = $this->GetUserId();
@@ -199,15 +194,18 @@ work on the control's `$model` (a model class name; `List()` uses `$service->Get
 
 | Method | HTTP Method | Route | Default |
 |--------|-------------|-------|---------|
-| `List(): array` | GET | `/resource` | `$service->GetAll()` |
-| `Read($params): object\|array` | GET | `/resource/{id}` | `new $model($id)`; no params → `List()` |
-| `Create($data): object` | POST | `/resource` | inserts, returns the object |
-| `Update(array $params): object` | PUT | `/resource/{id}` | updates, returns the object |
-| `Delete($params): bool` | DELETE | `/resource/{id}` | loads, then deletes |
+| `List(): array` | GET | `resources` | `$service->GetAll()` (through `Read()` without params) |
+| `Read($params): object\|array` | GET | `resource/:id` | `new $model($id)`; no params → `List()` |
+| `Create($data): object` | POST | `resources` | inserts, returns the object |
+| `Update(array $params): object` | PUT | `resource/:id` | updates, returns the object |
+| `Delete($params): bool` | DELETE | `resource/:id` | loads, then deletes |
+
+`Crud("resource", …)` registers the list routes as `"resource" . "s"`; `Crud(["person", "people"], …)`
+names both. Routes have no leading slash.
 
 - **`Create()`** drops `id`, `created_at` and `updated_at` from the data (the database sets them),
   inserts, and returns the object with its new id and `null` timestamps.
-- **`Update()`** takes the id from the route (`{id}`), or from the body's `id` when the route has
+- **`Update()`** takes the id from the route (`:id`), or from the body's `id` when the route has
   none, and checks it for an int PK (`ValidateId()`): a malformed id (`"5abc"`) throws
   `MagratheaModelException` with code 400 before anything is written. It drops the PK,
   `created_at` and `updated_at` from the data, so a body `id` can't send the update to another row.
@@ -243,12 +241,12 @@ other environments don't log (before 2.4.0 it logged on every call, everywhere).
 ```php
 public function List(): array {
     $this->Cache("products_list");          // hit: served from disk, the code below never runs
-    return array_map(fn($p) => $p->ToArray(), ProductControl::GetAll());
+    return ProductControl::GetAll();
 }
 
-public function View(array $params = []): array {
+public function View($params = false): Product {
     $this->Cache("product", $params["id"]); // one file per product: product-<id>.json
-    return (new Product($params["id"]))->ToArray();
+    return new Product($params["id"]);
 }
 ```
 
@@ -256,10 +254,10 @@ public function View(array $params = []): array {
 Clear a specific cache entry.
 
 ```php
-public function Create($data = []): object {
-    // ... create product ...
+public function Create($data = false) {
+    $product = parent::Create($data);
     $this->CacheClear("products_list");
-    return $product->ToJson();
+    return $product;
 }
 ```
 
@@ -292,18 +290,19 @@ public function ExportCsv(): void {
 <?php
 namespace App\Api;
 
-use Magrathea\MagratheaApiControl;
+use Magrathea\MagratheaApiAuth;
 use Magrathea\Exceptions\MagratheaApiException;
 use App\Controls\UserControl;
 
-class AuthApiControl extends MagratheaApiControl {
+// MagratheaApiAuth (a MagratheaApiControl): BaseAuthorization() accepts only that
+class AuthApiControl extends MagratheaApiAuth {
 
     // Called for every protected route as base authorization
     public function ValidateToken(): bool {
         $token = $this->GetAuthorizationToken();
         $info  = $this->GetTokenInfo($token);
 
-        if (!$info || !isset($info->user_id)) {
+        if (!$info || !isset($info->id)) {
             throw new MagratheaApiException("Unauthorized", 401); // code 0 would be HTTP 500
         }
 
@@ -312,7 +311,7 @@ class AuthApiControl extends MagratheaApiControl {
         return true;
     }
 
-    // POST /auth/login
+    // POST auth/login
     public function Login(): array {
         $post  = $this->GetPost();
         $email = $post["email"] ?? "";
@@ -325,27 +324,29 @@ class AuthApiControl extends MagratheaApiControl {
         }
 
         $token = $this->jwtEncode([
-            "user_id" => $user->id,
-            "email"   => $user->email,
-            "exp"     => time() + 86400, // 24 hours
+            "id"    => $user->id,      // GetUserId() reads "id"
+            "email" => $user->email,
+            "exp"   => time() + 86400, // 24 hours
         ]);
 
-        return ["token" => $token, "user" => $user->ToJson()];
+        // never return the model itself here: it carries the password hash
+        return ["token" => $token, "user" => ["id" => $user->id, "email" => $user->email]];
     }
 
-    // GET /auth/me
+    // GET auth/me
     public function Me(): array {
-        $userId = $this->GetUserId();
-        $user   = UserControl::GetRowWhere(["id" => $userId]);
-        return $user->ToJson();
+        $user = UserControl::GetRowWhere(["id" => $this->GetUserId()]);
+        return ["id" => $user->id, "email" => $user->email];
     }
 }
 ```
 
 ```php
-// In index.php:
-$api->Add("POST", "/auth/login", new AuthApiControl(), "Login");
-$api->Add("GET",  "/auth/me",    new AuthApiControl(), "Me", true);
+// In the API class (or public/index.php):
+$auth = new AuthApiControl();
+$api->BaseAuthorization($auth, "ValidateToken");   // what `true` means below
+$api->Add("POST", "auth/login", $auth, "Login");
+$api->Add("GET",  "auth/me",    $auth, "Me", true);
 ```
 
 ---

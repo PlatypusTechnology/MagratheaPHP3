@@ -40,6 +40,7 @@ $version = MagratheaPHP::Instance()->Version();
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="robots" content="noindex, nofollow">
 		<title>Magrathea Setup Wizard</title>
+		<link rel="icon" href="data:image/svg+xml;base64,<?=base64_encode((string)file_get_contents(__DIR__."/favicon.svg"))?>" type="image/svg+xml">
 		<style>
 			<?php include(__DIR__."/css/_variables.css"); ?>
 			<?php include(__DIR__."/css/wizard.css"); ?>

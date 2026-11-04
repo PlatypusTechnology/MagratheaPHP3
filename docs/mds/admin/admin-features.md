@@ -59,8 +59,8 @@ Returns `["title", "icon", "feature", "active"]`, consumed by `AdminMenu` when b
 
 Manages database-stored application configuration (via `ConfigApp`). Allows admin users to view and edit key-value settings at runtime without touching files.
 
-**Menu item:** "App Config"
-**Feature ID:** `app_config`
+**Menu item:** "App Configuration", in the Setup section
+**Feature ID:** `AdminFeatureAppConfig`
 
 ---
 
@@ -124,7 +124,7 @@ in `configs/`, it must not be reachable from the web.
 
 **Path:** `src/Admin/Features/CrudObject/`
 
-The most powerful built-in feature. Automatically generates a full CRUD interface (list, create, read, update, delete) for any model.
+The most powerful built-in feature: a full CRUD interface (list, create, read, update, delete) for any model, built at runtime from the model's fields. No code is generated.
 
 #### Creating a CRUD Feature
 
@@ -156,10 +156,9 @@ public function SetFeatures() {
 **`SetObject(MagratheaModel $object, ?MagratheaModelControl $control = null)`** stores the model,
 sets `featureName` (if empty) to `"<Model> CRUD"` and `featureId` (if empty) to `"CRUD<Model>"`, and
 sets the control. Pass the control when the model and its control live in different namespaces
-(the generator's `mvc` structure: `App\Models\Product` and `App\Controls\ProductControl`). Without
-it, `SetObject()` instantiates `<model's full class name>Control`: `App\Product\Product` →
-`App\Product\ProductControl`, which works when both share a namespace (the default `feature`
-structure). If that class doesn't exist, it throws a `MagratheaModelException` naming the class it
+(`App\Models\Product` and `App\Controls\ProductControl`). Without it, `SetObject()` instantiates
+`<model's full class name>Control`: `App\Product\Product` → `App\Product\ProductControl`, which works
+when both share a namespace (one feature folder per model, `app/features/Product/`). If that class doesn't exist, it throws a `MagratheaModelException` naming the class it
 looked for. `SetControl()` can replace the control afterwards.
 
 There are no properties to choose columns or form fields: the list shows every field except
@@ -177,17 +176,22 @@ page): override it to restrict, e.g. `return $action !== "Delete";`.
 
 **Path:** `src/Admin/Features/User/`
 
-Manages admin panel users (login, password reset, role management).
+Manages admin panel users: list, create, edit, roles, activation, and each user's own password.
 
-**Feature ID:** `user`
+**Menu item:** "Users", in the Users section
+**Feature ID:** `AdminFeatureUser`
 
-**AdminUser model properties:**
+**AdminUser model** (`Magrathea\Admin\Features\User\AdminUser`, table `_magrathea_users`):
 - `id` — int
-- `name` — string
 - `email` — string
-- `password_hash` — string
-- `role` — string
-- `active` — boolean
+- `password` — string (a bcrypt hash)
+- `last_login` — datetime
+- `role_id` — int: `1` Super Admin, `2` Admin, `3` Basic (`GetRoles()`); `IsAdmin()` is true for 1 and 2
+- `active` — boolean: an inactive user can't log in, and loses access on the next request
+
+The first user, a Super Admin, comes from the admin's first-run setup form, the Setup Wizard's Admin
+step, or `vendor/bin/magrathea admin:create-user` (only while there are no users).
+`vendor/bin/magrathea admin:reset-password` sets an existing user's password from a shell.
 
 ---
 
@@ -197,7 +201,8 @@ Manages admin panel users (login, password reset, role management).
 
 Displays a timeline of admin user actions. Every action logged via `AdminManager::Log()` appears here.
 
-**Feature ID:** `user_logs`
+**Menu item:** "UserLog", in the Users section
+**Feature ID:** `AdminFeatureUserLog`
 
 ---
 
@@ -206,15 +211,23 @@ Displays a timeline of admin user actions. Every action logged via `AdminManager
 **Path:** `src/Admin/Features/ApiExplorer/`
 
 Renders an interactive documentation page for your registered API endpoints. Reads from `MagratheaApi::GetEndpointsDetail()`.
+Not registered by default:
 
-**Feature ID:** `api_explorer`
+```php
+// in your Admin subclass's SetFeatures()
+$explorer = new \Magrathea\Admin\Features\ApiExplorer\ApiExplorer();
+$explorer->SetApi(new \App\MyAppApi());
+$this->AddFeature($explorer);
+```
+
+**Feature ID:** `ApiExplorer`
 
 To get the most out of this feature, always add descriptions when registering routes:
 
 ```php
-$api->Add("GET", "/products",     new ProductApiControl(), "List",   false, "List all products");
-$api->Add("GET", "/products/{id}", new ProductApiControl(), "Read",   false, "Get a product by ID");
-$api->Add("POST", "/products",     new ProductApiControl(), "Create", true,  "Create a new product (auth required)");
+$api->Add("GET", "products",      new ProductApiControl(), "List",   false, "List all products");
+$api->Add("GET", "products/:id",  new ProductApiControl(), "Read",   false, "Get a product by ID");
+$api->Add("POST", "products",     new ProductApiControl(), "Create", true,  "Create a new product (auth required)");
 ```
 
 ---
@@ -346,6 +359,6 @@ public function Archive() {
 
 ## Notes
 
-- Features can have sub-routes — implement custom routing inside `Handle()`.
-- The CRUD feature auto-generates forms based on model field types (`int`, `string`, `boolean`, etc.).
+- Features can have sub-pages: any dispatchable public method, reached with `magrathea_feature_subpage` (see Feature Routing above).
+- The CRUD feature builds its forms at runtime from the model's field types (`int`, `string`, `boolean`, etc.).
 - All built-in feature views use Bootstrap 5 for styling.

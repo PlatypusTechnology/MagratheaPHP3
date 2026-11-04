@@ -52,6 +52,40 @@ merged between sections.
 	jwt_key = "$=JWT_SECRET"
 ```
 
+### Keys the framework reads
+
+All of them go in the environment sections (`[dev]`, `[production]`...); only `use_environment` goes in
+`[general]`. Any other key is yours: read it with `Get()`.
+
+| Key | Read by | Notes |
+|-----|---------|-------|
+| `db_host`, `db_name`, `db_user`, `db_pass` | `MagratheaPHP::Connect()` | All four, or none for a project without a database (`ProjectCheck` reports a half-filled set) |
+| `db_port` | `MagratheaPHP::Connect()` | Optional: mysqli's default port without it |
+| `timezone` | `MagratheaPHP::Load()`, `Connect()` | See [Timezone](#timezone) below |
+| `db_sync_timezone` | `Connect()` | Optional; on by default when `timezone` is set |
+| `logs_path` | `Logger` | Default `<magRoot>/logs` |
+| `cache_path` | `MagratheaCache` | No default: caching fails without it |
+| `no_cache` | `MagratheaCache` | `true` turns the response cache off |
+| `backups_path` | `DB\Dump`, the admin's Dumps page, `db:dump`/`db:import` | Default `<magRoot>/backups` |
+| `jwt_key` | `MagratheaApiControl::GetSecret()` | The JWT secret: use `$=ENV_VAR` in production |
+| `app_url` | the admin's OpenApi feature | Scheme and host for Swagger's "try it out" requests |
+| `bootstrap_unlocked` | the [Setup Wizard](../setup-wizard.md) | `true` opens the wizard on an existing install (still token-gated). Only in `[dev]`, if anywhere: `ProjectCheck` warns about it in any other environment |
+
+`vendor/bin/magrathea check` (or the admin's Checks page) checks the config: the file parses,
+`use_environment` names a section, the database keys, the timezone, and the folders exist and are
+writable (see [ProjectCheck](project-check.md)).
+
+### The `configs/` folder
+
+Besides `magrathea.conf`, the framework keeps these files in `GetConfigRoot()`:
+
+- `cors-origins.txt`: the API's allowed origins, read by `MagratheaApi::AllowFromFile()` and edited by
+  the admin's CORS Origins feature;
+- `.setup-token` and `.setup-locked`: the [Setup Wizard](../setup-wizard.md)'s token, and its lockout
+  after ten wrong tries.
+
+The folder holds the database password: it must not be reachable from the web.
+
 ### Timezone
 
 `timezone` goes in each **environment** section (a copy in `[general]` is never read). It's a PHP
@@ -258,8 +292,10 @@ both cases).
 
 ## Integration with MagratheaPHP
 
-`MagratheaPHP::Load()` calls `Config::Instance()->SetPath(...)->LoadFile()` internally, and sets
-PHP's timezone from `timezone`. You don't normally need to call `Config` directly during bootstrap.
+`MagratheaPHP::Load()` calls `Config::Instance()->SetPath(GetConfigRoot())`, then reads `timezone`,
+which parses the file (a missing or broken file shows the error page and stops), and sets PHP's
+timezone. You don't normally need to call `Config` directly during bootstrap. The Setup Wizard reads
+`configs/magrathea.conf` itself and never calls `Load()`: it works without the file.
 
 ---
 

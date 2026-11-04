@@ -9,10 +9,10 @@ $files = [
 		"path" => __DIR__ . "/../../skills.MD",
 		"desc" => "The AI-facing cookbook - how to correctly generate code using MagratheaPHP.",
 	],
-	"instructions" => [
-		"label" => "instructions.md",
-		"path" => __DIR__ . "/../../instructions.MD",
-		"desc" => "Project structure, conventions, and how an AI assistant should approach this codebase.",
+	"agents" => [
+		"label" => "AGENTS.md",
+		"path" => __DIR__ . "/../../AGENTS.md",
+		"desc" => "For agents working on the framework itself: source map, tests, conventions, keeping the docs in sync.",
 	],
 ];
 
@@ -21,8 +21,9 @@ if (!isset($files[$active])) $active = "skills";
 ?>
 
 <h1>MD Files</h1>
-<p>These two files are written for AI assistants (Claude, GPT, etc.) working on projects built with
-MagratheaPHP. View them here, or download a copy to hand to your own assistant.</p>
+<p>These two files are written for AI assistants (Claude, GPT, etc.). <strong>skill.md</strong> is
+for projects built with MagratheaPHP; <strong>AGENTS.md</strong> is for working on MagratheaPHP
+itself. View them here, or download a copy to hand to your own assistant.</p>
 
 <div style="display:flex; gap:0.6rem; margin: 1.5rem 0; border-bottom: 1px solid var(--line);">
 	<?php foreach ($files as $key => $f): ?>

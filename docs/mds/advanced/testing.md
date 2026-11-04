@@ -269,8 +269,13 @@ class MailTest extends TestCase {
 ## TestsManager (the admin's Tests page)
 
 `TestsManager` is a singleton behind the admin's "Tests" page: it lists test folders, their `*Test.php` files
-and their `test*` methods, and runs them by shelling out to the framework's `phpunit.phar` with
-`phpUnitBootstrap.php`. It's not an assertion library, and it doesn't run anything by itself.
+and their `test*` methods, and runs them by shelling out to PHPUnit with `phpUnitBootstrap.php`. It's not an
+assertion library, and it doesn't run anything by itself.
+
+**Which PHPUnit** (`GetPhpUnit()`): the project's `vendor/bin/phpunit` (`composer require --dev phpunit/phpunit`,
+10.5 or later: the runner passes its `--display-*` options), else the `phpunit.phar` at the root of a framework
+checkout. The Composer package doesn't ship the phar (since 3.0). With neither, running a test throws
+`MagratheaException("PHPUnit not found: …")`, which the Tests page shows; listing tests still works.
 
 ```php
 use Magrathea\Tests\TestsManager;
@@ -290,7 +295,7 @@ $output = TestsManager::Instance()->RunFunction(__DIR__ . "/../tests/OrderTest.p
 - `RunAllTests()` runs every folder of every registered test, in the order they were added, and returns all
   their output lines (`RunFolder()`'s, one folder after the other). Before 2.4.0 it did nothing.
 - `AddMagrathaTests()` (sic) registers the framework's own suites; `Admin` calls it on start.
-- The commands need `exec()` and the `phpunit.phar` at the framework's root.
+- The commands need `exec()` and a PHPUnit (see above).
 - **Only registered folders (2.4.0+).** `RunFolder()` and `GetTestsFromFolder()` take a registered test folder
   or a folder inside one; `RunFile()`, `RunFunction()` and `GetMethodsFromTest()` take a `*Test.php` file inside
   one. Paths are resolved with `realpath()` first, so `../` and symlinks pointing out are rejected. Anything else

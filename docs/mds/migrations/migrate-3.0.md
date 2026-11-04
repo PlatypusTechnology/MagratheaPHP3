@@ -2,10 +2,6 @@
 
 **From:** `2.3.*` or `2.4.*` · **To:** `3.0.0`
 
-> **Draft**, written with `future-plans/plan-3.0.md`. Section **M\<n\>** matches plan item \<n\>
-> and is finalized when that item is implemented. Plan item 34 moves this file to
-> `docs/mds/migrations/migrate-3.0.md`, which ships in `vendor/`, and removes this note.
-
 ## For the agent applying this migration
 
 This file is self-contained: it's written to be handed to an AI agent, or a person, upgrading a
@@ -38,7 +34,7 @@ project, without the rest of the docs.
 | M2 | Namespace `Magrathea2` → `Magrathea`; package `platypustechnology/magratheaphp` | **Yes**: every file that names a framework class or function | Replace `Magrathea2` with `Magrathea`, `composer dump-autoload` | |
 | M3 | Code generator and `magrathea_objects.conf` removed | Only for code that calls the generator | Delete the conf, strip the "generated" headers | |
 | M4 | File Editor removed | Yes, if `LoadFileEditor()` is called | Remove the call | |
-| M5 | Deprecated and dead methods removed (`ShowAll()`, `LoadVendor()`, `Clean()`, `CloseConnectionThanks()`, …) | Yes, where they're called | Replace each call | |
+| M5 | Deprecated and dead methods removed (`ShowAll()`, `LoadVendor()`, `Clean()`, `CloseConnectionThanks()`, …), and the `Authentication` class | Yes, where they're called | Replace each call | |
 | M6 | `MagratheaModel` provides a constructor, `$autoload`, `$created_at`/`$updated_at` and `GetControl()`; `iMagratheaModel` deprecated; the framework models' `Start()` is `MagratheaStart()` | Rarely: redeclarations PHP now refuses (non-public, typed, static), constructor-less models called with an argument, calls to `Start()` on framework models | Fix those | |
 | M7 | Unknown `$dbValues` types throw | Yes, for models with invalid types (`"bool"`, …) | Fix the types | |
 | M8 | Controls can declare `$model = X::class`; `GetRowWhere(string)` returns one object | Rarely: a Control declaring its own `$model` or `GetDbTable()`; code using `GetRowWhere(string)`'s array | Rename it; call `GetSimpleWhere()` | |
@@ -312,11 +308,12 @@ loads. `GetItem("tools-file-editor")` returns `null`, which `AdminMenu::Add()` i
 **What to do.** Remove the `LoadFileEditor()` call, any menu item for it, and any
 `FileViewUrl()` call (with the link it built).
 
-## M5. Deprecated and dead methods are removed
+## M5. Deprecated and dead methods (and `Authentication`) are removed
 
 **Applies if** any of these finds something:
 ```bash
 grep -rnE 'ShowAll\(|LoadVendor|Query::Clean|::Clean\(|CloseConnectionThanks|IncludeAllModels|GetNextID|GetAutoLoad|autoLoad\b|ResponseUserPayload|StartDB\(' --include='*.php' --exclude-dir=vendor .
+grep -rnE 'Magrathea2?\\Authentication\b|new Authentication\(|GenerateToken\(' --include='*.php' --exclude-dir=vendor .
 grep -rn --include='*.php' --exclude-dir=vendor -e '->Start()' .   # only calls on a MagratheaApi object matter
 grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand|LoadBackupFolder|GetBackupFolder|GetDefaultFileName|ValidateBackupFileName)\(' --include='*.php' --exclude-dir=vendor .   # only calls on AdminDatabase matter
 ```
@@ -338,6 +335,7 @@ grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand|LoadBackupFolder|GetBa
 | `AdminDatabase::Instance()->GetTables()` / `GetTableColumns($t)` | `(new \Magrathea\DB\Schema())->Tables()` / `->Columns($t)` (M14). The rows have different keys: `$t["table_name"]` → `$t["name"]`; a column's `pk` → `$c["key"] === "PRI"` (`name`, `type`, `default`, `nullable` keep their meaning). `Tables(false)` leaves out the `_magrathea_*` tables, as `GetTables(false)` did. `Tables()` also lists views (`type` is `VIEW`). `GetTables()`'s `$db` argument is gone: `Schema` reads the connection's current database. `Columns()` of an unknown table throws `MagratheaDBException` (`GetTableColumns()` threw MySQL's error) |
 | `AdminDatabase::Instance()->DoBackup($name)` / `GetCommand()` | `(new \Magrathea\DB\Dump())->Export($name)` (M17). It returns `["file", "size", "driver"]` (plus `skipped` with the php driver), and runs `mysqldump` with `--single-transaction --routines --triggers --default-character-set=utf8mb4` instead of `--opt` (on by default anyway). Without `mysqldump`, it falls back to the php driver instead of throwing |
 | `AdminDatabase::Instance()->GetBackupFolder()` / `LoadBackupFolder()` / `GetDefaultFileName()` / `ValidateBackupFileName($n)` | `\Magrathea\DB\Dump::Folder()` / nothing (`Folder()` reads the config on every call) / `Dump::GetDefaultFileName()` / `Dump::ValidateBackupFileName($n)`, all static (M17). `AdminDatabase` keeps only `GetSQLFile()` and `GetSQLFileContents()` |
+| `(new Authentication())->GenerateToken($payload)` (the whole `Magrathea\Authentication` class) | `(new AuthControl())->jwtEncode($payload)`, with your `MagratheaApiAuth` (or `MagratheaApiControl`) subclass: it returns the token string, not `["source", "token"]`. Nothing lost: on php-jwt 6 and 7 `GenerateToken()` threw an `ArgumentCountError` (no algorithm), and `Token()` decoded an empty string. Don't swap in a bare `JWT::encode()` with the `jwt_key`: `jwtEncode()` transforms the key first (`strtr($key, '-_', '+/')`), so the API would reject the token |
 | `MagratheaPHP::Instance()->StartDB()` | `Connect()`. `StartDB()` still works in 3.0 (deprecated, removed in 4.0; in DEV it adds a deprecation notice to the Debugger, so in an API call it shows in `_debug`) |
 
 ## M6. `MagratheaModel` defaults
@@ -429,6 +427,13 @@ is `MagratheaModel::TYPES`, and it has no aliases: `integer` and `double` throw 
 | `json`, `longtext` | `text` |
 | `timestamp` | `datetime` |
 | `money`, `numeric` | `decimal` |
+
+**The primary key needs its type too.** A model whose `$dbPk` isn't a key of `$dbValues`, or that has no
+`$dbPk`, now throws `MagratheaModelException` ("… primary key [id] has no type in $dbValues", or "… has no
+$dbPk") from `new Model($id)`, `GetById()`, `ValidateId()`, `Update()`, `Delete()` and `Touch()`, before any
+query. 2.x warned "Undefined array key" and loaded it as a string PK. An auto-increment `Insert()` still works
+without it, so the first exception comes from the first load or save. `models:verify` lists the column as
+missing from `$dbValues` (INFO). Add the PK to `$dbValues` with its type (`"id" => "int"`, or `"uuid"`).
 
 ## M8. Controls can declare `$model`
 
@@ -925,6 +930,20 @@ the exception's details on a production page):
 grep -rn 'p_r(\$ex)' --include='*.php' --exclude-dir=vendor .
 ```
 Log it (`error_log((string) $ex);`) and answer a generic 500 instead.
+
+**The admin's Tests page and `phpunit.phar`.** The package no longer ships `phpunit.phar` (5 MB in
+every project's `vendor/`). The admin's Tests page now runs the project's own `vendor/bin/phpunit`,
+and without it a run answers "PHPUnit not found" (listing tests still works). Nothing to do unless
+the project uses the Tests page, or a script or CI job that ran
+`vendor/platypustechnology/magratheaphp2/phpunit.phar`:
+```bash
+ls vendor/bin/phpunit
+grep -rn 'phpunit.phar' --exclude-dir=vendor --exclude-dir=node_modules --exclude-dir=.git .
+```
+If either applies, ask the human before adding the dependency
+(`composer require --dev phpunit/phpunit`), and point the scripts at `vendor/bin/phpunit`. The Tests page
+passes PHPUnit 10's `--display-*` options on every run, so it needs PHPUnit 10.5 or later (an older
+one answers "Unknown option" in the page's output).
 
 ---
 

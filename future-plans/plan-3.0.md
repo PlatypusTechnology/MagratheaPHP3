@@ -5,9 +5,9 @@ the new repository `PlatypusTechnology/MagratheaPHP3` (see Release); nothing in 
 which repository it's in. Line numbers refer to the code as of 2026-10-25, before any item. Earlier
 items shift some of them, so when a line doesn't match, find the code by name.
 
-**Companion file:** `future-plans/migrate-3.0.md`, the migration guide for projects on 2.3/2.4. Each
-item updates its section (**M0**, **M1**, … match the item numbers), and item 34 moves the file
-into the docs.
+**Companion file:** the migration guide for projects on 2.3/2.4, drafted as
+`future-plans/migrate-3.0.md`; item 34 moved it to `docs/mds/migrations/migrate-3.0.md`. Each
+item updates its section (**M0**, **M1**, … match the item numbers).
 
 ## Goal
 
@@ -46,19 +46,19 @@ under the new names.
       assertions and 3 deprecations, all from `firebase/php-jwt`. Every item ends with the suite
       green. From item 3 on, also run item 2's check, which catches the old names in files no test
       loads (views, docs):
-      `grep -rnE "Magrathea2|magratheaphp2|MagratheaPHP2" src docs skills.MD instructions.MD README.md composer.json`.
+      `grep -rnE "Magrathea2|magratheaphp2|MagratheaPHP2" src docs skills.MD AGENTS.md README.md composer.json`.
       It must find only what item 2 leaves alone, the `### 3.0.0` changelog lines that name the old
       namespace on purpose, `skills.MD`'s frontmatter `description` (it sends 2.x projects to the
       `magrathea-php2` skill, on purpose), `docs/CLAUDE.md`'s note on the 2.x docs URL and, after
-      item 34, `docs/mds/migrations/migrate-3.0.md`. Drop
-      `instructions.MD` from the command once item 31 deletes it;
+      item 34, `docs/mds/migrations/migrate-3.0.md`. Item 31 deleted
+      `instructions.MD`, so the command checks `AGENTS.md` in its place;
    4. update the narrative docs in `docs/mds/`. Signatures are read live from `src/`; only the
       prose needs care;
    5. fix any `skills.MD` section the item makes wrong (item 30 then rewrites the whole file).
       **Don't copy it to `~/.claude/skills/`**: the local skill serves projects still on 2.x, and
       the release splits it in two (see Release);
-   6. bring the item's section **M\<n\>** in `future-plans/migrate-3.0.md` in line with what was
-      implemented;
+   6. bring the item's section **M\<n\>** in the migration guide (`docs/mds/migrations/migrate-3.0.md`
+      since item 34) in line with what was implemented;
    7. add the item's line(s) to a `### 3.0.0` section at the top of `src/changelog.md`;
    8. for each new doc page, add a `docs/lib/DocMap.php` entry and its `docs/mds/index.md` row,
       inside the existing categories. Changing categories needs Paulo (`docs/CLAUDE.md`);
@@ -1534,7 +1534,7 @@ generated code. It still:
 - The §18 checklist is rewritten for 3.0.
 
 ### 31. `AGENTS.md` replaces `instructions.MD`
-- [ ] done
+- [x] done
 
 **Error.** `instructions.MD` is stale, and it ships in `vendor/`. It teaches `documentation/` and
 `config/` paths, a `[section:environment]` syntax that never existed, "always `Query::Clean()`",
@@ -1554,8 +1554,17 @@ routes (they're `:name`), `AdminCrudObject` properties that don't exist, and PHP
 - It doesn't ship (item 32). Pointing `CLAUDE.md` at it is Paulo's call: ask, and don't edit
   `CLAUDE.md`.
 
+**Decided while implementing:**
+- The docs site served `instructions.MD` as the second tab of its MD Files page and as
+  `download.php?file=instructions`. Paulo's call: both serve `AGENTS.md` now (`?file=agents`), and
+  the page says which audience each file is for. The home and about cards say "skill.md and
+  AGENTS.md". `?file=instructions` answers 404.
+- `CLAUDE.md`: Paulo adds the pointer to `AGENTS.md` himself.
+- Rule 2's "`adminBackupsTest.php`" for the `RunProcess()` override is `dumpBinaryTest.php` since
+  item 17. `AGENTS.md` cites the real file.
+
 ### 32. Packaging (`.gitattributes`)
-- [ ] done
+- [x] done
 
 **Error.** Only `/docs` is export-ignored (`.gitattributes:1`), so every project's `vendor/` gets
 `CLAUDE.md` (Paulo's personal agent rules, which agents read when they open files in that folder),
@@ -1581,8 +1590,16 @@ guides, which agents need there.
 
 **Impact.** None at runtime.
 
+**Decided while implementing:**
+- `/.gitattributes` and `/.gitignore` are export-ignored too (Paulo's call), so the package is
+  exactly the "What ships" list above.
+- `README.md` (it ships) said the docs site's source ships; it now says only `docs/mds/` does.
+  `AGENTS.md` has a "Packaging" section: what ships, and how to check a new path.
+- `git archive --worktree-attributes HEAD | tar -t` lists the archive before committing (HEAD
+  still had `instructions.MD`, which item 31 deletes): only the shipped paths.
+
 ### 33. Narrative docs pass and DocMap
-- [ ] done
+- [x] done
 
 **Solution.**
 - Most pages are updated item by item. This pass rereads every page that mentions something removed
@@ -1605,8 +1622,30 @@ guides, which agents need there.
   `admin/admin.md`; add `Admin/DatabaseExplorer.php` and `Admin/QueryEditor.php` to that page's
   src list.
 
+**Decided while implementing:**
+- The DocMap entries and `index.md` rows above were all there. The admin's Database section isn't in
+  `admin/admin.md` since item 19 (its own page, `admin-database`, whose entry already lists
+  `DatabaseExplorer.php`, `QueryEditor.php`, `QueryRunner.php`, `DumpManager.php` and `CheckReport.php`), so
+  `admin.md`'s src list is unchanged (Paulo's call): listing them there would flag it stale for files it
+  doesn't describe.
+- Besides the 3.0 leftovers (File Editor, generator, `mvc` structure, `2.1.x` versions), the pass fixed
+  examples and claims that were wrong against `src/` whatever the version (all verified): routes written with
+  a leading slash (`"/users"` never matches: `ExecuteRoute()` drops empty segments) and `{id}` instead of
+  `:id`; `Crud("/users")` (its list route is `<url>s`); `admin.md`'s and `admin-manager.md`'s entry points
+  (`Handle()`, `Render()` and a layout include that don't exist: `Start()` renders everything); four
+  built-in feature ids and `AdminUser`'s fields; six of `examples.php`'s 14 snippets
+  (`Authentication::Instance()`, `SetAdminClass()`, `AdminFeatureCrud`, `Debugger::Debug()`,
+  `MagratheaMailSMTP::Instance()`, `MagratheaCache::Get()`/`Set()`); `global-functions.md` said the
+  functions are global (they're `Magrathea\…` since item 2) and named two that don't exist;
+  `RandomString()` documented as cryptographically secure (it's `rand()`); the compressors (`GetOutput()`
+  doesn't exist, and the admin's bundles are concatenated, not compiled or minified); `ToJson()`/`ToArray()`;
+  `W()`, `WhereId()`, `BuildWhere()`; two `orm-control.md` examples (an operator in an array key, a repeated
+  array key). `config.md` gets a table of the keys the framework reads and of the files in `configs/`.
+- Doc-only: no changelog line, no migration section.
+- Found while implementing: B7 to B10 below.
+
 ### 34. The migration guide
-- [ ] done
+- [x] done
 
 **Solution.**
 - Move `future-plans/migrate-3.0.md` to `docs/mds/migrations/migrate-3.0.md`, which ships after item
@@ -1619,8 +1658,17 @@ guides, which agents need there.
   https://www.platypusweb.com.br/magratheaphp3/docs/?p=migrations/migrate-3.0 .
 - `skills.MD`'s "Upgrading" line does the same.
 
+**Decided while implementing:**
+- `skills.MD`'s "Upgrading" line already pointed to both (item 30): unchanged.
+- The DocMap entry and the `index.md` row go after 2.4.0's (chronological, like the rest of the category).
+- The changelog line is a `**note:**`, first in the `### 3.0.0` section, as the Release checklist asks.
+- The file was moved with `mv`, not `git mv` (Git is Paulo's): Git sees a deletion and a new file until it's
+  staged.
+- The plan's "Companion file" line and rule 2.6 now name the new path, so B9, B10 and later items update the
+  guide where it ships.
+
 ### 35. The new logo
-- [ ] done
+- [x] done
 
 **Error.** 3.0 has a new logo, but every copy in the repository is still the old one: a 750×750
 base64 PNG wrapped in an SVG (~126 KB each). The copies are:
@@ -1692,6 +1740,21 @@ The wizard has no favicon at all.
 
 **Impact.** Visual only. Each logo copy drops from ~126 KB to ~31 KB, and the admin favicon to
 ~4 KB. That's smaller inline SVG on every admin page.
+
+**Decided while implementing:**
+- `locked.php` has no `<head>`: it's one of the views `index.php` includes in its `<main>`, like `token.php`,
+  `locked-out.php` and `no-folder.php`. The favicon goes in `index.php` only, which covers all of them. It reads
+  `favicon.svg` inline (`base64_encode(file_get_contents(…))`), with no `AdminManager`.
+- `Bootstrap/views/sections/header.php` also includes the wizard's `logo.svg`: the fatal error page
+  (`Errors/views/view-exception.php`) uses that header. It shows the new logo too, with no changes. Without the
+  `<?xml` line, `include()` is safe whatever `short_open_tag` is set to.
+- `docs/assets/img/logo.svg` is an exact copy of `magrathea3_logo.svg`, `<?xml` line included: it's served as a file,
+  never included. The topbar and the hero size it with CSS (30×30, 96×96), and the SVG's default
+  `preserveAspectRatio` centers it.
+- The suite renders the wizard and the error page, but not `PrintLogo()` or `GetFaviconTag()`. Checked by hand:
+  `PrintLogo(80)` writes `width="80" height="80"` with no `<?` left, and the favicon tag decodes to the square SVG.
+- `admin/admin.md` and `admin/admin-manager.md` only give the default paths, which haven't changed, so neither
+  page is edited.
 
 ---
 
@@ -1820,6 +1883,92 @@ Effort: ~1–2 h.
 - usage errors (e-mail, password) come before any user is read;
 - also documented in `docs/mds/setup-wizard.md` (Admin step) and `docs/mds/admin/admin.md` (first-run
   setup); DocMap's `cli` entry lists the new file.
+
+### B7. `GetUserId()` reads `id`, the docs encode `user_id` (found in item 33)
+- [x] done
+
+**Error.** `MagratheaApiControl::GetUserId()` returned the token's `id` claim only (what
+`MagratheaApiAuth::ResponseLogin()` writes). `skills.MD` §9–10, `api-controller.md`, `authentication.md` and
+`examples.php` encoded the user's id as `"user_id"`, so `GetUserId()` returned `null`: `skills.MD`'s
+`$article->author_id = $this->GetUserId()` saved NULL. `skills.MD` §3 also listed `site_path` and
+`server_url`, which nothing reads (the real key is `app_url`).
+
+**Solution** (Paulo's call: docs and a fallback). `GetUserId()` returns `id ?? user_id ?? null`. The docs and
+`skills.MD` encode `"id"`; `skills.MD` §3 drops `site_path`/`server_url` for `app_url`. Tests in
+`apiControlAuthTest.php`. Changelog **fix:**. `api/magrathea-api.md` (not in item 33's list) had the same route
+bugs; fixed with it, plus `SetAddress()` (it doesn't prefix routes: it's the API Explorer's base URL) and an
+`ExecuteUrl("/products/1")` example (see B10).
+
+### B8. The admin's Tests page needs the `phpunit.phar` that item 32 stopped shipping (found in item 33)
+- [x] done
+
+**Error.** `TestsManager` ran `<framework root>/phpunit.phar`, which item 32 export-ignores: in a project's
+`vendor/`, every run pointed at a missing file.
+
+**Solution** (Paulo's call: don't ship the phar; say so explicitly, and only when running).
+`TestsManager::GetPhpUnit()` returns the project's `vendor/bin/phpunit` (Composer's bin folder, found through
+`ClassLoader`'s location), else the checkout's `phpunit.phar`; with neither, a run throws
+`MagratheaException("PHPUnit not found: …")` naming what to install and where it looked, and the Tests page
+shows it. Listing tests doesn't need PHPUnit. Tests in `testsManagerTest.php`; `testing.md`; changelog **fix:**;
+M30–M34 in the migration guide (2.x shipped the phar, so the page worked without a dev dependency).
+
+### B9. `Authentication` doesn't work (found in item 33)
+- [x] decided (option 1, 2026-11-03)
+- [x] done
+
+**Error.** `src/Authentication.php`: `GenerateToken()` calls `JWT::encode($payload, $key)` without an algorithm,
+an `ArgumentCountError` on php-jwt 6 and 7 (`composer.json` requires `^6.10||^7.0`; verified); `Token()` decodes
+an empty string. Nothing in `src/`, `bin/`, the tests or `skills.MD` uses the class: only `DocMap.php`'s
+`authentication` page src list, `AGENTS.md`'s source map and `authentication.md`'s `GenerateToken()` section.
+
+**Options.** 1. Remove it (changelog **removed:**, a migration section with a grep, `authentication.md` and
+DocMap point to `MagratheaApiAuth`/`MagratheaApiControl`'s `jwtEncode()`). 2. Fix it (pass the algorithm,
+delete `Token()`). 3. Document that it fails.
+
+**Decided while implementing:**
+- the replacement is a controller's `jwtEncode()`, even outside a request (`(new AuthControl())->jwtEncode($payload)`:
+  controllers have no constructor arguments), not a bare `JWT::encode()`: `jwtEncode()` signs with
+  `strtr($key, '-_', '+/')`, so a raw `jwt_key` with `-` or `_` would sign tokens the API rejects. The docs and the
+  migration guide say so;
+- the migration goes in **M5** (removed dead APIs), with its own grep and table row, not a new section: M-numbers
+  match items, and a B-numbered section would break that;
+- `authentication.md` keeps its slug and title; its `**File:**` and DocMap `src` become `MagratheaApiAuth.php` (it had
+  no page; `MagratheaApiControl.php` stays on its own page, so it isn't listed twice in All Classes);
+- test: `removedApisTest::testAuthenticationClassIsRemoved()`.
+
+### B10. `ExecuteRoute()` doesn't reindex the request's segments (found in item 33)
+- [x] decided (option 1, 2026-11-03)
+- [x] done
+
+**Error.** `MagratheaApi::ExecuteRoute()` runs `array_filter()` on the request's segments without
+`array_values()`, and `CompareRoute()` reads `$url[0]`: `ExecuteUrl("/products/1")` gets "Undefined array key
+0" and a 404 (verified). `Run()` builds the URL without a leading slash, so only direct `ExecuteUrl()` calls
+(tests, subrequests) hit it.
+
+**Options.** 1. `array_values(array_filter(…))` (a request with a leading slash works; a route registered with
+one still never matches). 2. Leave it: `ExecuteUrl()`'s docs say no leading slash.
+
+**Decided while implementing:**
+- tests: `apiTest::testExecuteUrlIgnoresEmptySegments()`, `products/:id` reached with no slash, a leading, a double and
+  a trailing slash, with `["id" => "42"]` as the params (`GetParamsFromRoute()` reads by position too, so a double
+  slash also got the wrong param before);
+- `api/magrathea-api.md`'s `ExecuteUrl()` example drops "no leading slash" and says the request side ignores empty
+  segments, while a route with a leading slash still never matches (the `Add()` warning stays). Changelog **fix:**,
+  no migration section (nothing that worked stops working).
+
+### B11. The PK's type is read from `$dbValues` unchecked (found in the final check)
+- [x] done
+
+**Error.** `ValidateId()` and `GetById()` read `$this->dbValues[$this->dbPk]` unguarded: a model whose PK isn't
+in `$dbValues` got "Undefined array key" and was loaded as a string PK, quoted and escaped. `Update()`, `Delete()`
+and `Touch()` passed the same missing type to `GetDataTypeFromField()`, which throws "Unknown field type []"
+since item 7. With no `$dbPk`, `new Model($id)` died with "Cannot access empty property".
+
+**Solution** (Paulo's go-ahead, 2026-11-03). A private `PkType()` throws `MagratheaModelException` naming the
+model (no `$dbPk`) or the model and the key (no type in `$dbValues`). The constructor (with an id), `ValidateId()`,
+`GetById()`, `Update()` (when it has fields to write), `Delete()` and `Touch()` go through it, so nothing runs a
+query first. `HasUuidPk()` stays lenient: an auto-increment `Insert()` doesn't need the PK's type. Tests in
+`modelDefaultsTest.php`; changelog **fix:**; M7; `orm-model.md`'s `$dbPk` row; `skills.MD` §4's rules.
 
 ---
 

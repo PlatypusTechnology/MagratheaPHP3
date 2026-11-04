@@ -42,8 +42,8 @@ Methods return `$this` so calls can be chained:
 
 ```php
 MagratheaPHP::Instance()
-    ->AppPath(__DIR__)
-    ->MinVersion("2.1.0")
+    ->AppPath(realpath(__DIR__))
+    ->MinVersion("3.0.0")
     ->Dev()
     ->Load()
     ->Connect();
@@ -112,24 +112,17 @@ The caller doesn't need to know which class to instantiate — the factory handl
 
 ## 5. Template Method Pattern
 
-**Used by:** `MagratheaModel` (abstract methods), `MagratheaApiControl` (stub methods), `AdminFeature`
+**Used by:** `MagratheaModel` (the `MagratheaStart()` hook), `MagratheaApiControl` (default CRUD actions), `AdminFeature` (`Initialize()`, `Index()`, `HasPermission()`)
 
-Base classes define the algorithm skeleton; subclasses fill in the specifics.
+Base classes provide working defaults and hooks; subclasses override what differs.
 
 ```php
-// Base class defines the interface
-abstract class MagratheaApiControl {
-    public function List(): array {
-        throw new \Exception("List not implemented");
-    }
-    public function Read($params = false): object|array {
-        throw new \Exception("Read not implemented");
-    }
-    // ... etc
-}
-
-// Subclass provides the implementation
+// MagratheaApiControl's defaults work on $model: Read() is `new $this->model($id)`,
+// Create() inserts the posted fields, List() calls $this->service->GetAll()
 class ProductApiControl extends MagratheaApiControl {
+    protected $model = Product::class;
+
+    // no service: override List()
     public function List(): array {
         return ProductControl::GetAll();
     }
@@ -148,9 +141,9 @@ The API router accepts different auth strategies per route, or a single base str
 // Global strategy
 $api->BaseAuthorization(new AuthControl(), "ValidateToken");
 
-// Per-route override
-$api->Add("GET", "/admin/stats", new StatsControl(), "Get", "ValidateAdmin");
-$api->Add("GET", "/public/info", new InfoControl(), "Get", false); // no auth
+// Per-route: true uses the base strategy, a string names another method of the auth class
+$api->Add("GET", "admin/stats", new StatsControl(), "Get", "ValidateAdmin");
+$api->Add("GET", "public/info", new InfoControl(), "Get", false); // no auth
 ```
 
 ---
@@ -175,9 +168,9 @@ Files are added incrementally and then processed (compiled + minified) when outp
 
 ```php
 $css = new CssCompressor();
-$css->AddFile("bootstrap.css")
-    ->AddFile("app.scss");
-$minified = $css->GetOutput(); // original files untouched
+$css->AddFile(__DIR__ . "/bootstrap.css")
+    ->AddFile(__DIR__ . "/app.scss");
+$minified = $css->GetCode(); // original files untouched
 ```
 
 ---
@@ -198,20 +191,25 @@ $mail->Simulate()->Send(); // returns true but does nothing
 
 ---
 
-## Common MVC-like Structure
+## Project Structure
 
-While the framework doesn't enforce MVC, the conventional project layout follows an MVC-adjacent pattern:
+The framework doesn't enforce a layout, but the conventional one groups domain code by **feature**:
+one folder per table, holding its model, control and admin class.
 
 ```
-app/
-├── models/          # MagratheaModel subclasses (M)
-├── controls/        # MagratheaModelControl subclasses (repository layer)
-├── api/             # MagratheaApiControl subclasses (C in API context)
-├── admin/           # AdminCrudObject and custom AdminFeature subclasses
-├── views/           # PHP templates (V)
-├── config/
-│   └── magrathea.conf
-└── index.php        # MagratheaApi bootstrap (entry point)
+my-app/
+├── configs/
+│   └── magrathea.conf       # AppPath's parent + /configs, never under the web root
+├── app/                     # AppPath
+│   ├── _inc.php             # shared bootstrap, no output
+│   ├── features/
+│   │   └── Product/         # ->AddFeature("Product")
+│   │       ├── Product.php          # MagratheaModel
+│   │       ├── ProductControl.php   # MagratheaModelControl
+│   │       └── ProductAdmin.php     # AdminCrudObject
+│   ├── api/                 # MagratheaApi and MagratheaApiControl subclasses
+│   └── admin/               # the Admin subclass
+└── public/                  # web root: index.php, admin.php, setup.php
 ```
 
 ---
@@ -227,5 +225,6 @@ Use the Query Builder or Control class methods. Put SQL in Control classes at mo
 ### Don't store secrets in code
 Use the `$=VAR_NAME` environment variable interpolation in `magrathea.conf`.
 
-### Don't skip `Validate()` before `MagratheaMail::Send()`
-Always call `Validate()` and check its return value before sending.
+### Don't ignore `MagratheaMail::Send()`'s return value
+`Send()` runs `Validate()` itself and returns `false` when the message is incomplete (or `mail()`
+fails): check it, and log `GetError()`.

@@ -21,7 +21,7 @@ MagratheaPHP::Instance()->AppPath(__DIR__)->Prod()->Load()->Connect();
 $api = new MagratheaApi();
 $api->AllowAll();
 
-$api->Add("GET", "/ping", null, function() {
+$api->Add("GET", "ping", null, function() {
     return ["status" => "ok"];
 });
 
@@ -49,11 +49,12 @@ $api->Run();
 ## Configuration Methods
 
 ### `SetAddress(string $addr): MagratheaApi`
-Set a base path prefix for all routes (e.g., `/api/v1`).
+Sets the API's public base URL (a trailing `/` is added). It doesn't change routing: routes match the
+path the web server's rewrite rule passes in. The admin's API Explorer uses it to build the endpoints'
+URLs.
 
 ```php
-$api->SetAddress("/api/v1");
-// Routes like "/users" become "/api/v1/users"
+$api->SetAddress("https://myapp.com/api/v1");
 ```
 
 ### `GetAddress(): string|null`
@@ -173,7 +174,7 @@ Register a single route.
 | Parameter | Description |
 |-----------|-------------|
 | `$method` | HTTP verb: `"GET"`, `"POST"`, `"PUT"`, `"DELETE"`, `"PATCH"` |
-| `$url` | Route pattern, supports `{param}` placeholders |
+| `$url` | Route pattern, without a leading slash: `users`, `users/:id`. A `:name` segment is a parameter. The first segment must be literal, and request URLs are lower-cased before matching |
 | `$control` | Controller instance (`null` for closure-only routes) |
 | `$function` | Method name string or a `callable` (closure) |
 | `$auth` | `false` = no auth, `true` = use base auth, `string` = named auth method |
@@ -181,45 +182,56 @@ Register a single route.
 
 ```php
 // Closure route
-$api->Add("GET", "/hello", null, function() {
+$api->Add("GET", "hello", null, function() {
     return ["message" => "Hello!"];
 });
 
 // Controller method
-$api->Add("GET", "/users", new UserApiControl(), "List");
-$api->Add("GET", "/users/{id}", new UserApiControl(), "Read");
-$api->Add("POST", "/users", new UserApiControl(), "Create", true); // auth required
+$api->Add("GET", "users", new UserApiControl(), "List");
+$api->Add("GET", "users/:id", new UserApiControl(), "Read");
+$api->Add("POST", "users", new UserApiControl(), "Create", true); // auth required
 
 // Route with description
-$api->Add("DELETE", "/users/{id}", new UserApiControl(), "Delete", true,
+$api->Add("DELETE", "users/:id", new UserApiControl(), "Delete", true,
     "Delete a user by ID (requires admin token)");
+```
+
+A leading slash breaks a route: `"/users"` splits into an empty first segment, and the request's
+empty segments are dropped before matching, so it never matches.
+
+```php
+$api->Add("GET", "/users", …); // never matches: write "users"
 ```
 
 ### `Crud(string|array $url, MagratheaApiControl $control, string|bool $auth = false): MagratheaApi`
 
-Registers a full CRUD suite for a resource in one call:
+Registers a full CRUD suite for a resource in one call. `$url` is the **singular** name: the list
+routes add an `s` (`"product"` → `products`); pass `[singular, plural]` when that's wrong.
 
 | Method | Route | Controller Method |
 |--------|-------|-------------------|
-| GET | `/resource` | `List()` |
-| GET | `/resource/{id}` | `Read($params)` |
-| POST | `/resource` | `Create($data)` |
-| PUT | `/resource/{id}` | `Update($params)` |
-| DELETE | `/resource/{id}` | `Delete($params)` |
+| GET | `products` | `Read()` without params → `List()` |
+| GET | `product/:id` | `Read($params)` |
+| POST | `products` | `Create($data)` |
+| PUT | `product/:id` | `Update($params)` |
+| DELETE | `product/:id` | `Delete($params)` |
 
 ```php
-$api->Crud("/products", new ProductApiControl());
+$api->Crud("product", new ProductApiControl());
 
 // With auth on all CRUD methods:
-$api->Crud("/products", new ProductApiControl(), true);
+$api->Crud("product", new ProductApiControl(), true);
+
+// Irregular plural: person/:id and people
+$api->Crud(["person", "people"], new PersonApiControl());
 ```
 
 `Crud()` always registers `Update` under `PUT`, never `PATCH` — if you also want a `PATCH`
 route for the same resource/handler, register it yourself with `Add()`:
 
 ```php
-$api->Crud("/products", new ProductApiControl());
-$api->Add("PATCH", "/products/{id}", new ProductApiControl(), "Update", true);
+$api->Crud("product", new ProductApiControl());
+$api->Add("PATCH", "product/:id", new ProductApiControl(), "Update", true);
 ```
 
 Both `PUT` and `PATCH` bodies are read the same way in a controller — `GetPut()` (or its
@@ -262,8 +274,12 @@ $api->Run();
 Manually execute a URL against this API (useful for internal subrequests or tests).
 
 ```php
-$result = $api->ExecuteUrl("/products/1", "GET");
+$result = $api->ExecuteUrl("products/1", "GET");
 ```
+
+Empty segments in the URL are dropped before matching, so `"/products/1"` and `"products//1/"` reach
+the same route. That's the request side only: a route registered with a leading slash still never
+matches (see `Add()`).
 
 ---
 
@@ -458,10 +474,11 @@ after a JSON response:
 
 ## URL Parameter Parsing
 
-Route parameters defined with `{param}` are passed to the controller method:
+Route parameters defined with `:name` segments are passed to the controller method as an array (a
+route without parameters passes `false`; query strings are in `$_GET`, never in `$params`):
 
 ```php
-$api->Add("GET", "/users/{id}/orders/{orderId}", new OrderControl(), "GetByUser");
+$api->Add("GET", "users/:id/orders/:orderId", new OrderControl(), "GetByUser");
 
 // In OrderControl:
 public function GetByUser(array $params): array {
@@ -494,18 +511,18 @@ MagratheaPHP::Instance()
 $api = new MagratheaApi();
 
 $api->Allow(["https://myapp.com"])
-    ->SetAddress("/api/v1")
+    ->SetAddress("https://myapp.com/api/v1")
     ->BaseAuthorization(new AuthControl(), "ValidateToken")
     ->DisableCache();
 
 // Public endpoints
-$api->Add("GET",  "/products",     new ProductApiControl(), "List");
-$api->Add("GET",  "/products/{id}", new ProductApiControl(), "Read");
+$api->Add("GET",  "products",     new ProductApiControl(), "List");
+$api->Add("GET",  "products/:id", new ProductApiControl(), "Read");
 
 // Protected endpoints
-$api->Add("POST",   "/products",      new ProductApiControl(), "Create", true);
-$api->Add("PUT",    "/products/{id}", new ProductApiControl(), "Update", true);
-$api->Add("DELETE", "/products/{id}", new ProductApiControl(), "Delete", true);
+$api->Add("POST",   "products",     new ProductApiControl(), "Create", true);
+$api->Add("PUT",    "products/:id", new ProductApiControl(), "Update", true);
+$api->Add("DELETE", "products/:id", new ProductApiControl(), "Delete", true);
 
 $api->HealthCheck();
 
@@ -519,4 +536,4 @@ $api->Run();
 - `Run()` outputs directly to `php://output` and exits. It should be the last call.
 - CORS preflight (`OPTIONS` requests) are handled automatically.
 - The API always returns `Content-Type: application/json` unless `SetRaw()` is used.
-- Use `SetAddress()` consistently if your API lives under a sub-path (e.g., `/api/v2`).
+- Set `SetAddress()` to the API's public URL (e.g., `https://myapp.com/api/v2/`) so the admin's API Explorer links to the right place.

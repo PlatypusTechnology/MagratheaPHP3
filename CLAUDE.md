@@ -1,5 +1,7 @@
 # CLAUDE.md — MagratheaPHP3
 
+Before changing anything in this repo, read `AGENTS.md`: the source map, how to run the suite and its limits, the conventions, the doc-sync rules and packaging.
+
 ## General Rules
 
 - If any questions are raised during a task, ask me before acting.

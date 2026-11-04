@@ -66,7 +66,7 @@ $query = Query::Select()->Obj(User::class);
 ### Field Selection
 
 #### `Fields(string|array $fields): Query`
-Override the default field selection.
+Add fields to the SELECT list (after any fields `Obj()` added).
 
 ```php
 $query->Fields("id, name, email");
@@ -105,7 +105,12 @@ $query->Where("created_at > '2024-01-01'");
 
 // Associative array (automatically escaped and quoted)
 $query->Where(["status" => "active", "role" => "admin"]);
+// `status` = 'active' AND `role` = 'admin'
 ```
+
+The array form only does equality (`null` gives `is null`). Each key is backtick-quoted as one column
+name, so it can't hold an operator (`"price >"`) or a table prefix (`"users.active"` becomes the
+column `` `users.active` ``): write those as a string.
 
 #### `WhereArray(array $arr, string $condition = "AND"): Query`
 Add multiple WHERE conditions from an array. Conditions are joined with the given connector.
@@ -115,20 +120,21 @@ $query->WhereArray(["status" => "active", "age" => 18], "AND");
 ```
 
 #### `WhereId(mixed $id): Query`
-Add a WHERE on the primary key.
+`WhereArray(["id" => $id])`: always the column `id`, whatever the model's `$dbPk`.
 
 ```php
 $query->WhereId(42);
-// Generates: WHERE id = 42
+// Generates: WHERE `id` = '42'
 ```
 
-#### `W(string $where, string $field, string $condition = "AND"): Query`
-Add a raw WHERE condition with a label (for chaining readability).
+#### `W(string $column, mixed $value, string $condition = "AND"): Query`
+One equality condition: `Where([$column => $value])`, escaped.
 
 ```php
 $query
-    ->W("status = 'active'", "status")
-    ->W("age > 18", "age");
+    ->W("status", "active")
+    ->W("role", "admin");
+// `status` = 'active' AND `role` = 'admin'
 ```
 
 ### Joins
@@ -240,7 +246,7 @@ Static helper to build a WHERE clause string from an array. Values are escaped v
 
 ```php
 $where = Query::BuildWhere(["status" => "active", "role" => "admin"], "AND");
-// "status = 'active' AND role = 'admin'"
+// " `status` = 'active'  AND `role` = 'admin' "
 ```
 
 ---
@@ -253,14 +259,17 @@ use Magrathea\DB\Query;
 $query = Query::Insert()
     ->Table("users")
     ->Values([
-        "name"       => "John Doe",
-        "email"      => "john@example.com",
-        "created_at" => now(),
+        "name"  => "John Doe",
+        "email" => "john@example.com",
+        "phone" => null,
     ]);
 
 $sql = $query->SQL();
-// INSERT INTO users (name, email, created_at) VALUES ('John Doe', 'john@example.com', '...')
+// INSERT INTO `users` (`name`, `email`, `phone`)  VALUES  ('John Doe', 'john@example.com', NULL)
 ```
+
+Leave `created_at`/`updated_at` out: their column defaults set them, with MySQL's clock. A value you do
+pass (an import keeping its dates) is written as given.
 
 ---
 
@@ -271,12 +280,16 @@ $query = Query::Update()
     ->Table("users")
     ->Set("name", "Jane Doe")
     ->Set("email", "jane@example.com")
-    ->SetRaw("updated_at = NOW()")
+    ->SetRaw("login_count = login_count + 1")
     ->Where("id = 5");
 
 $sql = $query->SQL();
-// UPDATE users SET name = 'Jane Doe', email = 'jane@example.com', updated_at = NOW() WHERE id = 5
+// UPDATE users SET login_count = login_count + 1, name = 'Jane Doe', email = 'jane@example.com' WHERE id = 5
 ```
+
+`SetRaw()` parts come first, then `Set()`'s. This is also how to write a timestamp explicitly, which a
+model's `Update()` never does: `->Set("updated_at", "2024-01-01 00:00:00")`. `updated_at` with
+`ON UPDATE CURRENT_TIMESTAMP` changes on its own whenever another column does.
 
 ### `SetArray(array $arr): QueryUpdate`
 Set multiple fields at once:
@@ -333,6 +346,11 @@ $total = Database::Instance()->QueryOne($query->CountSQL());
 ## Notes
 
 - `Query` only builds SQL strings — it does **not** execute them. Use `Database::QueryAll()` etc. to run them.
+- `QueryUpdate` and `QueryDelete` write the table and the `SET` column names bare: a table or column named
+  after a reserved word (`order`, `key`) fails with MySQL's error. Backtick it yourself
+  (`Table("`order`")`, `Set("`key`", …)`). The admin's Query editor does.
+- The admin's Query editor (Database → Query editor) builds a `Query` from a form and shows the PHP chain
+  and its SQL: a quick way to get one right (see [Admin: Database Section](../admin/admin-database.md)).
 - When used with `MagratheaModelControl`, queries are built and executed together automatically.
 - Values passed through `Where(array)`/`WhereArray()`/`W()`, `QueryUpdate::Set()`/`SetArray()`, and `QueryInsert::Values()` are escaped automatically via `Database::Escape()` before being quoted into the SQL string.
 - A `null` value writes `NULL` (since 3.0): `Values(["phone" => null])` gives `VALUES (NULL)` and `Set("phone", null)` gives `phone = NULL`; they wrote `''` before. Booleans write `'1'` and `'0'` (`false` wrote `''`, which a `TINYINT` column refuses in strict SQL mode). In `Where(array)`, `null` gives `` `field` is null ``.

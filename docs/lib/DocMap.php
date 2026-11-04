@@ -57,7 +57,7 @@ class DocMap {
 				"pages" => [
 					"magrathea-api" => ["title" => "MagratheaApi", "md" => "api/magrathea-api.md", "src" => ["MagratheaApi.php"]],
 					"api-controller" => ["title" => "MagratheaApiControl", "md" => "api/api-controller.md", "src" => ["MagratheaApiControl.php"]],
-					"authentication" => ["title" => "Authentication", "md" => "api/authentication.md", "src" => ["Authentication.php"]],
+					"authentication" => ["title" => "Authentication", "md" => "api/authentication.md", "src" => ["MagratheaApiAuth.php"]],
 				],
 			],
 			"admin" => [
@@ -101,6 +101,7 @@ class DocMap {
 				"icon" => "upgrade",
 				"pages" => [
 					"migrate-2.4.0" => ["title" => "2.4.0", "md" => "migrations/migrate-2.4.0.md", "src" => []],
+					"migrate-3.0" => ["title" => "3.0", "md" => "migrations/migrate-3.0.md", "src" => []],
 				],
 			],
 		];

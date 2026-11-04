@@ -129,9 +129,14 @@ class MagratheaApiControl {
 		if($this->userInfo) return $this->userInfo;
 		return $this->GetTokenInfo();
 	}
+	/**
+	 * The user's id from the decoded token: its `id` claim (what `MagratheaApiAuth::ResponseLogin()` writes),
+	 * or `user_id` when there's no `id`.
+	 * @return int|null 	the id, or null without a token or without either claim
+	 */
 	public function GetUserId(): int | null {
 		$user = $this->GetUserInfo();
-		return $user->id ?? null;
+		return $user->id ?? $user->user_id ?? null;
 	}
 
 	/**

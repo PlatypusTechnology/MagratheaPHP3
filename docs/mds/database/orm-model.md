@@ -8,26 +8,6 @@ The base class for all database-backed domain models. Provides field mapping, au
 
 ---
 
-## Interface: iMagratheaModel
-
-```php
-interface iMagratheaModel {
-    public function __construct($id);
-    public function Save();
-    public function Insert();
-    public function Update();
-    public function GetID();
-}
-```
-
-**Deprecated since 3.0, removed in 4.0.** Nothing in the framework implements it: `MagratheaModel`
-provides these methods, and implementing the interface forces the `__construct($id)` signature on
-the model's constructor (a `__construct()` with no parameter is a fatal error when the class loads).
-It's kept only so 2.x generated Base classes, which declare `implements iMagratheaModel`, still
-load. New models don't implement it.
-
----
-
 ## Defining a Model
 
 ```php
@@ -63,6 +43,11 @@ class Product extends MagratheaModel {
     public $id, $name, $description, $price, $stock, $active;
 }
 ```
+
+After writing or changing a model, run `vendor/bin/magrathea models:verify` (or
+`models:verify Product`): it checks the model against its table (missing columns, types, the primary
+key, the timestamp columns) and exits with `1` on an ERROR. See [Schema](schema.md) and
+[CLI](../core/cli.md).
 
 The table settings can also be set in `MagratheaStart()`, which the constructor runs first:
 
@@ -186,7 +171,7 @@ accept native types. Typed hydration exists since MagratheaPHP `2.3.0`; it's the
 | Property | Type | Description |
 |----------|------|-------------|
 | `$dbTable` | `string` | Database table name |
-| `$dbPk` | `string` | Primary key column name |
+| `$dbPk` | `string` | Primary key column name. Required, and it must be a key of `$dbValues`: without its type, loading, `Update()`, `Delete()` and `Touch()` throw `MagratheaModelException` |
 | `$dbValues` | `array` | Column → type definitions |
 | `$dbAlias` | `array` | Alias → column mappings |
 | `$relations` | `array` | Related object definitions; every key is optional. `external`: field → model class (`GetFields()` and the CRUD admin's relation select). `properties`: name → value, read and written through `Get()`/`Set()` and included in `ToArray()`. `lazyload`/`methods`: name → `true` / method name; the first read of a `null` lazyload property calls its method (a lazyload property without a method throws `MagratheaModelException`) |
@@ -493,18 +478,25 @@ Returns a human-readable reference string: `ModelName()." [".GetID()."]"` (e.g.,
 ## Serialization
 
 ### `ToArray(): array`
-Returns all field values as an associative array.
+Returns the `$dbValues` fields' values, plus `$relations["properties"]`. Not `created_at`/`updated_at`:
+they aren't in `$dbValues`.
 
 ```php
 $arr = $product->ToArray();
-// ["id" => 42, "name" => "Widget", "price" => 9.99, ...]
+// ["id" => 42, "name" => "Widget", "price" => "9.99", ...]
 ```
 
 ### `ToJson(): array`
-Same as `ToArray()` but intended for JSON API responses. Relations are recursively serialized.
+A wrapper: `["object" => <class name>, "id" => <PK>, "created_at" => …, "updated_at" => …, "fields" => ToArray()]`.
+Despite the name it returns an array, not a JSON string.
+
+To send a model in an API response, return the model itself: `json_encode()` encodes its public
+properties, so every field and both timestamps (`null` after a write: return `$product->Reload()` when
+they're needed).
 
 ```php
-echo json_encode($product->ToJson());
+return $product;              // from an API action
+echo json_encode($product);   // anywhere else
 ```
 
 ### `ToString(): string` / `__toString(): string`
@@ -551,8 +543,8 @@ echo $found->price; // 29.99
 $found->price = 24.99;
 $found->Save();
 
-// 4. Serialize
-echo json_encode($found->ToJson());
+// 4. Serialize (public properties, timestamps included)
+echo json_encode($found);
 
 // 5. Delete
 $found->Delete();
@@ -566,3 +558,23 @@ $found->Delete();
 - `Save()` is the idiomatic method — it detects insert vs. update automatically based on whether the PK is set.
 - Fields not in `$dbValues` are silently ignored during insert/update (they won't corrupt the DB).
 - `Update()` on a loaded object writes only what changed since the load (see [`Update()`](#update-bool)).
+
+---
+
+## Legacy: iMagratheaModel
+
+```php
+interface iMagratheaModel {
+    public function __construct($id);
+    public function Save();
+    public function Insert();
+    public function Update();
+    public function GetID();
+}
+```
+
+**Deprecated since 3.0, removed in 4.0.** Nothing in the framework implements it: `MagratheaModel`
+provides these methods, and implementing the interface forces the `__construct($id)` signature on
+the model's constructor (a `__construct()` with no parameter is a fatal error when the class loads).
+It's kept only so 2.x generated Base classes, which declare `implements iMagratheaModel`, still
+load. New models don't implement it.

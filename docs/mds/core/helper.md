@@ -2,7 +2,7 @@
 
 **File:** `src/MagratheaHelper.php`
 **Namespace:** `Magrathea`
-**Type:** Static utility class (all methods are `static`)
+**Type:** Utility class: every method is `static` except `HexToRgb()`
 
 A collection of general-purpose helper functions used throughout the framework and available to application code.
 
@@ -11,30 +11,33 @@ A collection of general-purpose helper functions used throughout the framework a
 ## Methods
 
 ### `RandomString(int $length = 10): string`
-Generates a cryptographically random alphanumeric string of the given length.
+Generates a random alphanumeric string (`0-9a-zA-Z`) of the given length.
 
 ```php
 use Magrathea\MagratheaHelper;
 
-$token = MagratheaHelper::RandomString(32);
-// e.g. "aB3xK9mQp2..."
+$code = MagratheaHelper::RandomString(8);
+// e.g. "aB3xK9mQ"
 ```
 
-**Use cases:** API keys, temporary passwords, CSRF tokens, cache keys.
+**Not for secrets:** it uses `rand()`, which isn't cryptographically secure. For API keys, tokens and
+passwords, use `bin2hex(random_bytes(16))` (what the CLI's `admin:create-user` does, with 8 bytes).
+Fine for cache keys, file names and test data.
 
 ---
 
 ### `HexToRgb(string $hex): array`
-Converts a hex color code to an RGB decimal array.
+Converts a hex color code to RGB decimals. It's an **instance** method: call it on a
+`new MagratheaHelper()` (a static call is an `Error`).
 
 ```php
-$rgb = MagratheaHelper::HexToRgb("#FF8C00");
-// Returns: [255, 140, 0]
+$rgb = (new MagratheaHelper())->HexToRgb("#FF8C00");
+// Returns: ["r" => 255, "g" => 140, "b" => 0]
 
-$rgb = MagratheaHelper::HexToRgb("FF8C00"); // hash is optional
+$rgb = (new MagratheaHelper())->HexToRgb("F80"); // the hash is optional; 3-digit codes work
 ```
 
-**Returns:** `[int $r, int $g, int $b]`
+**Returns:** `["r" => int, "g" => int, "b" => int]`
 
 ---
 
@@ -52,7 +55,7 @@ $path = MagratheaHelper::EnsureTrailingSlash("/var/www/app/");
 ---
 
 ### `FormatSize(int $bytes, int $decimals = 2): string`
-Converts a raw byte count into a human-readable file size string.
+Converts a raw byte count into a human-readable file size string (`0` → `"0 bytes"`).
 
 ```php
 echo MagratheaHelper::FormatSize(1024);
@@ -65,7 +68,7 @@ echo MagratheaHelper::FormatSize(1_073_741_824, 1);
 // "1.0 GB"
 ```
 
-**Supported units:** B, KB, MB, GB, TB, PB, EB, ZB, YB
+**Units:** bytes, KB, MB, GB, TB, PB, EB, ZB, YB (powers of 1024)
 
 ---
 
@@ -76,7 +79,7 @@ echo MagratheaHelper::FormatSize(1_073_741_824, 1);
 ```php
 use Magrathea\MagratheaHelper;
 
-$apiKey = MagratheaHelper::RandomString(40);
+$apiKey = bin2hex(random_bytes(20)); // not RandomString(): see above
 $user->Set("api_key", $apiKey);
 $user->Save();
 ```
@@ -85,7 +88,7 @@ $user->Save();
 
 ```php
 $hexColor = Config::Instance()->Get("primary_color"); // "#3A7BD5"
-[$r, $g, $b] = MagratheaHelper::HexToRgb($hexColor);
+["r" => $r, "g" => $g, "b" => $b] = (new MagratheaHelper())->HexToRgb($hexColor);
 
 echo "rgba($r, $g, $b, 0.8)"; // "rgba(58, 123, 213, 0.8)"
 ```

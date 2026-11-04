@@ -22,6 +22,24 @@ class DefaultsRecordingDatabase extends Database {
 		$this->queries[] = $sql;
 		return $this->row;
 	}
+	public function PrepareAndExecute($query, $arrTypes, $arrValues) {
+		$this->queries[] = $query;
+		return true;
+	}
+}
+
+// its PK has no type in $dbValues
+class Untyped extends MagratheaModel {
+	protected $dbTable = "untyped";
+	protected $dbPk = "id";
+	protected $dbValues = [ "name" => "string" ];
+	public $id, $name;
+}
+// no $dbPk at all
+class Pkless extends MagratheaModel {
+	protected $dbTable = "pkless";
+	protected $dbValues = [ "id" => "int", "name" => "string" ];
+	public $id, $name;
 }
 
 // only properties and MagratheaStart(): no constructor, $autoload, timestamps or GetControl()
@@ -194,6 +212,47 @@ class modelDefaultsTest extends \PHPUnit\Framework\TestCase {
 			$this->assertSame(400, $ex->getCode());
 		}
 		$this->assertCount(0, $this->db->queries);
+	}
+
+	private function AssertThrowsBeforeQuery(callable $fn, string $message) {
+		try {
+			$fn();
+			$this->fail("no exception");
+		} catch(MagratheaModelException $ex) {
+			$this->assertStringContainsString($message, $ex->getMessage());
+		}
+		$this->assertCount(0, $this->db->queries);
+	}
+
+	function testUntypedPkThrowsBeforeAnyQuery() {
+		TestsHelper::Print("testing a PK without a type in \$dbValues throws, naming it, before any query...");
+		$message = Untyped::class."'s primary key [id] has no type in \$dbValues";
+		$this->AssertThrowsBeforeQuery(fn() => new Untyped(5), $message);
+		$this->AssertThrowsBeforeQuery(fn() => (new Untyped())->GetById(5), $message);
+		$this->AssertThrowsBeforeQuery(fn() => (new Untyped())->ValidateId(5), $message);
+		$loaded = new Untyped();
+		$loaded->id = 5;
+		$loaded->name = "x";
+		$this->AssertThrowsBeforeQuery(fn() => $loaded->Update(), $message);
+		$this->AssertThrowsBeforeQuery(fn() => $loaded->Delete(), $message);
+		$this->AssertThrowsBeforeQuery(fn() => $loaded->Touch(), $message);
+	}
+
+	function testMissingPkThrowsBeforeAnyQuery() {
+		TestsHelper::Print("testing a model without \$dbPk throws, naming it, before any query...");
+		$message = Pkless::class." has no \$dbPk";
+		$this->AssertThrowsBeforeQuery(fn() => new Pkless(5), $message);
+		$this->AssertThrowsBeforeQuery(fn() => (new Pkless())->GetById(5), $message);
+		$this->AssertThrowsBeforeQuery(fn() => (new Pkless())->ValidateId(5), $message);
+	}
+
+	function testUntypedPkStillInserts() {
+		TestsHelper::Print("testing an auto-increment insert doesn't need the PK's type...");
+		$model = new Untyped();
+		$model->name = "x";
+		$model->Insert();
+		$this->assertCount(1, $this->db->queries);
+		$this->assertStringStartsWith("INSERT INTO untyped (`name`)", $this->db->queries[0]);
 	}
 
 	function testAutoloadDefaultsToNull() {

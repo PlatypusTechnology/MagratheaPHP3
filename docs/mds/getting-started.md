@@ -52,19 +52,34 @@ that exists. See the [Configuration reference](core/config.md) for every key.
 
 ## Bootstrapping
 
-Every entry point (e.g. `index.php` or your API entry file) starts with:
+The bootstrap lives in one file, `app/_inc.php`, that every entry point (`public/index.php`,
+`public/admin.php`) requires, and that the [CLI](core/cli.md) loads too. It prints nothing:
 
 ```php
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
+// app/_inc.php
+require __DIR__ . "/../vendor/autoload.php";
 
-use Magrathea\MagratheaPHP;
+Magrathea\MagratheaPHP::Instance()
+    ->AppPath(realpath(__DIR__))     // app/ is the app root; the config is read from ../configs/
+    ->AddRootCodeFolder("api")       // folders the autoloader searches, relative to app/
+    ->AddFeature("User")             // app/features/User/
+    ->Dev()                          // debug mode only (Prod() on servers); the environment comes from the config
+    ->Load()                         // load configuration
+    ->Connect();                     // DB credentials (the connection opens on the first query)
+```
 
-$app = MagratheaPHP::Instance()
-    ->AppPath(__DIR__ . "/app") // app root; the config is read from ./configs/
-    ->Dev()                     // debug mode only (Prod() on servers); the environment comes from the config
-    ->Load()                    // load configuration
-    ->Connect();                // DB credentials (the connection opens on the first query)
+The layout this assumes:
+
+```
+my-app/
+├── configs/magrathea.conf    ← never under the web root
+├── app/
+│   ├── _inc.php
+│   ├── api/
+│   └── features/User/        ← User.php, UserControl.php
+├── public/                   ← web root: index.php, admin.php, setup.php
+└── vendor/
 ```
 
 ---
@@ -73,22 +88,16 @@ $app = MagratheaPHP::Instance()
 
 ```php
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
+// public/index.php
+require __DIR__ . "/../app/_inc.php";
 
-use Magrathea\MagratheaPHP;
 use Magrathea\MagratheaApi;
 
-$app = MagratheaPHP::Instance()
-    ->AppPath(__DIR__ . "/app")
-    ->Prod()
-    ->Load()
-    ->Connect();
-
 $api = new MagratheaApi();
-$api->AllowAll(); // enable CORS for all origins
+$api->AllowAll(); // CORS for any origin: AllowFromFile() or Allow([...]) in production
 
-// Simple GET endpoint
-$api->Add("GET", "/hello", null, function() {
+// Simple GET endpoint. Routes have no leading slash: "/hello" would never match
+$api->Add("GET", "hello", null, function() {
     return ["message" => "Hello, World!"];
 });
 
@@ -102,8 +111,8 @@ $api->Run();
 
 ```php
 <?php
-// models/User.php
-namespace App\Models;
+// app/features/User/User.php
+namespace App\User;
 
 use Magrathea\MagratheaModel;
 
@@ -117,17 +126,17 @@ class User extends MagratheaModel {
     ];
 
     // every $dbValues field as an untyped public property
+    // (created_at/updated_at come from MagratheaModel: the table needs both columns)
     public $id, $name, $email;
 }
 ```
 
 ```php
 <?php
-// controls/UserControl.php
-namespace App\Controls;
+// app/features/User/UserControl.php
+namespace App\User;
 
 use Magrathea\MagratheaModelControl;
-use App\Models\User;
 
 class UserControl extends MagratheaModelControl {
     protected static $model = User::class;
@@ -136,12 +145,12 @@ class UserControl extends MagratheaModelControl {
 
 ```php
 <?php
-// api/UserApiControl.php
+// app/api/UserApiControl.php
 namespace App\Api;
 
 use Magrathea\MagratheaApiControl;
-use App\Controls\UserControl;
-use App\Models\User;
+use App\User\User;
+use App\User\UserControl;
 
 class UserApiControl extends MagratheaApiControl {
     // the built-in Read(), Create(), Update() and Delete() work on this model
@@ -156,16 +165,18 @@ class UserApiControl extends MagratheaApiControl {
 
 ```php
 <?php
-// index.php
+// public/index.php
+require __DIR__ . "/../app/_inc.php";
+
 use Magrathea\MagratheaApi;
 use App\Api\UserApiControl;
 
 $api = new MagratheaApi();
 $api->AllowAll();
 
-// Automatically registers GET /users, GET /users/{id},
-// POST /users, PUT /users/{id}, DELETE /users/{id}
-$api->Crud("/users", new UserApiControl());
+// Registers GET users, POST users, GET user/:id, PUT user/:id, DELETE user/:id
+// (Crud("user") adds an "s" for the list routes; Crud(["person", "people"]) names both)
+$api->Crud("user", new UserApiControl());
 
 $api->Run();
 ```
@@ -174,15 +185,18 @@ $api->Run();
 
 ## Running in Different Environments
 
+These only set the Debugger mode; the config environment (`[dev]`, `[production]`) comes from
+`use_environment`. See [MagratheaPHP](core/magrathea-php.md#debug-modes-comparison).
+
 ```php
-// Development — verbose errors, query logging
-$app->Dev();
+// Development — PHP errors displayed, debug items printed where they're added
+MagratheaPHP::Instance()->Dev();
 
-// Debug — same as dev but with extra stack traces
-$app->Debug();
+// Debug — debug items stored and printed at the end of the request (in an API: `_debug`), plus query logging
+MagratheaPHP::Instance()->Debug();
 
-// Production — suppresses errors, logs to file
-$app->Prod();
+// Production — debug items and exceptions go to the log file (turn display_errors off in php.ini)
+MagratheaPHP::Instance()->Prod();
 ```
 
 ---
@@ -205,10 +219,20 @@ it also needs `bootstrap_unlocked = true` in the active environment. Ten wrong t
 
 ---
 
+## Checking the project
+
+`vendor/bin/magrathea check` reports what's wrong with the config, the folders, the database
+connection, the timezone, and the models against their tables; `vendor/bin/magrathea models:verify`
+checks only the models. Both exit with `1` on an ERROR. See [CLI](core/cli.md) and
+[ProjectCheck](core/project-check.md).
+
+---
+
 ## Next Steps
 
 - [Setup Wizard →](setup-wizard.md)
 - [Configuration reference →](core/config.md)
+- [CLI →](core/cli.md)
 - [Database & Query Builder →](database/database.md)
 - [ORM Model →](database/orm-model.md)
 - [API Framework →](api/magrathea-api.md)

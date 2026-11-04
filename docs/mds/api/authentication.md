@@ -1,32 +1,29 @@
-# Authentication — JWT Token Generation
+# Authentication — JWT in the API
 
-**File:** `src/Authentication.php`
+**File:** `src/MagratheaApiAuth.php`
 **Namespace:** `Magrathea`
 
-Provides JWT token generation using the `firebase/php-jwt` library. In practice, JWT operations are also available directly on `MagratheaApiControl` (via `jwtEncode` / `jwtDecode`). This class is a standalone utility for token generation outside the API controller context.
+JWTs are encoded and decoded by `MagratheaApiControl` (`jwtEncode()`, `jwtDecode()`, `GetTokenInfo()`),
+with the `firebase/php-jwt` library. `MagratheaApiAuth`, a `MagratheaApiControl` subclass, adds the
+login flow on top: `ResponsePayload()` (a token, a refresh token and the expiry for any payload),
+`ResponseLogin()` and `AdminUserLogin()` (the same for an admin user), `Refresh()`, `IsLogged()`.
 
----
+The 2.x standalone `Authentication` class is gone in 3.0: it couldn't encode on php-jwt 6 or 7.
 
-## Methods
+### Encoding outside a controller
 
-### `GenerateToken(mixed $payload): array`
-Generates a signed JWT token from the given payload. Returns an array with two keys:
-- `"source"` — the original payload
-- `"token"` — the signed JWT string
+Controllers have no constructor arguments, so a script, a CLI command or a test can use one to sign a
+token the API will accept:
 
 ```php
-use Magrathea\Authentication;
-
-$auth = new Authentication();
-$result = $auth->GenerateToken([
-    "user_id" => 42,
-    "role"    => "admin",
-    "exp"     => time() + 3600, // 1 hour from now
+$token = (new AuthControl())->jwtEncode([
+    "id"  => 42,
+    "exp" => time() + 3600,
 ]);
-
-echo $result["token"];
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+Don't call `JWT::encode()` with the `jwt_key` yourself: `jwtEncode()` signs with the key after
+`strtr($key, '-_', '+/')`, so a key containing `-` or `_` would give a token the API rejects.
 
 ---
 
@@ -47,9 +44,9 @@ class AuthControl extends MagratheaApiAuth {
         // ... validate credentials ...
 
         $token = $this->jwtEncode([
-            "user_id" => $user->id,
-            "email"   => $user->email,
-            "exp"     => time() + 86400,
+            "id"    => $user->id,   // GetUserId() reads "id" (then "user_id")
+            "email" => $user->email,
+            "exp"   => time() + 86400,
         ]);
 
         return ["token" => $token];
@@ -92,10 +89,11 @@ in the client).
 class UserApiControl extends MagratheaApiControl {
 
     public function Profile(): array {
-        $userId = $this->GetUserId();           // reads from decoded token
+        $userId = $this->GetUserId();           // the token's "id" claim
         $info   = $this->GetUserInfo();         // full decoded payload object
 
-        return UserControl::GetRowWhere(["id" => $userId])->ToJson();
+        $user = UserControl::GetRowWhere(["id" => $userId]);
+        return ["id" => $user->id, "email" => $user->email, "role" => $info->role ?? null];
     }
 }
 ```
@@ -131,8 +129,8 @@ class AuthControl extends MagratheaApiAuth {
         // ... validate credentials ...
 
         $token = $this->jwtEncode([
-            "user_id" => $user->id,
-            "exp"     => time() + 86400,
+            "id"  => $user->id,
+            "exp" => time() + 86400,
         ]);
 
         $this->SetAuthCookie($token, ".example.com"); // share across subdomains
@@ -169,8 +167,8 @@ A cookie's identity to the browser is the triple `(name, Domain, Path)`, not "wh
 
 ```php
 $token = $this->jwtEncode([
-    "user_id" => $user->id,
-    "exp"     => time() + 3600, // expire in 1 hour
+    "id"  => $user->id,
+    "exp" => time() + 3600, // expire in 1 hour
 ]);
 ```
 
@@ -198,7 +196,7 @@ Only override it if a project wants a different config key name.
 ### Never store sensitive data in the payload
 
 JWT payloads are **signed, not encrypted**. Anyone can decode the payload. Only store:
-- `user_id`
+- `id` (the user's id, read by `GetUserId()`)
 - `role`
 - `exp`
 - `iat`
@@ -219,7 +217,7 @@ Client                    API
   |                         |
   |-- GET /profile --------→|
   |   Authorization:        |  decodes JWT
-  |   Bearer eyJ...         |  reads user_id from payload
+  |   Bearer eyJ...         |  reads id from payload
   |                         |  fetches user from DB
   |←-- {user data} -------- |
 ```

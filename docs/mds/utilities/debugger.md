@@ -190,18 +190,32 @@ Debugger::Instance()->SetLogFile("/var/log/myapp/debug.log");
 
 Useful when you need to temporarily increase verbosity for a specific operation:
 
-### `SetTemp(string $dType): Debugger`
-Temporarily switch to a different debug type.
+### `SetTemp(int $dType): Debugger`
+Temporarily switch to a different debug type (one of the constants above).
 
 ### `BackTemp(): Debugger`
 Restore the previous debug type.
 
 ```php
 $debugger = Debugger::Instance();
-$debugger->SetTemp("debug");
+$debugger->SetTemp(Debugger::DEBUG);
 // ... do something with more logging ...
 $debugger->BackTemp();
 ```
+
+---
+
+## The Framework's Error Page
+
+Framework errors that stop the request (a missing or broken config, `MinVersion()`, …) go through
+`Errors\ErrorManager`:
+
+- **On the web**, it shows an error page with the message. The exception's dump (stack trace and
+  arguments included) is added only when the Debugger is in `DEV`: the trace's arguments can carry
+  database credentials or any object passed down the stack. In `LOG`, `DEBUG` and `NONE` the page shows
+  the message alone (since 3.0; before, every mode showed the dump).
+- **In the CLI** (`PHP_SAPI === "cli"`), it prints the message as text on stderr and exits with code `1`
+  (since 3.0; before, it printed the HTML page and exited with `0`). See [CLI](../core/cli.md#error-pages-in-the-cli).
 
 ---
 

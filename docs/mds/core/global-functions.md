@@ -1,9 +1,18 @@
 # Global Functions & Autoloader
 
 **Files:** `src/_Functions.php`, `src/_FunctionsDebug.php`
-**Namespace:** Global (no namespace)
+**Namespace:** `Magrathea`
 
-These files define procedural helper functions available globally (without `use` or namespace prefix) and register the framework's custom autoloader (not PSR-4: it goes by class name, not by namespace path).
+These files define procedural helper functions and register the framework's custom autoloader (not PSR-4: it goes by class name, not by namespace path). Composer loads them on `require "vendor/autoload.php"`.
+
+The functions live in the `Magrathea` namespace (2.x had a versioned one): call them fully qualified, or import them with `use function`:
+
+```php
+echo \Magrathea\now();
+
+use function Magrathea\now;
+echo now();
+```
 
 ---
 
@@ -22,8 +31,9 @@ MagratheaPHP uses a custom `spl_autoload_register` callback. It's registered as 
 
 ```php
 MagratheaPHP::Instance()
-    ->AppPath(__DIR__)
-    ->AddRootCodeFolder("models", "controls", "services", "api"); // <appRoot>/models, ...
+    ->AppPath(realpath(__DIR__))
+    ->AddRootCodeFolder("admin", "api", "shared")  // <appRoot>/admin, ...
+    ->AddFeature("Article");                       // <appRoot>/features/Article
 ```
 
 Keep class basenames unique across code folders anyway: every lookup of a duplicated name reads the candidate files, and the DEV warning shows up on every request that loads it.
@@ -36,7 +46,7 @@ Keep class basenames unique across code folders anyway: every lookup of a duplic
 Returns the current date/time formatted as `"Y-m-d H:i:s"`.
 
 ```php
-echo now(); // "2024-03-15 14:30:00"
+echo \Magrathea\now(); // "2024-03-15 14:30:00"
 ```
 
 Useful for datetime fields your code sets itself, without importing a class. Not for a model's
@@ -49,7 +59,7 @@ Converts an array to a one-line string of `[key] = "value"` pairs, separated by 
 
 ```php
 $arr = ["a" => 1, "b" => 2];
-echo arrToStr($arr);
+echo \Magrathea\arrToStr($arr);
 // [a] = "1", [b] = "2"
 ```
 
@@ -59,9 +69,12 @@ echo arrToStr($arr);
 Pretty-prints a value wrapped in `<pre>` tags. Equivalent to `echo "<pre>" . print_r($debugme, true) . "</pre>"`.
 
 ```php
-$user = UserControl::GetWhere(["id" => 1])[0];
-p_r($user);
+$user = UserControl::GetRowWhere(["id" => 1]);
+\Magrathea\p_r($user);
 ```
+
+A debugging aid: never use it to report an exception on a page (`p_r($ex)` prints paths, SQL and
+arguments to the visitor). Log the exception and answer a generic error instead.
 
 ---
 
@@ -69,8 +82,8 @@ p_r($user);
 Returns `true` if the given value is an instance of `MagratheaModel`.
 
 ```php
-if (isMagratheaModel($obj)) {
-    echo $obj->ToJson();
+if (\Magrathea\isMagratheaModel($obj)) {
+    echo json_encode($obj);
 }
 ```
 
@@ -80,8 +93,8 @@ if (isMagratheaModel($obj)) {
 Strips the namespace from a fully-qualified class name and returns just the class name.
 
 ```php
-echo getClassNameOfClass("App\\Models\\User"); // "User"
-echo getClassNameOfClass("Magrathea\\DB\\Database"); // "Database"
+echo \Magrathea\getClassNameOfClass("App\\Models\\User"); // "User"
+echo \Magrathea\getClassNameOfClass("Magrathea\\DB\\Database"); // "Database"
 ```
 
 ---
@@ -90,24 +103,31 @@ echo getClassNameOfClass("Magrathea\\DB\\Database"); // "Database"
 Returns `true` if the PHP file has a `namespace` declaration equal to `$namespace` (case-insensitive; any of them, if the file has several blocks). `""` means the global namespace: it matches a file with no `namespace` declaration. Unreadable files return `false`. Used by the autoloader to choose between files with the same name.
 
 ```php
-fileDeclaresNamespace(__DIR__."/models/User.php", "App\\Models"); // true
+\Magrathea\fileDeclaresNamespace(__DIR__."/models/User.php", "App\\Models"); // true
 ```
 
 ---
 
 ## Debug Functions (`_FunctionsDebug.php`)
 
-These are additional debug helpers loaded alongside the main functions file.
+Shortcuts to the `Debugger` singleton, also in the `Magrathea` namespace:
 
-### `magrathea_debug(mixed $data): void`
-Adds an item to the current `Debugger` instance for display.
+### `Debug(mixed $bug): void`
+`Debugger::Instance()->Add($bug)`.
 
-### `magrathea_log(string $message): void`
-Logs a message via the `Logger` singleton.
+### `DebugError($error): void`
+`Debugger::Instance()->AddError($error)`.
+
+### `Info(mixed $bug): void`
+`Debugger::Instance()->Info($bug)`.
+
+```php
+\Magrathea\Debug(["step" => "validation", "passed" => true]);
+```
 
 ---
 
 ## Notes
 
-- All global functions are unconditionally defined when `_Functions.php` is included. There are no conditional guards — avoid name collisions in your own code.
+- The functions are defined unconditionally when the files are loaded, with no `function_exists()` guards. They're namespaced, so they don't collide with global functions of the same name; a project function `Magrathea\now()` would.
 - `p_r()` outputs HTML, so it should only be used in web/CLI debug contexts, not in JSON API responses.

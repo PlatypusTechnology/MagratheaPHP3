@@ -3,7 +3,7 @@
 **Files:** `src/Admin/Admin.php`, `src/Admin/AdminManager.php`
 **Namespace:** `Magrathea\Admin`
 
-MagratheaPHP ships with a built-in admin panel system. It provides a configurable web UI for managing application data, users, configuration, cache, files, and API exploration. The admin panel is feature-based: you enable only what you need.
+MagratheaPHP ships with a built-in admin panel system. It provides a configurable web UI for managing application data, users, configuration, cache, CORS origins and API exploration, plus a Database section (explorer, queries, query editor, dumps, checks). The admin panel is feature-based: you enable only what you need.
 
 ---
 
@@ -11,34 +11,42 @@ MagratheaPHP ships with a built-in admin panel system. It provides a configurabl
 
 ```php
 <?php
-// admin/index.php
-require_once __DIR__ . '/../vendor/autoload.php';
-
+// public/admin.php
 use Magrathea\MagratheaPHP;
 use Magrathea\Admin\AdminManager;
 
-MagratheaPHP::Instance()
-    ->AppPath(__DIR__ . '/..')
-    ->AddRootCodeFolder("models", "controls")
-    ->Prod()
-    ->Load()
-    ->Connect()
-    ->StartSession();
-
-$manager = AdminManager::Instance()->StartDefault("My App Admin");
-
-// Check authentication
-if (!$manager->Auth()) {
-    $manager->PermissionDenied();
-    exit;
+try {
+    require __DIR__ . "/../app/_inc.php";       // the shared bootstrap (Load(), Connect())
+    MagratheaPHP::Instance()->StartSession();
+    AdminManager::Instance()->Start(new \App\MyAppAdmin());
+    // or, with only the built-in features: AdminManager::Instance()->StartDefault("My App Admin");
+} catch (\Throwable $ex) {
+    error_log((string) $ex);                     // never print the exception on the page
+    http_response_code(500);
+    echo "Internal Server Error";
 }
+```
 
-// Build the menu
-$admin = $manager->GetAdmin();
-$menu  = $admin->BuildMenu();
+`Start()` does the rest: the first-run setup form, the login page, the auth check, the CSRF check, and
+rendering the requested page, feature or action. Your code goes in the `Admin` subclass:
 
-// Include the admin view
-include $manager->GetAdmin()->GetViewPath("main.php");
+```php
+<?php
+// app/admin/MyAppAdmin.php
+namespace App;
+
+class MyAppAdmin extends \Magrathea\Admin\Admin implements \Magrathea\Admin\iAdmin {
+    public function Initialize() {
+        parent::Initialize();                    // registers the framework's tests (Tests page)
+        $this->SetTitle("My App Admin");
+        $this->SetPrimaryColor("#5a2672");
+    }
+
+    public function SetFeatures() {
+        parent::SetFeatures();                   // App Config, Cache, Users, User Logs
+        $this->AddCrudFeature(new \App\Article\ArticleAdmin());
+    }
+}
 ```
 
 ---
@@ -56,8 +64,8 @@ The primary configuration object for the admin panel. You configure the panel an
 |----------|------|---------|-------------|
 | `$title` | `string` | `"Magrathea Admin"` | Panel title |
 | `$primaryColor` | `string` | `"203, 128, 8"` | Primary color (RGB decimal) |
-| `$adminLogo` | `string` | | Path to logo image |
-| `$favicon` | `string` | | Path to favicon |
+| `$adminLogo` | `string` | `src/Admin/views/logo.svg` | Absolute path to the logo file (`.svg`, `.png`, `.jpg`, `.jpeg`) |
+| `$favicon` | `string` | `src/Admin/views/magrathea_logo.svg` | Absolute path to the favicon SVG (inlined as a data URI) |
 | `$extraMenu` | `array` | | Extra menu items |
 | `$adminFeatures` | `array` | | Registered admin features |
 | `$crudFeatures` | `array` | | Registered CRUD features |
@@ -85,19 +93,22 @@ $admin->SetPrimaryColorDecimal("58, 123, 213");
 ```
 
 #### `SetLogo(string $logo): Admin` / `SetAdminLogo(string $logo): Admin`
-Set the logo image path.
+Set the logo file's absolute path. The admin runs from `vendor/`, so the logo is read from disk and
+inlined (SVG) or printed as an `<img>` (PNG/JPEG), not linked by URL.
 
 ```php
-$admin->SetLogo("/assets/logo.png");
+$admin->SetAdminLogo(__DIR__ . "/logo.svg");
 ```
 
 #### `AddFeaturesArray(array $arrFeatures): Admin`
-Register multiple features at once.
+Register multiple features at once, through `AddFeature()` (so not as CRUD features: use
+`AddCrudFeature()` for those, in `SetFeatures()`). Call it before `AdminManager::Start()`, which renders
+the page.
 
 ```php
 $admin->AddFeaturesArray([
-    new UserFeature(),
-    new ProductCrudFeature(),
+    new ReportsFeature(),
+    new OpenApiAdmin("swagger.yaml"),
 ]);
 ```
 
@@ -105,21 +116,20 @@ $admin->AddFeaturesArray([
 Add a custom JavaScript file to the admin panel.
 
 #### `AddMenuItem(array ...$item): Admin`
-Add a custom menu item.
+Add custom menu items, after the Magrathea sections (in the default `BuildMenu()`). An item is an
+`AdminMenu` array: `CreateLink()` builds a link.
 
 ```php
-$admin->AddMenuItem([
-    "label" => "Reports",
-    "url"   => "/admin/reports",
-    "icon"  => "chart-bar",
-]);
+$menu = new \Magrathea\Admin\AdminMenu();
+$admin->AddMenuItem($menu->CreateLink("Reports", "?magrathea_feature=reports"));
 ```
 
 #### `BuildMenu(): AdminMenu`
 Build and return the menu structure.
 
-#### `Auth(AdminUser $user): bool`
-Validate admin authentication for a user.
+#### `Auth($user): bool`
+Whether a logged-in user may use the admin. The default, `$user->IsAdmin()`, allows the Super Admin and
+Admin roles (`role_id` 1 and 2), not Basic (3). Override it to change the rule.
 
 ---
 
@@ -145,7 +155,7 @@ AdminManager::Instance()->Start($admin);
 ```
 
 #### `StartDefault(?string $title = null, ?string $color = null): AdminManager`
-Start with default built-in features (user management, cache, config, file editor).
+`Start()` with a plain `Admin`: the default built-in features (App Config, Cache, Users, User Logs).
 
 #### First-run setup
 
@@ -210,12 +220,8 @@ The Version page shows the app, Magrathea and PHP versions. Its "Server Time" ca
 #### `Auth(): bool`
 Check if the current session has a valid admin user.
 
-```php
-if (!AdminManager::Instance()->Auth()) {
-    header("Location: /admin/login");
-    exit;
-}
-```
+`Start()` already runs it on every request (a logged-in user who fails it gets "Access Denied"): call it
+yourself only outside the admin's own pages.
 
 #### `GetLoggedUser(): AdminUser|null`
 Returns the currently logged-in admin user, or `null`.
@@ -232,7 +238,7 @@ next request. Don't read `$_SESSION["magrathea_user"]` yourself: use this method
 Before, the session held a serialized copy of the user, taken at login.)
 
 #### `PermissionDenied(): void`
-Render a "permission denied" page.
+Ends the request with "Permission denied!".
 
 #### `ErrorPage(string $message): void`
 Render an error page with the given message.
@@ -258,7 +264,7 @@ Returns the favicon `<link>` HTML tag.
 Returns a registered feature by its ID.
 
 ```php
-$cacheFeature = AdminManager::Instance()->GetFeature("cache");
+$cacheFeature = AdminManager::Instance()->GetFeature("AdminFeatureCache");
 ```
 
 #### `GetActiveFeature(): AdminFeature|null`
@@ -270,16 +276,16 @@ Returns the feature matching the current URL segment.
 Add a JS file to the admin bundle.
 
 #### `GetJs(): string`
-Returns all bundled JS (minified).
+Returns all bundled JS, concatenated as is (not minified).
 
 #### `GetJSManager(): JavascriptCompressor`
 Returns the underlying JS compressor instance.
 
 #### `AddCss(string $file): AdminManager`
-Add a CSS file to the admin bundle.
+Add a CSS file to the admin bundle (plain CSS: SCSS isn't compiled).
 
 #### `GetCss(): string`
-Returns all bundled CSS (minified/compiled).
+Returns all bundled CSS, concatenated as is.
 
 #### `GetCSSManager(): CssCompressor`
 Returns the underlying CSS compressor instance.

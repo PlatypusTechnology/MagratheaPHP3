@@ -123,12 +123,11 @@ Sections are named by **environment**, not by topic. `[general]` holds cross-env
 	db_user = "root"
 	db_pass = "secret"
 	db_port = "3306"
-	site_path = "/var/www/html"
 	logs_path = "../logs"
 	cache_path = "../cache"
 	backups_path = "../backups"
 	timezone = "America/Sao_Paulo"
-	server_url = "http://localhost:8080"
+	app_url = "http://localhost:8080"
 	jwt_key = "a-very-long-random-string-here"
 
 [production]
@@ -137,16 +136,15 @@ Sections are named by **environment**, not by topic. `[general]` holds cross-env
 	db_user = "app_user"
 	db_pass = "$=DB_PASSWORD"
 	db_port = "3306"
-	site_path = "/var/www/html"
 	logs_path = "../logs"
 	cache_path = "../cache"
 	backups_path = "../backups"
 	timezone = "America/Sao_Paulo"
-	server_url = "https://myapp.example.com"
+	app_url = "https://myapp.example.com"
 	jwt_key = "$=JWT_SECRET"
 ```
 
-Keys are quoted strings; indent with a tab under each section header (not required by the parser, but keep it for consistency). `backups_path` is where dumps go (§7); without it, `<project>/backups`.
+Keys are quoted strings; indent with a tab under each section header (not required by the parser, but keep it for consistency). `backups_path` is where dumps go (§7); without it, `<project>/backups`. `app_url` is only read by the admin's OpenApi feature. Any other key is the project's own: read it with `Get()`.
 
 **Timezone:** the key is `timezone`, in each environment section (never `time_zone`, which is ignored, and never in `[general]`, which `Get()` doesn't read). `Load()` sets it as PHP's timezone, and every connection sets MySQL's session `time_zone` to PHP's, so `NOW()`/`CURRENT_TIMESTAMP` (which fill `created_at`/`updated_at`, §4) agree with PHP's clock. `db_sync_timezone = false` in the same section turns that off. Always set `timezone`; if MySQL lacks its timezone tables, the offset (`-03:00`) is used instead, which doesn't follow DST. `vendor/bin/magrathea check` includes the timezone checks.
 
@@ -234,7 +232,7 @@ class Article extends MagratheaModel {
 - `GetControl()`: a new `<model class>Control` (`App\Article\Article` → `App\Article\ArticleControl`). Declare it only when the control is named otherwise.
 
 **Rules:**
-- Always set `$dbTable`, `$dbPk` (it has no default) and `$dbValues`.
+- Always set `$dbTable`, `$dbPk` (it has no default) and `$dbValues`, with the PK in `$dbValues` (`"id" => "int"`): without its type, loading and saving throw.
 - Declare every `$dbValues` field as an untyped public property. Don't use `#[\AllowDynamicProperties]`.
 - Don't redeclare `$created_at`/`$updated_at`/`$autoload`; if you must, keep them untyped and public (`$autoload` protected), or PHP refuses the class.
 - Don't write a constructor unless it does more than load the row; if you do, keep `__construct($id = 0)` and call `parent::__construct($id)`.
@@ -719,7 +717,7 @@ class ArticleApiControl extends MagratheaApiControl {
 - Throw `MagratheaApiException` for expected errors (404, 400, 403): the router converts it to JSON with that HTTP status
 - Use `$this->GetPost()` for a POST body, `$this->GetPut()` for a PUT body; `GetPut()` also reads a `PATCH` body (or call its alias `$this->GetPatch()`). `Crud()` only registers `Update` under `PUT`: add a `PATCH` route with `Add("PATCH", ...)`
 - Whitelist the fields you take from input (`array_intersect_key()` as above); never `Assign()` a whole body to a model with fields the client mustn't set
-- Use `$this->GetUserId()` to read the user id from the decoded JWT
+- Use `$this->GetUserId()` to read the user id from the decoded JWT: it reads the payload's `id` claim (then `user_id`), so encode the user's id as `"id"`
 - Return models (or arrays of models) directly; see §4, "Serializing". After a write, `->Reload()` if the client needs the timestamps
 - A controller that only needs the default CRUD sets `protected $model = Article::class;` and `$this->service = new ArticleControl();` in its constructor, and is registered with `Crud()`
 - Never `echo`, `var_dump` or `die()` inside controllers
@@ -755,7 +753,7 @@ class AuthControl extends MagratheaApiAuth {
         }
 
         $token = $this->jwtEncode([
-            "user_id" => $user->id,
+            "id"      => $user->id,     // GetUserId() reads "id"
             "email"   => $user->email,
             "role"    => $user->role,
             "exp"     => time() + 86400, // 24 hours
@@ -769,7 +767,7 @@ class AuthControl extends MagratheaApiAuth {
         $token   = $this->GetAuthorizationToken(); // reads the Bearer token
         $payload = $this->GetTokenInfo($token);    // decodes + verifies
 
-        if (!$payload || !isset($payload->user_id)) {
+        if (!$payload || !isset($payload->id)) {
             throw new MagratheaApiException("Unauthorized", 401); // code 0 would be HTTP 500
         }
 

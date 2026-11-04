@@ -1,141 +1,107 @@
-# Compressors — CSS & JavaScript Compression
+# Compressors — CSS & JavaScript Bundling
 
 **Files:** `src/Compressors/MagratheaCompressor.php`, `src/Compressors/CssCompressor.php`, `src/Compressors/JavascriptCompressor.php`
-**Namespace:** `Magrathea`
+**Namespace:** `Magrathea\Compressors`
 
-File bundling and minification utilities for CSS and JavaScript assets. Used primarily by the Admin panel but available to application code as well.
+Bundle files into one string, and optionally compile (SCSS) or minify (JavaScript) them. The admin panel
+uses them for its assets; application code can too.
 
 ---
 
 ## Base: MagratheaCompressor
 
-Abstract base class providing the common file management interface.
+Holds the list of files. The subclasses only add `GetMinCode()`.
 
 ### Methods
 
-#### `AddFile(string $file): static`
-Register a file to be bundled.
+#### `AddFile(string $file): MagratheaCompressor`
+Register a file (an absolute path on disk) to be bundled.
 
 ```php
-$compressor->AddFile("/path/to/style.css");
+$compressor->AddFile(__DIR__ . "/assets/style.css");
 ```
 
-#### `GetFiles(): array`
-Returns all registered file paths.
+#### `AddArray(array $fs): MagratheaCompressor`
+Register several files at once.
 
-#### `GetOutput(): string`
-Combine and compress all registered files, returning the result as a string.
+#### `GetCode(): string`
+The files' contents concatenated, in the order they were added, **unchanged**: no compiling, no
+minifying. Same as `GetRawCode()`.
+
+#### `GetRawCode(): string`
+The files' contents concatenated.
+
+#### `GetMinCode(): string`
+Processed code: see each subclass. On the base class it throws (`"Parent Compressor does not minify code"`).
 
 ---
 
 ## CssCompressor
 
-Bundles and minifies CSS files using `scssphp` (supports both SCSS and plain CSS).
-
-### Usage
+`GetMinCode()` compiles the concatenated files as SCSS with `scssphp/scssphp` and returns the CSS. Plain
+CSS is valid SCSS, so it works for both. The output isn't minified: scssphp's default style is expanded.
 
 ```php
 use Magrathea\Compressors\CssCompressor;
 
 $css = new CssCompressor();
-$css->AddFile("/assets/bootstrap.css")
-    ->AddFile("/assets/app.scss");
+$css->AddFile(__DIR__ . "/assets/bootstrap.css")
+    ->AddFile(__DIR__ . "/assets/app.scss");
 
-echo "<style>" . $css->GetOutput() . "</style>";
+echo "<style>" . $css->GetMinCode() . "</style>";  // app.scss compiled
 ```
-
-### SCSS Support
-
-Any `.scss` files are automatically compiled to CSS via `scssphp/scssphp` before minification.
 
 ---
 
 ## JavascriptCompressor
 
-Bundles and minifies JavaScript files using `tedivm/jshrink`.
-
-### Usage
+`GetMinCode()` minifies each file with `tedivm/jshrink` and concatenates the results.
 
 ```php
 use Magrathea\Compressors\JavascriptCompressor;
 
 $js = new JavascriptCompressor();
-$js->AddFile("/assets/jquery.min.js")
-   ->AddFile("/assets/app.js");
+$js->AddFile(__DIR__ . "/assets/app.js")
+   ->AddFile(__DIR__ . "/assets/charts.js");
 
-echo "<script>" . $js->GetOutput() . "</script>";
+echo "<script>" . $js->GetMinCode() . "</script>";
 ```
 
 ---
 
 ## Admin Panel Usage
 
-The Admin panel uses both compressors internally via `AdminManager`:
+`AdminManager` keeps one of each, and its layout prints `GetCode()`: the files concatenated **as they
+are**. So files added to the admin must be plain CSS and JavaScript (an `.scss` file would be printed
+uncompiled).
 
 ```php
 use Magrathea\Admin\AdminManager;
 
 $manager = AdminManager::Instance();
+$manager->AddJs(__DIR__ . "/my-feature/custom.js");   // or AdminFeature::AddJs() from a feature
+$manager->AddCss(__DIR__ . "/my-feature/custom.css");
 
-// Add custom JS
-$manager->AddJs("/my-feature/custom.js");
-
-// Add custom CSS
-$manager->AddCss("/my-feature/custom.css");
-
-// Output in templates
-echo $manager->GetJs();  // all JS bundled & minified
-echo $manager->GetCss(); // all CSS bundled & minified
-```
-
----
-
-## Example: Asset Pipeline for a Custom Page
-
-```php
-use Magrathea\Compressors\CssCompressor;
-use Magrathea\Compressors\JavascriptCompressor;
-
-$appRoot = MagratheaPHP::Instance()->GetAppRoot();
-
-$css = new CssCompressor();
-$css->AddFile($appRoot . "assets/vendor/normalize.css")
-    ->AddFile($appRoot . "assets/app/main.scss");
-
-$js = new JavascriptCompressor();
-$js->AddFile($appRoot . "assets/vendor/htmx.min.js")
-   ->AddFile($appRoot . "assets/app/main.js");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <style><?= $css->GetOutput() ?></style>
-</head>
-<body>
-    <!-- page content -->
-    <script><?= $js->GetOutput() ?></script>
-</body>
-</html>
+echo $manager->GetJs();  // all JS, concatenated
+echo $manager->GetCss(); // all CSS, concatenated
 ```
 
 ---
 
 ## Notes
 
-- File paths should be absolute (use `$appRoot . "assets/..."` pattern).
-- Compressors process files in the order they were added — respect dependency order.
-- In production, consider caching the compressor output to avoid reprocessing on every request.
-- SCSS compilation supports `@import`, variables, mixins, and other SCSS features.
-
-### Caching Compressed Output
+- File paths must be absolute: the files are read with `file_get_contents()`.
+- Files are processed in the order they were added: respect dependency order.
+- Nothing is cached: each call reads (and compiles or minifies) the files again. Cache the output yourself
+  if it's on a hot path:
 
 ```php
-$cacheFile = "/tmp/bundle.min.css";
+$cacheFile = MagratheaPHP::Instance()->GetAppRoot() . "/../cache/bundle.css";
 
 if (!file_exists($cacheFile)) {
     $css = new CssCompressor();
-    $css->AddFile("/assets/app.scss");
-    file_put_contents($cacheFile, $css->GetOutput());
+    $css->AddFile(__DIR__ . "/assets/app.scss");
+    file_put_contents($cacheFile, $css->GetMinCode());
 }
 
 echo file_get_contents($cacheFile);

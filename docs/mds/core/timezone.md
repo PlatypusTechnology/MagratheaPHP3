@@ -6,8 +6,10 @@
 **Since:** 2.4.0
 
 Decides whether MySQL's session timezone follows PHP's (`db_sync_timezone`), and checks the
-timezone setup for the admin and the Setup Wizard. The troubleshooter (`Run()`) is only called
-from the admin's Server page and the wizard's Database step, never on a normal request.
+timezone setup. The troubleshooter (`Run()`) is called from the admin's Server page and the Setup
+Wizard's Database step; its two halves (`ConfigFindings()`, `DatabaseFindings()`) from
+[`ProjectCheck`](project-check.md), so from `vendor/bin/magrathea check`, the admin's Checks page and
+the wizard's Checks step. Never on a normal request.
 
 ---
 

@@ -58,11 +58,12 @@ abstract class MagratheaModel{
 	/**
 	 * Runs `MagratheaStart()` and, if an id is given, loads that row
 	 * @param 	int|string 		$id 		primary key of the row to load (empty: nothing is loaded)
-	 * @throws 	MagratheaModelException 	row not found, or (code 400) the id is invalid for an int PK
+	 * @throws 	MagratheaModelException 	row not found, or (code 400) the id is invalid for an int PK, or the PK's type isn't declared
 	 */
 	public function __construct($id = 0) {
 		$this->MagratheaStart();
 		if( !empty($id) ){
+			$this->PkType();
 			$pk = $this->dbPk;
 			$this->$pk = $id;
 			$this->GetById($id);
@@ -270,15 +271,33 @@ abstract class MagratheaModel{
 	}
 	
 	/**
+	 * The primary key's type, from `$dbValues`
+	 * @return 	string 		the PK's declared type
+	 * @throws 	MagratheaModelException 	if `$dbPk` is empty, or `$dbValues` doesn't declare its type
+	 */
+	private function PkType(): string {
+		if( empty($this->dbPk) ) {
+			throw new MagratheaModelException(static::class." has no \$dbPk: set it in MagratheaStart() or as a property default");
+		}
+		$type = $this->dbValues[$this->dbPk] ?? null;
+		if( $type === null ) {
+			throw new MagratheaModelException(
+				static::class."'s primary key [".$this->dbPk."] has no type in \$dbValues: declare it there (\"".$this->dbPk."\" => \"int\", or its type)"
+			);
+		}
+		return $type;
+	}
+
+	/**
 	 * Validates an id for this model's primary key.
 	 * An int PK accepts only an int or a string of digits (optionally negative), and returns it cast to int;
 	 * any other PK type returns the id unchanged (it must be escaped or bound by the caller).
 	 * @param 	mixed 		$id 		id to validate
 	 * @return 	int|mixed 			the id, as an int for int PKs
-	 * @throws 	MagratheaModelException 	(code 400) if the id is invalid for an int PK
+	 * @throws 	MagratheaModelException 	(code 400) if the id is invalid for an int PK; if the PK's type isn't declared
 	 */
 	public function ValidateId($id) {
-		if($this->dbValues[$this->dbPk] !== "int") return $id;
+		if($this->PkType() !== "int") return $id;
 		if(!is_int($id) && !(is_string($id) && preg_match('/^-?\d+$/D', $id))) {
 			throw new MagratheaModelException("Invalid id for ".get_class($this).": [".(is_scalar($id) ? $id : gettype($id))."]", 400);
 		}
@@ -291,14 +310,14 @@ abstract class MagratheaModel{
 	 * if an object with the given id can not be found, or any of the auto-load related objects can not be found an exception will be thrown.
 	 * @param 	integer|string 		$id 		id for the referred object
 	 * @return 	object|null 			desired object
-	 * @throws 	MagratheaModelException 	object could not be found, or (code 400) the id is invalid for an int PK
+	 * @throws 	MagratheaModelException 	object could not be found, or (code 400) the id is invalid for an int PK, or the PK's type isn't declared
 	 */
 	public function GetById($id){
 		if( empty($id) ) return null;
 		$sql = Query::Select()
 			->Table($this->dbTable)
 			->SelectObj($this);
-		if($this->dbValues[$this->dbPk] === "int") {
+		if($this->PkType() === "int") {
 			$sql->Where($this->dbTable.".".$this->dbPk." = ".$this->ValidateId($id));
 		} else {
 			$sql->Where($this->dbTable.".".$this->dbPk." = '".Database::Instance()->Escape($id)."'");
@@ -519,7 +538,7 @@ abstract class MagratheaModel{
 		$query_run = "UPDATE ".$this->dbTable." SET ".implode(",", $arr_Fields)." WHERE `".$this->dbPk."`= ? ";
 
 		$arr_Values[$pkField] = $this->$pkField;
-		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->dbValues[$pkField]);
+		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->PkType());
 		$result = Database::Instance()->PrepareAndExecute($query_run, $arr_Types, $arr_Values);
 		$this->updated_at = null;
 		$this->SavedState();
@@ -552,7 +571,7 @@ abstract class MagratheaModel{
 			throw new MagratheaModelException("Can't touch ".static::class.": its ".$this->dbPk." is empty");
 		}
 		$pkField = $this->dbPk;
-		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->dbValues[$pkField]);
+		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->PkType());
 		$arr_Values[$pkField] = $this->$pkField;
 		$query_run = "UPDATE ".$this->dbTable." SET `updated_at` = CURRENT_TIMESTAMP WHERE `".$this->dbPk."`= ? ";
 		Database::Instance()->PrepareAndExecute($query_run, $arr_Types, $arr_Values);
@@ -567,7 +586,7 @@ abstract class MagratheaModel{
 	 */
 	public function Delete(){
 		$pkField = $this->dbPk;
-		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->dbValues[$pkField]);
+		$arr_Types[$pkField] = $this->GetDataTypeFromField($this->PkType());
 		$arr_Values[$pkField] = $this->$pkField;
 		// old query, for pear mdb2 driver
 		// $query_run = "DELETE FROM ".$this->dbTable." WHERE ".$this->dbPk."=:".$this->dbPk;

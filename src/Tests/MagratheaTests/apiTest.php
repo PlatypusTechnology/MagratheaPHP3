@@ -37,6 +37,12 @@ class RawModeProtectedControl extends MagratheaApiControl {
 	}
 }
 
+class ParamsEchoControl extends MagratheaApiControl {
+	public function Echo($params) {
+		return $params;
+	}
+}
+
 class StatusCapturingApi extends MagratheaApi {
 	public ?int $status = null;
 	public function Json($response, int $code=200) {
@@ -254,6 +260,29 @@ class MagratheaApiTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame(1, $control->calls);
 		$this->assertTrue($response["success"]);
 		$this->assertEquals("secret data", $response["data"]);
+	}
+
+	public static function urlsWithEmptySegments(): array {
+		return [
+			"no slashes" => ["products/42"],
+			"leading slash" => ["/products/42"],
+			"double slash" => ["products//42"],
+			"trailing slash" => ["products/42/"],
+		];
+	}
+
+	/**
+	 * B10: empty segments are dropped and the rest reindexed before matching.
+	 * @dataProvider urlsWithEmptySegments
+	 */
+	public function testExecuteUrlIgnoresEmptySegments(string $url) {
+		TestsHelper::Print("Testing ExecuteUrl matches '".$url."' with empty segments dropped");
+		$this->api->SetRaw()->Add("GET", "products/:id", new ParamsEchoControl(), "Echo");
+
+		$response = $this->api->ExecuteUrl($url, "GET");
+
+		$this->assertTrue($response["success"]);
+		$this->assertSame(["id" => "42"], $response["data"]);
 	}
 
 	public static function errorCodeStatuses(): array {

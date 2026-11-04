@@ -2,7 +2,7 @@
 
 $map = [
 	"skills" => [__DIR__ . "/../skills.MD", "skill.md"],
-	"instructions" => [__DIR__ . "/../instructions.MD", "instructions.md"],
+	"agents" => [__DIR__ . "/../AGENTS.md", "AGENTS.md"],
 ];
 
 $key = $_GET["file"] ?? "";

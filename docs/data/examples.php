@@ -34,15 +34,19 @@ PHP,
 require __DIR__ . "/../vendor/autoload.php";
 
 error_reporting(E_ALL);
-ini_set("display_errors", "1");
 
+// setup only: it prints nothing and catches nothing (the entry points do)
 Magrathea\MagratheaPHP::Instance()
-    ->MinVersion("2.1.19")
-    ->AppPath(realpath(dirname(__FILE__)))
-    ->AddRootCodeFolder("admin", "api", "api/Authentication")
-    ->AddFeature("Article")
-    ->Load();
+    ->MinVersion("3.0.0")                   // optional, pins a minimum framework version
+    ->AppPath(realpath(__DIR__))            // this folder (app/) becomes appRoot
+    ->AppNamespace("App")                   // optional: in DEV, a missing App\… class adds a debug hint
+    ->AddRootCodeFolder("admin", "api", "shared")
+    ->AddFeature("Article", "Author")       // app/features/<Name>
+    ->Dev()                                 // or ->Prod() in production
+    ->Load()                                // reads ../configs/magrathea.conf
+    ->Connect();                            // the connection itself opens on the first query
 PHP,
+		"note" => "public/index.php and public/admin.php require it, and so does vendor/bin/magrathea: it must not print or exit.",
 	],
 
 	[
@@ -116,7 +120,7 @@ $sql = Query::Select()
     ->Obj(\App\Models\Article::class)
     ->SelectExtra("u.name AS author_name")
     ->Inner("users u", "u.id = articles.author_id")
-    ->Where(["articles.published" => 1])
+    ->Where("articles.published = 1")       // a prefixed column: the array form would quote `articles.published` as one name
     ->Order("created_at DESC")
     ->Limit(10)
     ->SQL();
@@ -172,19 +176,26 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["api/authentication"],
 		"code" => <<<'PHP'
-use Magrathea\Authentication;
-
-// Issuing a token (login controller)
-$token = Authentication::Instance()->GenerateToken([
-    "user_id" => $user->id,
-    "role"    => $user->role,
-]);
-return ["token" => $token];
+// Login, in the auth class (extends MagratheaApiAuth)
+public function Login(): array {
+    $post = $this->GetPost();
+    $user = UserControl::GetRowWhere(["email" => $post["email"] ?? ""]);
+    if (!$user || !password_verify($post["password"] ?? "", $user->password_hash)) {
+        throw new MagratheaApiException("Invalid credentials", 401);
+    }
+    $token = $this->jwtEncode([
+        "id"   => $user->id,          // GetUserId() reads "id"
+        "role" => $user->role,
+        "exp"  => time() + 86400,
+    ]);
+    return ["token" => $token, "user" => ["id" => $user->id, "email" => $user->email]];
+}
 
 // Reading the current user in any other controller
-$payload = Authentication::Instance()->GetTokenData();
-$userId  = $payload->user_id ?? null;
+$userId = $this->GetUserId();         // the token's "id" claim, or null
+$info   = $this->GetUserInfo();       // the whole decoded payload
 PHP,
+		"note" => "The secret is jwt_key from the config (GetSecret()). Never return a user model here: it carries the password hash.",
 	],
 
 	[
@@ -193,20 +204,21 @@ PHP,
 		"source" => "skills.MD",
 		"topics" => ["utilities/cache"],
 		"code" => <<<'PHP'
-use Magrathea\MagratheaCache;
-
-$key = "articles:published:page:{$page}";
-
-$cached = MagratheaCache::Instance()->Get($key);
-if ($cached !== null) {
-    return $cached;
+// In an API controller action
+public function List(): array {
+    // a hit outputs the cached response and ends the request;
+    // a miss returns, and the action's response is saved automatically
+    $this->Cache("articles_published", $_GET["page"] ?? null); // key: articles_published-<page> (no suffix for 0)
+    return ArticleControl::GetWhere(["published" => 1]);
 }
 
-$data = ArticleControl::GetWhere(["published" => 1]);
-MagratheaCache::Instance()->Set($key, $data, 300); // seconds
-
-return $data;
+public function Create($data = false) {
+    $article = parent::Create($data);
+    $this->CacheClearPattern("articles_published*");
+    return $article;
+}
 PHP,
+		"note" => "The second argument of Cache() is a key suffix (an id, a page), never the response.",
 	],
 
 	[
@@ -218,11 +230,19 @@ PHP,
 use Magrathea\Logger;
 use Magrathea\Debugger;
 
-// Production-safe logging
-Logger::Instance()->Log("Order #{$order->id} processed", "orders");
+// Production-safe logging (to logs_path)
+Logger::Instance()->Log("Order #{$order->id} processed");
+Logger::Instance()->SetLogFile("payments")->Log("Payment success: $amount");
 
-// Development-only debug output (silenced unless Dev mode is on)
-Debugger::Instance()->Debug($order, "order-debug");
+try {
+    // something risky
+} catch (\Exception $e) {
+    Logger::Instance()->LogError($e);
+}
+
+// Debug items: printed in DEV, stored in DEBUG, in an API response's _debug
+Debugger::Instance()->Add(["order" => $order->id, "step" => "paid"]);
+Debugger::Instance()->Info("Cache miss for: articles_published");
 PHP,
 	],
 
@@ -233,12 +253,20 @@ PHP,
 		"topics" => ["utilities/mail"],
 		"code" => <<<'PHP'
 use Magrathea\MagratheaMailSMTP;
+use Magrathea\Config;
+use Magrathea\Logger;
 
-MagratheaMailSMTP::Instance()
-    ->To("someone@example.com", "Someone")
-    ->Subject("Welcome!")
-    ->Body("<p>Thanks for signing up.</p>")
-    ->Send();
+// SMTP settings are never read from the config automatically: pass them in
+$config = Config::Instance();
+$mail = new MagratheaMailSMTP();
+$mail->SetSMTP($config->Get("smtp_host"), $config->Get("smtp_port"), $config->Get("smtp_user"), $config->Get("smtp_pass"));
+$mail->SetFrom("noreply@myapp.com")
+     ->SetTo("someone@example.com")
+     ->SetSubject("Welcome!")
+     ->SetHTMLMessage("<p>Thanks for signing up.</p>");
+if (!$mail->Send()) {
+    Logger::Instance()->Log("mail failed: " . $mail->GetError());
+}
 PHP,
 	],
 
@@ -250,28 +278,43 @@ PHP,
 		"code" => <<<'PHP'
 <?php
 // public/admin.php
-require __DIR__ . "/../app/_inc.php";
+use Magrathea\Admin\AdminManager;
 
-Magrathea\Admin\AdminManager::Instance()
-    ->SetAdminClass(\App\Admin\MyAdmin::class)
-    ->Run();
+try {
+    require __DIR__ . "/../app/_inc.php";
+    \Magrathea\MagratheaPHP::Instance()->StartSession();
+    AdminManager::Instance()->Start(new \App\MyAppAdmin()); // handles login, auth, routing and rendering
+} catch (\Throwable $ex) {
+    error_log((string) $ex);   // never print the exception on the page
+    http_response_code(500);
+    echo "Internal Server Error";
+}
 PHP,
 	],
 
 	[
 		"id" => "admin-crud-feature",
 		"title" => "Registering a CRUD admin feature",
-		"source" => "original",
+		"source" => "skills.MD",
 		"topics" => ["admin/admin-features"],
 		"code" => <<<'PHP'
-use Magrathea\Admin\Features\AdminFeatureCrud;
+<?php
+// app/features/Article/ArticleAdmin.php
+namespace App\Article;
 
-$this->AddFeature(
-    new AdminFeatureCrud("Articles", \App\Models\Article::class, [
-        "icon"   => "bi-file-text",
-        "fields" => ["title", "published", "created_at"],
-    ])
-);
+class ArticleAdmin extends \Magrathea\Admin\Features\CrudObject\AdminCrudObject {
+    public string $featureName = "Articles"; // menu/page title (default: "Article CRUD")
+
+    public function Initialize() {
+        $this->SetObject(new Article()); // uses App\Article\ArticleControl
+    }
+}
+
+// in your Admin subclass:
+public function SetFeatures() {
+    parent::SetFeatures();
+    $this->AddCrudFeature(new \App\Article\ArticleAdmin());
+}
 PHP,
 	],
 
@@ -291,12 +334,13 @@ PHP,
 	db_user = "root"
 	db_pass = "secret"
 	db_port = "3306"
-	site_path = "/var/www/html"
-	logs_path = "../logs"
-	cache_path = "../cache"
+	logs_path = "/var/www/my-app/logs"
+	cache_path = "/var/www/my-app/cache"
+	backups_path = "/var/www/my-app/backups"
 	timezone = "America/Sao_Paulo"
-	server_url = "http://localhost:8080"
+	app_url = "http://localhost:8080"
 	jwt_key = "a-very-long-random-string-here"
+	bootstrap_unlocked = true
 
 [production]
 	db_host = "db.prod.server"
@@ -304,14 +348,14 @@ PHP,
 	db_user = "app_user"
 	db_pass = "$=DB_PASSWORD"
 	db_port = "3306"
-	site_path = "/var/www/html"
-	logs_path = "../logs"
-	cache_path = "../cache"
+	logs_path = "/var/www/my-app/logs"
+	cache_path = "/var/www/my-app/cache"
+	backups_path = "/var/www/my-app/backups"
 	timezone = "America/Sao_Paulo"
-	server_url = "https://myapp.example.com"
+	app_url = "https://myapp.example.com"
 	jwt_key = "$=JWT_SECRET"
 PHP,
-		"note" => "Sections are named by environment (not by topic) and each repeats its own full flat key set — there is no [section:env] inheritance. Use \$=ENV_VAR for secrets, never hardcode credentials.",
+		"note" => "Sections are named by environment (not by topic) and each repeats its own full flat key set — there is no [section:env] inheritance. Use \$=ENV_VAR for secrets, never hardcode credentials. bootstrap_unlocked opens the Setup Wizard: only in [dev], if anywhere. vendor/bin/magrathea check validates the file.",
 	],
 
 	[

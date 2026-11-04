@@ -34,13 +34,42 @@ class TestsManager extends \Magrathea\Singleton {
 	}
 
 	/**
-	 * Gets a string with the location of the PHPUnit phar for running test
+	 * Where to look for PHPUnit, in order: the project's `vendor/bin/phpunit` (Composer's bin folder, next to
+	 * the autoloader), then the framework's own `phpunit.phar`, which exists only in a checkout of the framework:
+	 * the Composer package doesn't ship it.
+	 * @return array<string> 	file paths
+	 */
+	protected function PhpUnitCandidates(): array {
+		$candidates = [];
+		if(class_exists(\Composer\Autoload\ClassLoader::class, false)) {
+			$vendor = dirname((new \ReflectionClass(\Composer\Autoload\ClassLoader::class))->getFileName(), 2);
+			$candidates[] = $vendor."/bin/phpunit";
+		}
+		$candidates[] = dirname(__DIR__, 2)."/phpunit.phar";
+		return $candidates;
+	}
+
+	/**
+	 * Gets the PHPUnit to run (see `PhpUnitCandidates()`). Only running tests needs it: listing them doesn't.
+	 * @return string 		file path
+	 * @throws MagratheaException 	when there's none, saying what to install
+	 */
+	public function GetPhpUnit(): string {
+		$candidates = $this->PhpUnitCandidates();
+		foreach($candidates as $file) {
+			if(is_file($file)) return $file;
+		}
+		throw new MagratheaException("PHPUnit not found: the tests run with the project's vendor/bin/phpunit (composer require --dev phpunit/phpunit), or a phpunit.phar in a checkout of the framework. Looked for: ".implode(", ", $candidates));
+	}
+
+	/**
+	 * Gets the command that runs PHPUnit, with the framework's bootstrap
 	 * @param boolean $debug	should include debug param
-	 * @return string 		phar code to be executed
+	 * @return string 		command, arguments escaped
+	 * @throws MagratheaException 	PHPUnit not found
 	 */
 	private function GetPhar($debug=false): string {
-		$pharFolder = realpath(__DIR__."/../../");
-		$pharCommand = "php -d display_errors=on ".escapeshellarg($pharFolder."/phpunit.phar");
+		$pharCommand = "php -d display_errors=on ".escapeshellarg($this->GetPhpUnit());
 		if($debug) {
 			$pharCommand .= " --testdox";
 		}
@@ -169,7 +198,7 @@ class TestsManager extends \Magrathea\Singleton {
 	 * @param 	string 		$folder		full path of folder: a registered test folder, or a folder inside one
 	 * @param 	boolean		$debug		is this a full debug? (TODO)
 	 * @return 	array			response
-	 * @throws 	MagratheaException	invalid test path
+	 * @throws 	MagratheaException	invalid test path, or PHPUnit not found
 	 */
 	public function RunFolder($folder, $debug=false): array {
 		$folder = $this->GetTestFolder($folder);
@@ -185,7 +214,7 @@ class TestsManager extends \Magrathea\Singleton {
 	 * @param 	string 		$file			full path of file: a `*Test.php` file inside a registered test folder
 	 * @param 	boolean		$debug		is this a full debug? (TODO)
 	 * @return 	array			response
-	 * @throws 	MagratheaException	invalid test path
+	 * @throws 	MagratheaException	invalid test path, or PHPUnit not found
 	 */
 	public function RunFile($file, $debug=true): array {
 		$file = $this->GetTestFile($file);
@@ -199,7 +228,7 @@ class TestsManager extends \Magrathea\Singleton {
 	 * @param 	string 		$fn				full name of function (letters, digits and `_` only)
 	 * @param 	boolean		$debug		is this a full debug? (TODO)
 	 * @return 	array			response
-	 * @throws 	MagratheaException	invalid test path or function name
+	 * @throws 	MagratheaException	invalid test path or function name, or PHPUnit not found
 	 */
 	public function RunFunction($file, $fn, $debug=true): array {
 		$file = $this->GetTestFile($file);
@@ -211,7 +240,7 @@ class TestsManager extends \Magrathea\Singleton {
 		if ($debug) {
 			$debugCommand = ">> $ ".$command;
 		} else {
-			$debugCommand = ">> $ phpunit.phar .../".self::TestFolderPrint($file);
+			$debugCommand = ">> $ ".basename($this->GetPhpUnit())." .../".self::TestFolderPrint($file);
 		}
 		return [$debugCommand, ...$this->Execute($command)];
 	}

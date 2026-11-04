@@ -68,16 +68,19 @@ $page2 = ProductControl::GetListPage(20, 1); // next 20
 ### `GetWhere(string|array $arr, string $condition = "AND"): array<MagratheaModel>`
 Fetch records matching a WHERE condition. Pass a raw SQL string or an associative array. The array form orders by `created_at` descending; a string is passed to `GetSimpleWhere()`, unordered.
 
+The array form only does equality (`` `column` = 'value' ``, escaped; `null` gives `is null`). Each
+key is quoted as one column name, so it can't carry an operator (`"price <="`) or a table prefix
+(`"products.active"`): use the string form for those, escaping any input with `Escape()`.
+
 ```php
-// Array form (recommended — safer)
+// Array form (recommended — values are escaped)
 $active = ProductControl::GetWhere(["active" => 1]);
-$affordable = ProductControl::GetWhere(["active" => 1, "price <=" => "50.00"]);
+$draftsOrFeatured = ProductControl::GetWhere(["status" => "draft", "featured" => 1], "OR");
 
-// Raw SQL form
+// Raw SQL form: comparisons, IN, LIKE...
+$affordable = ProductControl::GetWhere("active = 1 AND price <= 50");
 $recent = ProductControl::GetWhere("created_at > '2024-01-01'");
-
-// OR condition
-$either = ProductControl::GetWhere(["status" => "draft", "status" => "review"], "OR");
+$either = ProductControl::GetWhere("status IN ('draft', 'review')");
 ```
 
 ### `GetRowWhere(string|array $arr, string $condition = "AND"): object|null`
@@ -98,11 +101,11 @@ $results = ProductControl::GetSimpleWhere("price > 100 AND active = 1");
 ```
 
 ### `GetSelectArray(): array`
-Returns an associative array suitable for populating `<select>` dropdowns: `[id => name]`.
+Returns an associative array suitable for populating `<select>` dropdowns: `[id => Ref()]`, every row.
 
 ```php
 $options = ProductControl::GetSelectArray();
-// [1 => "Widget", 2 => "Gadget", ...]
+// [1 => "Product [1]", 2 => "Product [2]", ...]: override Ref() in the model for a better label
 ```
 
 ---
@@ -254,12 +257,12 @@ $query = Query::Select()
 $total    = 0;
 $products = ProductControl::RunPagination($query, $total, page: 1, limit: 15);
 
-// Output
+// Output (models encode their public properties, timestamps included)
 echo json_encode([
     "total"    => $total,
     "page"     => 1,
     "per_page" => 15,
-    "data"     => array_map(fn($p) => $p->ToJson(), $products),
+    "data"     => $products,
 ]);
 ```
 

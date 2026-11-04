@@ -181,6 +181,39 @@ class MagratheaApiControlAuthTest extends \PHPUnit\Framework\TestCase {
 		}
 	}
 
+	public function testGetUserIdReadsTheIdClaim() {
+		TestsHelper::Print("Testing GetUserId() reads the token's id claim");
+		$control = new MagratheaApiControl();
+		$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ".$this->makeToken($control, ["id" => 42]);
+		$this->assertSame(42, $control->GetUserId());
+	}
+
+	public function testGetUserIdFallsBackToUserIdClaim() {
+		TestsHelper::Print("Testing GetUserId() reads user_id when the token has no id claim");
+		$control = new MagratheaApiControl();
+		$token = $control->jwtEncode(["user_id" => 7, "exp" => time() + 3600]);
+		$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ".$token;
+		$this->assertSame(7, $control->GetUserId());
+	}
+
+	public function testGetUserIdPrefersIdOverUserId() {
+		TestsHelper::Print("Testing GetUserId() prefers id when the token has both claims");
+		$control = new MagratheaApiControl();
+		$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ".$this->makeToken($control, ["id" => 1, "user_id" => 2]);
+		$this->assertSame(1, $control->GetUserId());
+	}
+
+	public function testGetUserIdIsNullWithoutTokenOrClaim() {
+		TestsHelper::Print("Testing GetUserId() returns null without a token, and with a token that has neither claim");
+		$control = new MagratheaApiControl();
+		$this->assertNull($control->GetUserId());
+
+		$other = new MagratheaApiControl();
+		$token = $other->jwtEncode(["email" => "a@b.c", "exp" => time() + 3600]);
+		$_SERVER["HTTP_AUTHORIZATION"] = "Bearer ".$token;
+		$this->assertNull($other->GetUserId());
+	}
+
 	public function testIsLoggedReturnsFalseWhenNoTokenPresent() {
 		TestsHelper::Print("Testing IsLogged() still returns false (not an exception) when no Authorization header is present");
 		$auth = new MagratheaApiAuth();

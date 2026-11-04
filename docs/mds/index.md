@@ -5,7 +5,7 @@
 > **Author:** Paulo Henrique Martins / Platypus Technology
 > **License:** MIT
 > **Namespace root:** `Magrathea`
-> **Official docs:** https://www.platypusweb.com.br/magratheaphp3
+> **Official docs:** https://www.platypusweb.com.br/magratheaphp3/docs/
 
 ---
 
@@ -16,7 +16,9 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 - An **ORM** (Model + ModelControl) for MySQL via MySQLi
 - A **fluent Query Builder** (SELECT, INSERT, UPDATE, DELETE)
 - A **RESTful API framework** with CORS, JWT, and caching out of the box
-- An **Admin Panel** system with pluggable features (CRUD, user management, an opt-in file editor, etc.)
+- An **Admin Panel** system with pluggable features (CRUD, user management, app config, cache, CORS origins, etc.) and a Database section (explorer, queries, query editor, dumps, checks)
+- A **CLI** for agents and scripts (`vendor/bin/magrathea`): project checks, model ↔ table drift, schema, queries, dumps
+- A **Setup Wizard** (`public/setup.php`), locked by a token, for a human to configure a new install
 - **INI-based configuration** with multi-environment support
 - **File-based logging** and flexible debugging
 - **Email** (native + SMTP via PHPMailer)
@@ -65,7 +67,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | [Admin System Overview](admin/admin.md) | Admin panel manager |
 | [AdminManager](admin/admin-manager.md) | Admin singleton & runtime |
 | [Admin Features](admin/admin-features.md) | Pluggable admin feature system |
-| [Admin: Database Section](admin/admin-database.md) | Explorer, Queries and Query editor pages |
+| [Admin: Database Section](admin/admin-database.md) | Explorer, Queries, Query editor, Dumps and Checks pages |
 
 ### Utilities
 | File | Description |
@@ -91,6 +93,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | File | Description |
 |------|-------------|
 | [2.4.0](migrations/migrate-2.4.0.md) | Upgrading a project from 2.3.5 to 2.4.0 |
+| [3.0](migrations/migrate-3.0.md) | Upgrading a project from 2.3 or 2.4 to 3.0.0 |
 
 ---
 
