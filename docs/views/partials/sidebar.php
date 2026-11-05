@@ -19,5 +19,6 @@
 		<li><a href="<?= $baseUrl ?>/?p=md-files" class="<?= $route === "md-files" ? "active" : "" ?>">MD Files</a></li>
 		<li><a href="<?= $baseUrl ?>/?p=about" class="<?= $route === "about" ? "active" : "" ?>">About</a></li>
 		<li><a href="<?= $baseUrl ?>/?p=changelog" class="<?= $route === "changelog" ? "active" : "" ?>">Changelog</a></li>
+		<li><a href="https://www.platypusweb.com.br/magratheaphp2/website/" target="_blank" rel="noopener">MagratheaPHP2 <span aria-hidden="true">↗</span></a></li>
 	</ul>
 </nav>

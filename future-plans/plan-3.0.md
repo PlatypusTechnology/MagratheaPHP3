@@ -1755,6 +1755,15 @@ The wizard has no favicon at all.
   `PrintLogo(80)` writes `width="80" height="80"` with no `<?` left, and the favicon tag decodes to the square SVG.
 - `admin/admin.md` and `admin/admin-manager.md` only give the default paths, which haven't changed, so neither
   page is edited.
+- **Changed afterwards (Paulo's call, 2026-11-04):** `magrathea3_logo.svg` is replaced by `assets/magrathea3_logo.png`
+  (full color) and `assets/logo-monocolor.png` / `logo-monocolor.svg` (single color), and the SVG is deleted. Where
+  the logo is small, or the code needs an SVG, it's the single-color one: `src/Admin/views/logo.svg` (`PrintLogo()`
+  inlines it, and a PNG's `<img src>` would be a `vendor/` filesystem path, which nothing serves) and
+  `src/Bootstrap/views/logo.svg` are `logo-monocolor.svg` without its `<?xml`/`<!DOCTYPE>` lines, with the same
+  `width`/`height` as before. Docs: the topbar shows `docs/assets/img/logo-monocolor.png` and the hero shows
+  `docs/assets/img/magrathea3_logo.png` (`object-fit: contain`, because the PNG is 512×411 and the hero box is
+  96×96). `docs/assets/img/logo.svg` is deleted. The favicons haven't changed. `magrathea3_logo_unicolor.svg` is
+  deleted too: nothing referenced it, and `logo-monocolor.svg` replaces it.
 
 ---
 
@@ -1985,12 +1994,20 @@ query first. `HasUuidPk()` stays lenient: an auto-increment `Insert()` doesn't n
       `grep -rnE "^####[[:space:]]+v\. " src` finds nothing. No changelog line.
 - [x] Full suite green; record the counts here. 2026-11-04, PHP 8.4.27, PHPUnit 10.5.9: 791 tests,
       3791 assertions, 0 failures, 3 deprecations (all `firebase/php-jwt`, `JWT::decode()`/`encode()`).
-- [ ] After Paulo commits: `git archive HEAD | tar -t` matches item 32.
-- [ ] Split the local skill in two:
+- [x] After Paulo commits: `git archive HEAD | tar -t` matches item 32. Checked on `6ba0252`: 338 files
+      (2.2 MB), only `bin/`, `docs/mds/`, `src/`, `skills.MD`, `README.md`, `LICENSE`, `composer.json`.
+- [x] Split the local skill in two:
   - `~/.claude/skills/magrathea-php2/` stays the frozen 2.x cookbook. Only its frontmatter
     `description` changes, to say it's for projects on 2.x (`platypustechnology/magratheaphp2`);
   - the 3.0 `skills.MD` (`name: magrathea-php`, item 30) is copied to
     `~/.claude/skills/magrathea-php/SKILL.md`, byte for byte (check with `cmp`).
+
+  **Done differently (Paulo's call):** the change went into the source, MagratheaPHP2's
+  `skills.MD` (unreleased 2.4.0, no changelog line), not only the local copy: the `description`
+  says 2.x and points 3.x projects to `magrathea-php`, and a note under the intro says 3.x is a
+  separate package and points to `vendor/platypustechnology/magratheaphp/docs/mds/migrations/migrate-3.0.md`
+  (a vendor path, not the docs URL, so it can't be a dead link before the 3.0 docs are published).
+  Both local skills are byte copies of their repo's `skills.MD` (`cmp`).
 - [ ] Paulo's infrastructure steps:
   - create `PlatypusTechnology/MagratheaPHP3` and push the existing history into it (the
     `version/3.0` branch, not a squashed snapshot, so `git blame` keeps working). Leave the 2.x

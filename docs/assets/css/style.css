@@ -108,7 +108,7 @@ code, pre { font-family: "SF Mono", Consolas, Menlo, monospace; }
 	border-bottom: 1px solid var(--line);
 	padding: 4.5rem 1.5rem 3.5rem; text-align: center;
 }
-.hero img { width: 96px; height: 96px; margin-bottom: 1.2rem; filter: drop-shadow(0 6px 18px rgba(136,85,13,0.35)); }
+.hero img { width: 96px; height: 96px; object-fit: contain; margin-bottom: 1.2rem; filter: drop-shadow(0 6px 18px rgba(136,85,13,0.35)); }
 .hero h1 { font-size: 2.6rem; margin: 0 0 0.6rem; letter-spacing: -0.02em; }
 .hero h1 span { color: var(--bronze); }
 .hero p { max-width: 640px; margin: 0 auto 1.8rem; color: var(--text-dim); font-size: 1.08rem; }

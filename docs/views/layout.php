@@ -17,7 +17,7 @@
 
 <div class="topbar">
 	<a class="brand" href="https://www.platypusweb.com.br/magratheaphp3">
-		<img src="<?= $baseUrl ?>/assets/img/logo.svg" alt="">
+		<img src="<?= $baseUrl ?>/assets/img/logo-monocolor.png" alt="">
 		MagratheaPHP
 	</a>
 	<div class="spacer"></div>
