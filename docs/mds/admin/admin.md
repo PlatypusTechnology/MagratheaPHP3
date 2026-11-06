@@ -11,7 +11,7 @@ MagratheaPHP ships with a built-in admin panel system. It provides a configurabl
 
 ```php
 <?php
-// public/admin.php
+// public/magrathea.php
 use Magrathea\MagratheaPHP;
 use Magrathea\Admin\AdminManager;
 

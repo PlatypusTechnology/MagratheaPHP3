@@ -38,6 +38,8 @@ MagratheaPHP::Instance()
 
 Keep class basenames unique across code folders anyway: every lookup of a duplicated name reads the candidate files, and the DEV warning shows up on every request that loads it.
 
+**Composer and the app's own classes.** An app's `composer.json` needs no `autoload` entry for classes in its registered code folders: this autoloader loads them, and never goes through Composer's mappings. Composer's autoload is for the vendor packages (the framework included), so `vendor/autoload.php` stays required: it's also what registers this autoloader. If an app maps its own namespace anyway (say `"App\\": "./"`), the mapping must match the classes' real namespaces and folders; otherwise Composer prints a "does not comply with psr-4 autoloading standard … Skipping." line per class whenever it builds an optimized autoloader (`composer install -o`, `composer dump-autoload -o`, or `"optimize-autoloader": true` in `config`).
+
 ---
 
 ## Global Functions

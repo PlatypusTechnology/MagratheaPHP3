@@ -163,7 +163,7 @@ error. Without it, the first error stops the import and is shown.
   `Install::CreateFirstUser()`. From a shell, `vendor/bin/magrathea admin:create-user <email>` does the
   same, with the same rules (no users yet, 12+ characters).
 
-The admin's entry file (`public/admin.php`) comes with the skeleton: the wizard doesn't write it. A
+The admin's entry file (`public/magrathea.php`) comes with the skeleton: the wizard doesn't write it. A
 forgotten password is `vendor/bin/magrathea admin:reset-password <email>`: shell access proves
 ownership, a web form doesn't.
 

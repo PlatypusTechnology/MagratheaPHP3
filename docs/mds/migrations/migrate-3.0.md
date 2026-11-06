@@ -101,6 +101,14 @@ composer remove platypustechnology/magratheaphp2
 `vendor/platypustechnology/magratheaphp/docs/mds/migrations/`. The project can't run again until M2
 renames the namespace.
 
+Check the project's own `autoload` too (`grep -n -A4 '"autoload"' composer.json`). If it maps an app
+namespace (say `"App\\": "./"`), make sure the mapping matches your files' namespaces and folders, or
+remove it when every class it covers is in a folder registered with `AddCodeFolder()`,
+`AddRootCodeFolder()` or `AddFeature()`: the framework loads those classes itself, never through
+Composer. A mapping that doesn't match makes optimized dumps (`composer install -o`,
+`dump-autoload -o`, `"optimize-autoloader": true`) print a PSR-4 "does not comply … Skipping." line
+per class. Run `composer dump-autoload` after changing it.
+
 ## 3. Coming from 2.3 (skip on 2.4)
 
 3.0 includes every 2.4.0 change. Apply
@@ -316,6 +324,7 @@ grep -rnE 'ShowAll\(|LoadVendor|Query::Clean|::Clean\(|CloseConnectionThanks|Inc
 grep -rnE 'Magrathea2?\\Authentication\b|new Authentication\(|GenerateToken\(' --include='*.php' --exclude-dir=vendor .
 grep -rn --include='*.php' --exclude-dir=vendor -e '->Start()' .   # only calls on a MagratheaApi object matter
 grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand|LoadBackupFolder|GetBackupFolder|GetDefaultFileName|ValidateBackupFileName)\(' --include='*.php' --exclude-dir=vendor .   # only calls on AdminDatabase matter
+grep -rnE 'CreateAdminEntranceFile|CheckIfAdminFileExists|GetAdminCode|getAdminFileEntrance|adminFileName|Install\(\)\)?->Load\(|->appPath\b' --include='*.php' --exclude-dir=vendor .   # only uses on Admin\Install matter
 ```
 
 **What to do.** Replace each call:
@@ -336,6 +345,7 @@ grep -rnE '(GetTables|GetTableColumns|DoBackup|GetCommand|LoadBackupFolder|GetBa
 | `AdminDatabase::Instance()->DoBackup($name)` / `GetCommand()` | `(new \Magrathea\DB\Dump())->Export($name)` (M17). It returns `["file", "size", "driver"]` (plus `skipped` with the php driver), and runs `mysqldump` with `--single-transaction --routines --triggers --default-character-set=utf8mb4` instead of `--opt` (on by default anyway). Without `mysqldump`, it falls back to the php driver instead of throwing |
 | `AdminDatabase::Instance()->GetBackupFolder()` / `LoadBackupFolder()` / `GetDefaultFileName()` / `ValidateBackupFileName($n)` | `\Magrathea\DB\Dump::Folder()` / nothing (`Folder()` reads the config on every call) / `Dump::GetDefaultFileName()` / `Dump::ValidateBackupFileName($n)`, all static (M17). `AdminDatabase` keeps only `GetSQLFile()` and `GetSQLFileContents()` |
 | `(new Authentication())->GenerateToken($payload)` (the whole `Magrathea\Authentication` class) | `(new AuthControl())->jwtEncode($payload)`, with your `MagratheaApiAuth` (or `MagratheaApiControl`) subclass: it returns the token string, not `["source", "token"]`. Nothing lost: on php-jwt 6 and 7 `GenerateToken()` threw an `ArgumentCountError` (no algorithm), and `Token()` decoded an empty string. Don't swap in a bare `JWT::encode()` with the `jwt_key`: `jwtEncode()` transforms the key first (`strtr($key, '-_', '+/')`), so the API would reject the token |
+| `Install::CreateAdminEntranceFile()` / `GetAdminCode()` / `CheckIfAdminFileExists()` / `getAdminFileEntrance()` / `Load()`, and the `$adminFileName` / `$appPath` properties | nothing: the 3.0 wizard doesn't write the admin's entry file, and nothing called them. The code `GetAdminCode()` returned (`AdminManager::Instance()->StartDefault()`) still works, if a project copied it into its entry file |
 | `MagratheaPHP::Instance()->StartDB()` | `Connect()`. `StartDB()` still works in 3.0 (deprecated, removed in 4.0; in DEV it adds a deprecation notice to the Debugger, so in an API call it shows in `_debug`) |
 
 ## M6. `MagratheaModel` defaults
@@ -855,6 +865,10 @@ grep -rn 'bootstrap_unlocked' configs/ 2>/dev/null
   `tools.php` and the `?action=` endpoints (`run-query`, `user-reset`, `users-get`, `show-tables`,
   `install-admin`, `install-admin-preview`, `database-test`, `save-config`). The wizard runs no
   arbitrary SQL and writes no admin entry file.
+- The admin's entry file is `public/magrathea.php` in the 3.0 skeleton and docs: the name 2.x's
+  wizard generated, so a 2.x project already has it. Its Finish step links to `magrathea.php`.
+  Nothing else in the framework reads the name: a project whose admin entry file is called
+  something else keeps it, and only that link misses.
 - The wizard's admin password reset is now `vendor/bin/magrathea admin:reset-password <email>`.
 - The framework's HTML error page shows the exception's dump (stack trace and arguments) only when
   the Debugger is `DEV`; otherwise the message alone. A production error page no longer shows the

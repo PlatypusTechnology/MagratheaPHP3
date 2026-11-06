@@ -331,9 +331,9 @@ don't escape values before passing them, or they show the entities (`&amp;lt;`).
 The admin router reads query-string params across two independent dispatch paths (see `AdminManager::GetActiveFeature()`, `AdminFeature::GetPage()`, and `Start::CheckFeature()`):
 
 ```
-GET /admin.php?magrathea_feature=reports                                        → ReportsFeature::GetPage() → Index()
-GET /admin.php?magrathea_feature=reports&magrathea_feature_subpage=x            → ReportsFeature::GetPage() → $this->x()
-GET /admin.php?magrathea_feature=reports&magrathea_feature_action=x             → Start::CheckFeature() → $this->x()
+GET /magrathea.php?magrathea_feature=reports                                    → ReportsFeature::GetPage() → Index()
+GET /magrathea.php?magrathea_feature=reports&magrathea_feature_subpage=x        → ReportsFeature::GetPage() → $this->x()
+GET /magrathea.php?magrathea_feature=reports&magrathea_feature_action=x         → Start::CheckFeature() → $this->x()
 ```
 
 The first two rows go through `views/index.php`, which defaults `magrathea_feature_subpage` to `GetPage` and calls that method on the feature instance; `GetPage()` itself then reads the same `magrathea_feature_subpage` param to decide between `Index()` and a named subpage (an empty subpage, or `GetPage` itself, is `Index()`). The third row is a separate, earlier dispatch point — `Start::CheckFeature()` runs before `views/index.php` is even included, and calls the method named by `magrathea_feature_action` directly. Both the explicit-subpage branch of `views/index.php` and `CheckFeature()` call `HasPermission()` before dispatching (see above); the default `GetPage()`-via-`Index()` path enforces it internally instead.

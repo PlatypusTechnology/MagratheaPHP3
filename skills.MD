@@ -65,7 +65,7 @@ Never call `MagratheaPHP::Load()` in it: the wizard works without a config. Ever
 
 ## 2. Project Bootstrap
 
-**Every entry point starts the same way**, and the bootstrap lives in one shared file, `app/_inc.php`, that every entry point (`public/index.php`, `public/admin.php`) requires. The CLI (`vendor/bin/magrathea`, §20) loads the same file. Never skip a step.
+**Every entry point starts the same way**, and the bootstrap lives in one shared file, `app/_inc.php`, that every entry point (`public/index.php`, `public/magrathea.php`) requires. The CLI (`vendor/bin/magrathea`, §20) loads the same file. Never skip a step.
 
 Domain code is organized as **features**: one folder per table/domain under `app/features/<Name>/`, added with `->AddFeature(...)` (see §4–5 for what goes inside). `->AddRootCodeFolder(...)` registers the other folders, like `admin`, `api`, `shared`.
 
@@ -98,6 +98,7 @@ Magrathea\MagratheaPHP::Instance()
 - `AddRootCodeFolder()` paths are relative to `AppPath`; `AddCodeFolder()` takes paths **as given** (absolute, or relative to the current working directory, i.e. the entry script's folder under a web server). Call both, and `AddFeature()`, after `AppPath()`
 - `AddFeature("Article", ...)` adds `<appRoot>/features/Article` to the autoloader. It also adds `features/Article/Base`, which only legacy projects use (2.x's generator put Base classes there); new features have no `Base` folder
 - The autoloader is **not** PSR-4: it looks for `<ClassName>.php` (the basename, without namespace) in every code folder. Give every class a basename that's unique across the code folders. With duplicates, it loads the file whose `namespace` matches, and in DEV adds a warning on every request that loads one. A class it can't find fails with PHP's own `Error: Class "…" not found`, so `class_exists()` is safe
+- Don't add an `autoload` entry for the app's classes to the project's `composer.json`: the code folders already load them. A mapping that doesn't match the real namespaces and folders (e.g. `"App\\": "./"` when no class is in `App\`) makes Composer print a PSR-4 "does not comply … Skipping." line per class on every optimized dump (`-o`, or `"optimize-autoloader": true`). `vendor/autoload.php` stays required: it loads the framework and registers its autoloader
 - Use `->Dev()` locally, `->Prod()` on servers. They only set the Debugger mode (DEV prints errors, LOG writes them to the log); they do **not** choose the config environment (see §3)
 - Call `->StartSession()` before any session use (admin panel, etc.)
 - `->Connect()` (after `Load()`) is required before any DB use: it hands the config's `db_*` keys to `Database`; without it the first query throws `MagratheaDBException("DB not initialized")`. It doesn't open a connection: that happens on the first query, so calling it on every request is free
@@ -960,7 +961,7 @@ The admin entry point bootstraps Magrathea (including `StartSession()`), then ha
 
 ```php
 <?php
-// public/admin.php
+// public/magrathea.php
 use Magrathea\Admin\AdminManager;
 use Magrathea\MagratheaPHP;
 
@@ -1230,7 +1231,7 @@ my-app/
 ├── public/                   ← web root
 │   ├── api.php               ← returns new MyAppApi() (importable)
 │   ├── index.php             ← require api.php → Run()
-│   ├── admin.php             ← AdminManager::Start(new MyAppAdmin())
+│   ├── magrathea.php         ← AdminManager::Start(new MyAppAdmin())
 │   └── setup.php             ← Setup Wizard (§1); delete it if unused
 ├── backups/
 ├── cache/
@@ -1276,7 +1277,7 @@ try {
 $api->Run();
 ```
 
-**`public/admin.php`**: admin entry point:
+**`public/magrathea.php`**: admin entry point:
 
 ```php
 <?php

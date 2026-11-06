@@ -68,6 +68,6 @@ $errors = $result["errors"] ?? [];
 				<button type="submit">Create the super admin</button>
 			</form>
 		<?php } ?>
-		<p class="muted">The admin's entry file, <code>public/admin.php</code>, comes with the project's skeleton: the wizard doesn't write it.</p>
+		<p class="muted">The admin's entry file, <code>public/magrathea.php</code>, comes with the project's skeleton: the wizard doesn't write it.</p>
 	<?php } ?>
 </div>

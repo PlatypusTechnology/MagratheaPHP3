@@ -20,11 +20,18 @@ class removedApisTest extends \PHPUnit\Framework\TestCase {
 			[\Magrathea\MagratheaModel::class, "IncludeAllModels"],
 			[\Magrathea\MagratheaModel::class, "GetNextID"],
 			[\Magrathea\MagratheaModel::class, "GetAutoLoad"],
+			[\Magrathea\Admin\Install::class, "Load"],
+			[\Magrathea\Admin\Install::class, "getAdminFileEntrance"],
+			[\Magrathea\Admin\Install::class, "CreateAdminEntranceFile"],
+			[\Magrathea\Admin\Install::class, "CheckIfAdminFileExists"],
+			[\Magrathea\Admin\Install::class, "GetAdminCode"],
 		];
 		foreach($removed as [$class, $method]) {
 			$this->assertFalse(method_exists($class, $method), $class."::".$method."()");
 		}
 		$this->assertFalse(property_exists(\Magrathea\MagratheaModel::class, "autoLoad"));
+		$this->assertFalse(property_exists(\Magrathea\Admin\Install::class, "adminFileName"));
+		$this->assertFalse(property_exists(\Magrathea\Admin\Install::class, "appPath"));
 		$this->assertTrue(method_exists(\Magrathea\MagratheaPHP::class, "StartDB"), "StartDB() stays until 4.0");
 	}
 
