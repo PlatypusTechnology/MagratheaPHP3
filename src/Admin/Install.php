@@ -2,13 +2,11 @@
 
 namespace Magrathea\Admin;
 
-use Exception;
 use Magrathea\Admin\Features\AppConfig\AppConfigControl;
 use Magrathea\Admin\Features\UserLogs\AdminLog;
 use Magrathea\Admin\Features\UserLogs\AdminLogControl;
 use Magrathea\Admin\Features\User\AdminUser;
 use Magrathea\DB\Database;
-use Magrathea\Errors\ErrorManager;
 use Magrathea\MagratheaPHP;
 
 #######################################################################################
@@ -23,49 +21,12 @@ use Magrathea\MagratheaPHP;
 /**
  * Class for installing Magrathea's Admin
  */
-class Install { 
-
-	public $appPath;
-	public $adminFileName = "magrathea.php";
-
-	/**
-	 * @return	Install		itself
-	 */
-	public function Load() {
-		$this->appPath = MagratheaPHP::Instance()->appRoot;
-		return $this;
-	}
+class Install {
 
 	public function InstallDatabase() {
 		$file = realpath(dirname(__FILE__)."/database.sql");
 		$magdb = Database::Instance();
 		return $magdb->ImportFile($file, false);
-	}
-
-	/**
-	 * Gets the path for the admin file
-	 * @return  	string		full path for file
-	 */
-	public function getAdminFileEntrance(): string {
-		if (!$this->appPath) {
-			$this->Load();
-		}
-		return $this->appPath."/".$this->adminFileName;
-	}
-
-	/**
-	 * Checks if admin file exists
-	 * @return 		bool 		true if it does exists
-	 */
-	public function CreateAdminEntranceFile(): bool {
-		$adminFile = $this->getAdminFileEntrance();
-		$file = @fopen($adminFile, "w");
-		if (!$file) {
-			ErrorManager::Instance()->DisplayMesage("Could not write file [".$adminFile."]");
-		}
-		fwrite($file, $this->GetAdminCode());
-		fclose($file);
-		return true;
 	}
 
 	public function CreateFirstUser($username, $password): AdminUser {
@@ -105,26 +66,5 @@ class Install {
 		$rs = Database::Instance()->QueryRow($query);
 		return (count($rs) > 0);
 	}
-
-	/**
-	 * Checks if admin.php fil exists
-	 * @return 		bool 		it does exists
-	 */
-	public function CheckIfAdminFileExists(): bool {
-		$adminFile = $this->getAdminFileEntrance();
-		return file_exists($adminFile);
-	}
-
-	public function GetAdminCode() {
-		return <<<EOD
-		<?php
-		require __DIR__."/../vendor/autoload.php";
-
-		Magrathea\MagratheaPHP::Instance()->AppPath(realpath(dirname(__FILE__)))->Load();
-		Magrathea\Admin\AdminManager::Instance()->StartDefault();
-		EOD;
-	}
-
-
 
 }

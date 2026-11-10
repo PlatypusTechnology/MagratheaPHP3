@@ -53,7 +53,7 @@ that exists. See the [Configuration reference](core/config.md) for every key.
 ## Bootstrapping
 
 The bootstrap lives in one file, `app/_inc.php`, that every entry point (`public/index.php`,
-`public/admin.php`) requires, and that the [CLI](core/cli.md) loads too. It prints nothing:
+`public/magrathea.php`) requires, and that the [CLI](core/cli.md) loads too. It prints nothing:
 
 ```php
 <?php
@@ -78,7 +78,7 @@ my-app/
 │   ├── _inc.php
 │   ├── api/
 │   └── features/User/        ← User.php, UserControl.php
-├── public/                   ← web root: index.php, admin.php, setup.php
+├── public/                   ← web root: index.php, magrathea.php, setup.php
 └── vendor/
 ```
 

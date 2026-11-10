@@ -209,7 +209,7 @@ my-app/
 │   │       └── ProductAdmin.php     # AdminCrudObject
 │   ├── api/                 # MagratheaApi and MagratheaApiControl subclasses
 │   └── admin/               # the Admin subclass
-└── public/                  # web root: index.php, admin.php, setup.php
+└── public/                  # web root: index.php, magrathea.php, setup.php
 ```
 
 ---

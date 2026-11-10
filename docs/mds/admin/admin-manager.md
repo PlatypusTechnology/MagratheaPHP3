@@ -16,7 +16,7 @@ whole request (first-run setup, login, auth, CSRF, and the requested page, featu
 renders the page itself, so it's the last call of the entry point.
 
 ```php
-// public/admin.php, after the bootstrap and StartSession()
+// public/magrathea.php, after the bootstrap and StartSession()
 AdminManager::Instance()->Start(new \App\MyAppAdmin()); // an Admin subclass, see Admin System Overview
 ```
 
@@ -190,7 +190,7 @@ AdminManager::Instance()->Log(
 
 ```php
 <?php
-// public/admin.php
+// public/magrathea.php
 use Magrathea\MagratheaPHP;
 use Magrathea\Admin\AdminManager;
 

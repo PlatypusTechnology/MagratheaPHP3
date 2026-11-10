@@ -1402,7 +1402,7 @@ request without a verified session.
   (`ConfigFile::Save()`): comments are lost, the page says so;
 - step 3 runs on opening the step, with the saved config;
 - step 4 reuses `Admin\DumpManager` (upload only saves; import needs the database's name typed, like the admin);
-- step 5: the password typed twice; the admin link at Finish is `admin.php` (the skeleton's `public/admin.php`);
+- step 5: the password typed twice; the admin link at Finish is `magrathea.php` (the skeleton's `public/magrathea.php`);
 - `tools.php` and every 2.x step, action and script are deleted; `Install::CreateAdminEntranceFile()`/`GetAdminCode()`
   stay (not in this item's list).
 
@@ -1856,7 +1856,7 @@ Doc-only: no changelog line.
 **Error.** On a fresh project an agent can install the admin's tables
 (`magrathea db:query --write "$(cat …/src/Admin/database.sql)"`), but not create a user:
 `admin:reset-password` needs an existing one (`AdminUserControl::GetByEmail()`), and the first super
-admin is created only by a human, through `public/admin.php`'s setup form (while
+admin is created only by a human, through `public/magrathea.php`'s setup form (while
 `Admin\Start::CanCreateFirstUser()`) or the wizard's Admin step. `skills.MD` §1 says so. That's a hole
 in "agents do the setup".
 

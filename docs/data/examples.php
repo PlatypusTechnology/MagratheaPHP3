@@ -46,7 +46,7 @@ Magrathea\MagratheaPHP::Instance()
     ->Load()                                // reads ../configs/magrathea.conf
     ->Connect();                            // the connection itself opens on the first query
 PHP,
-		"note" => "public/index.php and public/admin.php require it, and so does vendor/bin/magrathea: it must not print or exit.",
+		"note" => "public/index.php and public/magrathea.php require it, and so does vendor/bin/magrathea: it must not print or exit.",
 	],
 
 	[
@@ -277,7 +277,7 @@ PHP,
 		"topics" => ["admin/admin", "admin/admin-manager"],
 		"code" => <<<'PHP'
 <?php
-// public/admin.php
+// public/magrathea.php
 use Magrathea\Admin\AdminManager;
 
 try {

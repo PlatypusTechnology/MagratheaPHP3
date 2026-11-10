@@ -25,7 +25,7 @@ $docs = MagratheaPHP::GetDocumentationLink();
 		?>
 		<h3>Next</h3>
 		<ul>
-			<li>The admin: <a href="admin.php">admin.php</a> (the skeleton's <code>public/admin.php</code>).</li>
+			<li>The admin: <a href="magrathea.php">magrathea.php</a> (the skeleton's <code>public/magrathea.php</code>).</li>
 			<li>The docs: <a href="<?=$h($docs)?>"><?=$h($docs)?></a>.</li>
 			<li>On the server: <code>vendor/bin/magrathea check</code>, and <code>models:verify</code> after writing a model.</li>
 			<li>If this server doesn't need the wizard anymore, delete <code>public/setup.php</code>.</li>
