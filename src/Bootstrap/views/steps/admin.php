@@ -46,7 +46,8 @@ $errors = $result["errors"] ?? [];
 		<?php } else { ?>
 			<form method="post" action="<?=$h($wizard->GetStepLink("admin"))?>">
 				<?=$csrfField()?>
-				<input type="hidden" name="action" value="create-admin">
+				<?php /* Enter submits the form's first button: this one, not "Generate random password" */ ?>
+				<button type="submit" name="action" value="create-admin" class="default-submit" tabindex="-1" aria-hidden="true">Create the super admin</button>
 				<div class="field">
 					<label for="email">E-mail</label>
 					<input type="email" id="email" name="email" value="<?=$h($result["email"] ?? "")?>" autocomplete="off">
@@ -55,17 +56,15 @@ $errors = $result["errors"] ?? [];
 				<div class="grid">
 					<div class="field">
 						<label for="password">Password</label>
-						<input type="password" id="password" name="password" autocomplete="new-password">
-						<div class="hint">At least <?=(int)Steps::MIN_PASSWORD?> characters.</div>
+						<input type="text" id="password" name="password" value="<?=$h($result["password"] ?? "")?>" autocomplete="off" spellcheck="false">
+						<div class="hint">At least <?=(int)Steps::MIN_PASSWORD?> characters. Write it down: it isn't shown again.</div>
 						<?php $fieldError($errors, "password"); ?>
 					</div>
-					<div class="field">
-						<label for="password_confirm">Password, again</label>
-						<input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password">
-						<?php $fieldError($errors, "password_confirm"); ?>
+					<div class="field field-button">
+						<button type="submit" name="action" value="generate-password" class="secondary">Generate random password</button>
 					</div>
 				</div>
-				<button type="submit">Create the super admin</button>
+				<button type="submit" name="action" value="create-admin">Create the super admin</button>
 			</form>
 		<?php } ?>
 		<p class="muted">The admin's entry file, <code>public/magrathea.php</code>, comes with the project's skeleton: the wizard doesn't write it.</p>

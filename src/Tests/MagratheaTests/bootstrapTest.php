@@ -507,7 +507,8 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			"Import" => fn() => $steps->Import("a.sql", "app_db"),
 			"Admin" => fn() => $steps->Admin(),
 			"InstallAdmin" => fn() => $steps->InstallAdmin(),
-			"CreateAdmin" => fn() => $steps->CreateAdmin("a@b.com", "123456789012", "123456789012"),
+			"GeneratePassword" => fn() => $steps->GeneratePassword("a@b.com"),
+			"CreateAdmin" => fn() => $steps->CreateAdmin("a@b.com", "123456789012"),
 			"Checks" => fn() => $steps->Checks(),
 			"FinishForm" => fn() => $steps->FinishForm(),
 			"Finish" => fn() => $steps->Finish(),
@@ -810,20 +811,28 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$steps = $this->Start()->Steps();
 		$this->assertTrue($steps->Admin()["canCreateFirstUser"]);
 
-		$this->assertArrayHasKey("email", $steps->CreateAdmin("not-an-email", "123456789012", "123456789012")["errors"]);
-		$this->assertArrayHasKey("password", $steps->CreateAdmin("a@b.com", "12345678901", "12345678901")["errors"]);
-		$this->assertArrayHasKey("password_confirm", $steps->CreateAdmin("a@b.com", "123456789012", "123456789013")["errors"]);
-		$this->assertArrayHasKey("password", $steps->CreateAdmin("a@b.com", ["x"], null)["errors"]);
+		$this->assertArrayHasKey("email", $steps->CreateAdmin("not-an-email", "123456789012")["errors"]);
+		$short = $steps->CreateAdmin("a@b.com", "12345678901");
+		$this->assertArrayHasKey("password", $short["errors"]);
+		$this->assertSame("12345678901", $short["password"], "the typed password is given back");
+		$this->assertArrayHasKey("password", $steps->CreateAdmin("a@b.com", ["x"])["errors"]);
+
+		$generated = $steps->GeneratePassword(" admin@example.com ");
+		$this->assertFalse($generated["created"]);
+		$this->assertSame("admin@example.com", $generated["email"]);
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{'.(Steps::GENERATED_BYTES * 2).'}$/', $generated["password"]);
+		$this->assertGreaterThanOrEqual(Steps::MIN_PASSWORD, strlen($generated["password"]));
+		$this->assertNotSame($generated["password"], $steps->GeneratePassword(null)["password"]);
 		$this->assertSame([], $this->install->calls);
 
-		$rs = $steps->CreateAdmin(" admin@example.com ", "a long password", "a long password");
+		$rs = $steps->CreateAdmin(" admin@example.com ", "a long password");
 		$this->assertTrue($rs["created"]);
 		$this->assertSame([["CreateFirstUser", "admin@example.com", "a long password"]], $this->install->calls);
 
 		$this->admin->users = 1;
 		$this->assertFalse($steps->Admin()["canCreateFirstUser"]);
 		try {
-			$steps->CreateAdmin("other@example.com", "a long password", "a long password");
+			$steps->CreateAdmin("other@example.com", "a long password");
 			$this->fail("created a second first user");
 		} catch(MagratheaException $ex) {
 			$this->assertStringContainsString("already has users", $ex->getMessage());

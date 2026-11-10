@@ -51,6 +51,8 @@ class Steps {
 	const ENV_PREFIX = "$=";
 	/** the first super admin's password, at least */
 	const MIN_PASSWORD = 12;
+	/** "Generate random password": random bytes, in hex (16 characters), like `admin:create-user` */
+	const GENERATED_BYTES = 8;
 	/** the environment that may keep `bootstrap_unlocked` after Finish */
 	const DEV = "dev";
 
@@ -123,7 +125,8 @@ class Steps {
 			"upload-dump" => $this->Upload($files["upload"] ?? null, $post["name"] ?? null),
 			"import-dump" => $this->Import($post["file"] ?? null, $post["confirm"] ?? null, $post["driver"] ?? null, ($post["continue"] ?? null) === "1"),
 			"install-admin" => $this->InstallAdmin(),
-			"create-admin" => $this->CreateAdmin($post["email"] ?? null, $post["password"] ?? null, $post["password_confirm"] ?? null),
+			"generate-password" => $this->GeneratePassword($post["email"] ?? null),
+			"create-admin" => $this->CreateAdmin($post["email"] ?? null, $post["password"] ?? null),
 			"finish" => $this->Finish(($post["keep_unlocked"] ?? null) === "1"),
 			default => throw new MagratheaException("unknown action: ".$action),
 		};
@@ -432,15 +435,26 @@ class Steps {
 	}
 
 	/**
+	* "Generate random password" on the first super admin's form: a password of `GENERATED_BYTES` random bytes,
+	* in hex, to fill the form with (nothing is created). The pages have no JavaScript: the form posts here
+	* @param 	mixed 	$email 		the e-mail typed so far, given back
+	* @return 	array 	["created" => false, "errors" => [], "email", "password"]
+	*/
+	public function GeneratePassword($email): array {
+		$this->RequireVerified();
+		$email = is_string($email) ? trim($email) : "";
+		return ["created" => false, "errors" => [], "email" => $email, "password" => bin2hex(random_bytes(self::GENERATED_BYTES))];
+	}
+
+	/**
 	* Creates the first super admin (`Install::CreateFirstUser()`), only when `Admin\Start::CanCreateFirstUser()`
 	* allows it (there are no users yet)
 	* @param 	mixed 	$email 		the e-mail
 	* @param 	mixed 	$password 	at least MIN_PASSWORD characters
-	* @param 	mixed 	$confirm 	the password again
-	* @return 	array 	["created" => bool, "errors" => [field => message], "email"]
+	* @return 	array 	["created" => bool, "errors" => [field => message], "email", "password" (given back on errors)]
 	* @throws 	MagratheaException 	no database, or there are users already
 	*/
-	public function CreateAdmin($email, $password, $confirm): array {
+	public function CreateAdmin($email, $password): array {
 		$this->RequireVerified();
 		$this->RequireDatabase();
 		$this->Connect();
@@ -449,10 +463,8 @@ class Steps {
 		if(filter_var($email, FILTER_VALIDATE_EMAIL) === false) $errors["email"] = "A valid e-mail.";
 		if(!is_string($password) || mb_strlen($password) < self::MIN_PASSWORD) {
 			$errors["password"] = "At least ".self::MIN_PASSWORD." characters.";
-		} else if(!is_string($confirm) || !hash_equals($password, $confirm)) {
-			$errors["password_confirm"] = "The passwords don't match.";
 		}
-		if($errors) return ["created" => false, "errors" => $errors, "email" => $email];
+		if($errors) return ["created" => false, "errors" => $errors, "email" => $email, "password" => is_string($password) ? $password : ""];
 		if(!$this->AdminStart()->CanCreateFirstUser()) {
 			throw new MagratheaException("The admin already has users: the first one is created only once. Reset a password with `vendor/bin/magrathea admin:reset-password <email>`.");
 		}

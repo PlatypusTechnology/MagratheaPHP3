@@ -114,7 +114,7 @@ so until there's one.
 | 3. Structure | `ProjectCheck::Folders()`: the logs, cache and backups folders exist and are writable, the configs folder outside the web root | |
 | 4. Database | the credentials (environment variables resolved), without connecting; on request, the connection, `TimezoneCheck::Run()` and the tables (`Schema::Tables()`) | `connect-database` |
 | 5. Import (optional) | the `.sql` files of the backups folder | `upload-dump`, `import-dump` |
-| 6. Admin | the admin's tables, the first super admin | `install-admin`, `create-admin` |
+| 6. Admin | the admin's tables, the first super admin | `install-admin`, `generate-password`, `create-admin` |
 | 7. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run) | |
 | 8. Finish | what it removes | `finish` |
 
@@ -171,7 +171,10 @@ error. Without it, the first error stops the import and is shown.
 - **Install the admin's tables**: `Install::InstallDatabase()`, only when `_magrathea_config` is
   missing;
 - **The first super admin**: an e-mail and a password of 12 or more characters (`Steps::MIN_PASSWORD`),
-  typed twice, only when `Admin\Start::CanCreateFirstUser()` allows it (there are no users yet). Then
+  in a plain text field, typed once. **Generate random password** posts the form back
+  (`Steps::GeneratePassword()`: `Steps::GENERATED_BYTES` random bytes, in hex) and the server fills the
+  field in, keeping the e-mail: the pages have no JavaScript. Nothing is created until **Create the super
+  admin**, which runs only when `Admin\Start::CanCreateFirstUser()` allows it (there are no users yet). Then
   `Install::CreateFirstUser()`. From a shell, `vendor/bin/magrathea admin:create-user <email>` does the
   same, with the same rules (no users yet, 12+ characters).
 

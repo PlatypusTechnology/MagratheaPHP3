@@ -57,6 +57,7 @@ class Start extends \Magrathea\Singleton {
 		"upload-dump" => "import",
 		"import-dump" => "import",
 		"install-admin" => "admin",
+		"generate-password" => "admin",
 		"create-admin" => "admin",
 		"finish" => "finish",
 	];
