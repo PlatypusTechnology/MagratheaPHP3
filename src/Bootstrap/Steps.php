@@ -45,6 +45,10 @@ class Steps {
 		"backups_path" => "Backups folder",
 		"jwt_key" => "JWT key",
 	];
+	/** the configuration's database keys, as the Database step shows them */
+	const DB_FIELDS = ["db_host", "db_port", "db_name", "db_user", "db_pass"];
+	/** a config value that starts with this reads the environment variable named after it (`Config::Get()`) */
+	const ENV_PREFIX = "$=";
 	/** the first super admin's password, at least */
 	const MIN_PASSWORD = 12;
 	/** the environment that may keep `bootstrap_unlocked` after Finish */
@@ -92,6 +96,7 @@ class Steps {
 		return match($step) {
 			"requirements" => $this->Requirements(),
 			"configuration" => $this->ConfigurationForm(),
+			"structure" => $this->Structure(),
 			"database" => $this->Database(),
 			"import" => $this->Dumps(),
 			"admin" => $this->Admin(),
@@ -114,6 +119,7 @@ class Steps {
 		$this->RequireVerified();
 		return match($action) {
 			"save-config" => $this->SaveConfiguration($post),
+			"connect-database" => $this->ConnectDatabase(),
 			"upload-dump" => $this->Upload($files["upload"] ?? null, $post["name"] ?? null),
 			"import-dump" => $this->Import($post["file"] ?? null, $post["confirm"] ?? null, $post["driver"] ?? null, ($post["continue"] ?? null) === "1"),
 			"install-admin" => $this->InstallAdmin(),
@@ -137,31 +143,27 @@ class Steps {
 
 	/**
 	* The configuration form: the active section's values (maintenance), or the defaults (setup)
-	* @return 	array 	["file", "exists", "environment", "environmentEditable" (setup only), "values" (field => value;
-	* 					`db_pass` is never sent back: empty keeps it), "hasPassword", "timezones", "fields" (FIELDS)]
+	* @return 	array 	["file", "exists", "environment", "environmentEditable" (setup only), "values" (field => value, as
+	* 					written in the file: `db_pass` included, and `$=NAME` references unresolved), "timezones", "fields" (FIELDS)]
 	*/
 	public function ConfigurationForm(): array {
 		$this->RequireVerified();
 		$exists = $this->start->HasConfig();
 		$values = $this->Defaults();
 		$environment = self::DEV;
-		$hasPassword = false;
 		if($exists) {
 			$environment = (string)$this->start->GetEnvironmentName();
 			$section = $this->ConfigFile()->GetConfig()[$environment] ?? [];
 			foreach(self::FIELDS as $key => $label) {
 				if(isset($section[$key]) && $section[$key] !== "") $values[$key] = (string)$section[$key];
 			}
-			$hasPassword = ($section["db_pass"] ?? "") !== "";
 		}
-		$values["db_pass"] = "";
 		return [
 			"file" => $this->start->ConfigFilePath(),
 			"exists" => $exists,
 			"environment" => $environment,
 			"environmentEditable" => !$exists,
 			"values" => $values,
-			"hasPassword" => $hasPassword,
 			"timezones" => timezone_identifiers_list(),
 			"fields" => self::FIELDS,
 		];
@@ -185,9 +187,10 @@ class Steps {
 	* Validates the form and writes `configs/magrathea.conf` (`ConfigFile::Save()`). Setup writes `[general]`
 	* (`use_environment`) and the environment's section; maintenance edits only the active section. The section always
 	* gets `bootstrap_unlocked = true`, so the next steps can open: Finish removes it outside `dev`.
-	* @param 	array 	$input 	the form: "environment" (setup only) and the FIELDS. An empty `db_pass` keeps the current one.
+	* @param 	array 	$input 	the form: "environment" (setup only) and the FIELDS, stored as typed (`db_pass` isn't trimmed;
+	* 					empty is no password)
 	* @return 	array 	["saved" => bool, "errors" => [field => message], "file", "environment",
-	* 					"values" => what was typed, trimmed, without `db_pass`]
+	* 					"values" => what was typed, trimmed (but `db_pass`)]
 	*/
 	public function SaveConfiguration(array $input): array {
 		$this->RequireVerified();
@@ -210,7 +213,6 @@ class Steps {
 				continue;
 			}
 			$value = $key === "db_pass" ? $value : trim($value);
-			if($key === "db_pass" && $value === "" && $exists) $value = (string)($current["db_pass"] ?? "");
 			if(!ConfigFile::IsStorable($value)) {
 				$errors[$key] = "Can't be stored as written: no `\"`, line breaks or `\${…}`; `yes`, `no`, `true`, `false` and `0` read back as booleans.";
 				continue;
@@ -233,10 +235,10 @@ class Steps {
 				$errors[$key] = $errors[$key] ?? "Fill in the host, the name and the user, or none (a project without a database).";
 			}
 		}
-		// what the form shows again after a refused save: never the password
+		// what the form shows again after a refused save
 		$typed = [];
 		foreach(self::FIELDS as $key => $label) {
-			if($key !== "db_pass" && is_string($input[$key] ?? null)) $typed[$key] = trim($input[$key]);
+			if(is_string($input[$key] ?? null)) $typed[$key] = $key === "db_pass" ? $input[$key] : trim($input[$key]);
 		}
 		$result = ["saved" => false, "errors" => $errors, "file" => $this->start->ConfigFilePath(), "environment" => $environment, "values" => $typed];
 		if($errors) return $result;
@@ -253,21 +255,69 @@ class Steps {
 		return $result;
 	}
 
-	// 3. DATABASE
+	// 3. STRUCTURE
 
 	/**
-	* Connects with the config's values, runs `TimezoneCheck::Run()` and lists the tables
-	* @return 	array 	["needsConfig" => bool, "configured" => bool (db_host, db_name and db_user are set), "connected" => bool,
-	* 					"database", "host", "error", "timezone" => findings, "tables" => `Schema::Tables()`]
+	* The project's folders, without connecting: `ProjectCheck::Folders()` (logs, cache and backups exist and are
+	* writable; the configs folder outside the document root)
+	* @return 	array 	["needsConfig" => bool, "findings" => findings]
+	*/
+	public function Structure(): array {
+		$this->RequireVerified();
+		$rs = ["needsConfig" => !$this->start->HasConfig(), "findings" => []];
+		if($rs["needsConfig"]) return $rs;
+		$rs["findings"] = ProjectCheck::Folders();
+		return $rs;
+	}
+
+	// 4. DATABASE
+
+	/**
+	* The database's credentials, as the config has them, without connecting (`ConnectDatabase()` does). The
+	* password is shown too: only a verified session sees the wizard.
+	* @return 	array 	["needsConfig" => bool, "configured" => bool (db_host, db_name and db_user are set), "database", "host",
+	* 					"credentials" => [["key", "label", "raw" => as written in the file (null: missing), "env" => the
+	* 					environment variable's name when `raw` is `$=NAME`, else null, "value" => what `Config::Get()` reads
+	* 					(null: missing, or an unset variable)]], "error"]
 	*/
 	public function Database(): array {
 		$this->RequireVerified();
-		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "connected" => false,
-			"database" => null, "host" => null, "error" => null, "timezone" => [], "tables" => []];
-		if($rs["needsConfig"] || !$this->UsesDatabase()) return $rs;
-		$rs["configured"] = true;
+		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false,
+			"database" => null, "host" => null, "credentials" => [], "error" => null];
+		if($rs["needsConfig"]) return $rs;
+		try {
+			$section = $this->ConfigFile()->GetConfig()[(string)$this->start->GetEnvironmentName()] ?? [];
+			foreach(self::DB_FIELDS as $key) {
+				$raw = array_key_exists($key, $section) ? (string)$section[$key] : null;
+				$value = Config::Instance()->Get($key);
+				$rs["credentials"][] = [
+					"key" => $key,
+					"label" => self::FIELDS[$key],
+					"raw" => $raw,
+					"env" => ($raw !== null && str_starts_with($raw, self::ENV_PREFIX)) ? substr($raw, strlen(self::ENV_PREFIX)) : null,
+					"value" => $value === null ? null : (string)$value,
+				];
+			}
+		} catch(\Throwable $ex) {
+			$rs["error"] = $ex->getMessage();
+			return $rs;
+		}
+		$rs["configured"] = $this->UsesDatabase();
 		$rs["database"] = (string)Config::Instance()->Get("db_name");
 		$rs["host"] = (string)Config::Instance()->Get("db_host");
+		return $rs;
+	}
+
+	/**
+	* Connects with the config's values, runs `TimezoneCheck::Run()` and lists the tables: what the Database step
+	* shows after its "Connect" button (opening the step doesn't connect, so a slow server doesn't hold the page)
+	* @return 	array 	["connected" => bool, "error", "timezone" => findings, "tables" => `Schema::Tables()`]
+	* @throws 	MagratheaException 	no config, or it has no database
+	*/
+	public function ConnectDatabase(): array {
+		$this->RequireVerified();
+		$this->RequireDatabase();
+		$rs = ["connected" => false, "error" => null, "timezone" => [], "tables" => []];
 		try {
 			$db = $this->Connect();
 		} catch(\Throwable $ex) {
@@ -284,7 +334,7 @@ class Steps {
 		return $rs;
 	}
 
-	// 4. IMPORT
+	// 5. IMPORT
 
 	/**
 	* @return 	array 	["needsConfig", "configured", "folder", "database", "files" => `DumpManager::Files()`, "error"]
@@ -337,7 +387,7 @@ class Steps {
 		return ["import" => $import, "firstError" => $first];
 	}
 
-	// 5. ADMIN
+	// 6. ADMIN
 
 	/**
 	* @return 	array 	["needsConfig", "configured", "connected", "installed" (`_magrathea_config` exists),
@@ -410,7 +460,7 @@ class Steps {
 		return ["created" => true, "errors" => [], "email" => $email];
 	}
 
-	// 6. CHECKS
+	// 7. CHECKS
 
 	/**
 	* @return 	array 	`CheckReport::Group(ProjectCheck::Run())`: every check, the schema's timestamps and drift with their fix SQL
@@ -420,7 +470,7 @@ class Steps {
 		return CheckReport::Group(ProjectCheck::Run());
 	}
 
-	// 7. FINISH
+	// 8. FINISH
 
 	/**
 	* @return 	array 	["environment", "unlocked" => the sections with `bootstrap_unlocked`,

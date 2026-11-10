@@ -111,11 +111,12 @@ so until there's one.
 |------|-------|---------|
 | 1. Requirements | `ProjectCheck::Requirements()`: PHP, `proc_open()`, `mysqli`, the configs folder writable and outside the web root | |
 | 2. Configuration | the config's form | `save-config` |
-| 3. Database | connects with the config's values, `TimezoneCheck::Run()`, the tables (`Schema::Tables()`) | |
-| 4. Import (optional) | the `.sql` files of the backups folder | `upload-dump`, `import-dump` |
-| 5. Admin | the admin's tables, the first super admin | `install-admin`, `create-admin` |
-| 6. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run) | |
-| 7. Finish | what it removes | `finish` |
+| 3. Structure | `ProjectCheck::Folders()`: the logs, cache and backups folders exist and are writable, the configs folder outside the web root | |
+| 4. Database | the credentials (environment variables resolved), without connecting; on request, the connection, `TimezoneCheck::Run()` and the tables (`Schema::Tables()`) | `connect-database` |
+| 5. Import (optional) | the `.sql` files of the backups folder | `upload-dump`, `import-dump` |
+| 6. Admin | the admin's tables, the first super admin | `install-admin`, `create-admin` |
+| 7. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run) | |
+| 8. Finish | what it removes | `finish` |
 
 ### 2. Configuration
 
@@ -137,24 +138,35 @@ Validation, server side:
 - `db_host`, `db_name` and `db_user` all set, or none (a project without a database);
 - the environment: letters, digits, `_` and `-`, not `general`.
 
-The password is never sent back to the form: in maintenance, an empty one keeps the current one. The
-folders aren't created: the Checks step tells which are missing.
+There are no password inputs: `db_pass` is a text field showing the file's value, and it's saved as
+typed (empty is no password). A `$=NAME` value (an environment variable, read by `Config::Get()`) is
+shown and kept as written. The folders aren't created: the Structure step tells which are missing.
 
 `Save()` rewrites the whole file, so comments in it are lost.
 
-### 3. Database
+### 3. Structure
 
-Runs on opening the step, with the saved config: connection (the error when it fails), the timezone
-findings (this used to be in the 2.x `config-edit` step), and the tables.
+`ProjectCheck::Folders()`, the `folders` group of the Checks step on its own: `logs_path`,
+`cache_path` and `backups_path` exist and are writable, and `configs/` is outside the document root.
+It doesn't connect and creates nothing: the page says what to create on the server.
 
-### 4. Import
+### 4. Database
+
+Opening the step **doesn't connect**: it shows the active section's `db_host`, `db_port`, `db_name`,
+`db_user` and `db_pass`, password included, as `Config::Get()` reads them. A `$=NAME` value shows the
+variable's name and its value (or that it isn't set). The **Connect** button (`connect-database`,
+`Steps::ConnectDatabase()`) then connects: the connection (the error when it fails), the timezone
+findings (this used to be in the 2.x `config-edit` step), and the tables. A slow or unreachable
+server only holds that request, never the page.
+
+### 5. Import
 
 Through the admin's `DumpManager`: an upload is only saved in the backups folder (`Upload()`); an
 import (`Import()`) runs only when the database's name is typed to confirm. It shows the driver, the
 statement count (php driver only) and, with "continue past errors", how many failed and the first
 error. Without it, the first error stops the import and is shown.
 
-### 5. Admin
+### 6. Admin
 
 - **Install the admin's tables**: `Install::InstallDatabase()`, only when `_magrathea_config` is
   missing;
@@ -167,7 +179,7 @@ The admin's entry file (`public/admin.php`) comes with the skeleton: the wizard 
 forgotten password is `vendor/bin/magrathea admin:reset-password <email>`: shell access proves
 ownership, a web form doesn't.
 
-### 7. Finish
+### 8. Finish
 
 - removes `bootstrap_unlocked` from every section but `[dev]`, and from `[dev]` too unless "keep" is
   checked (it's offered when `[dev]` has it);
@@ -180,10 +192,13 @@ locked until someone adds the flag by hand.
 
 ## Security notes
 
-- `configs/` must not be reachable from the web: it holds the config and the token. The Requirements
-  and Checks steps warn when it's under the document root.
+- `configs/` must not be reachable from the web: it holds the config and the token. The Requirements,
+  Structure and Checks steps warn when it's under the document root.
+- The Configuration and Database steps show the database password in clear text, environment
+  variables resolved: a verified session is the server's owner. Every page is sent with
+  `Cache-Control: no-store`, so no cache keeps a copy.
 - The wizard never runs arbitrary SQL, never resets passwords, and never writes code. The 2.x steps
-  (`structure`, `config-file`, `config-edit`, `log-and-debug`, `db-connect`, `db-run`, `db-query`,
+  (`structure`, which created folders: 3.0's Structure only checks them, `config-file`, `config-edit`, `log-and-debug`, `db-connect`, `db-run`, `db-query`,
   `install-admin`, `develop`), `tools.php` and the actions (`run-query`, `user-reset`, `users-get`,
   `show-tables`, `install-admin`, `install-admin-preview`, `database-test`, `save-config`) are gone.
 - A production error page (`ErrorManager`, outside the CLI) shows the message only; the exception's

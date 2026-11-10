@@ -95,6 +95,17 @@ class ProjectCheck {
 	}
 
 	/**
+	* Only the `folders` group of `Run()` (the Setup Wizard's Structure step): the logs, cache and backups folders,
+	* and the configs folder outside the document root. Doesn't connect and creates nothing.
+	* @return 	array 	findings: the `config` group's when the config can't be read, else the `folders` group's
+	*/
+	public static function Folders(): array {
+		$config = static::ConfigFileFindings();
+		if(static::Failed($config)) return $config;
+		return static::FolderFindings();
+	}
+
+	/**
 	* PHP's version and `proc_open()` (used by dumps)
 	* @return 	array 	findings
 	*/

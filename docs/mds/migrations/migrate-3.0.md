@@ -847,7 +847,7 @@ grep -rn 'bootstrap_unlocked' configs/ 2>/dev/null
 - With a config present, it also needs `bootstrap_unlocked = true` in the active environment, as in
   2.4.0. Its Configuration step writes the flag into the section it saves; its Finish step removes
   it from every section but `[dev]` (and from `[dev]` too, unless kept) and deletes the token.
-- New steps: Requirements, Configuration, Database, Import, Admin, Checks, Finish. Every form posts
+- New steps: Requirements, Configuration, Structure (checks the folders, creates none), Database, Import, Admin, Checks, Finish. Every form posts
   with the admin's CSRF token. The pages load nothing from CDNs and have no JavaScript.
 - Removed: `PreLoad()` (it copied the sample config, which arrived unlocked) and
   `CreateDefaultConfigFile()`, `setPath()`, `CheckSelf()`, `ValidateStructure()`,

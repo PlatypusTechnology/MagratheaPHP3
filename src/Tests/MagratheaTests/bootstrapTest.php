@@ -472,7 +472,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 	function testUnknownStepsAndActionsAre404() {
 		TestsHelper::Print("testing unknown steps and actions: 404...");
 		$this->VerifiedSession();
-		foreach(["structure", "../../Start", "tools", ["x"]] as $step) {
+		foreach(["config-file", "../../Start", "tools", ["x"]] as $step) {
 			$this->assertSame(404, $this->Start()->Handle("GET", ["step" => $step])["status"], var_export($step, true));
 		}
 		foreach(["run-query", "user-reset", "users-get", "show-tables", "install-admin-preview", "database-test", "../x", "", null] as $action) {
@@ -483,7 +483,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 
 	function testStepOrder() {
 		TestsHelper::Print("testing the steps' order...");
-		$this->assertSame(["requirements", "configuration", "database", "import", "admin", "checks", "finish"], array_keys(Start::STEPS));
+		$this->assertSame(["requirements", "configuration", "structure", "database", "import", "admin", "checks", "finish"], array_keys(Start::STEPS));
 		foreach(Start::ACTIONS as $action => $step) {
 			$this->assertArrayHasKey($step, Start::STEPS, $action);
 		}
@@ -499,7 +499,9 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			"Requirements" => fn() => $steps->Requirements(),
 			"ConfigurationForm" => fn() => $steps->ConfigurationForm(),
 			"SaveConfiguration" => fn() => $steps->SaveConfiguration($this->ValidConfigForm()),
+			"Structure" => fn() => $steps->Structure(),
 			"Database" => fn() => $steps->Database(),
+			"ConnectDatabase" => fn() => $steps->ConnectDatabase(),
 			"Dumps" => fn() => $steps->Dumps(),
 			"Upload" => fn() => $steps->Upload(["name" => "a.sql"]),
 			"Import" => fn() => $steps->Import("a.sql", "app_db"),
@@ -620,16 +622,16 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$form = $this->Start()->Steps()->ConfigurationForm();
 		$this->assertFalse($form["environmentEditable"]);
 		$this->assertSame("dev", $form["environment"]);
-		$this->assertSame("", $form["values"]["db_pass"], "the password is never sent back");
-		$this->assertTrue($form["hasPassword"]);
+		$this->assertSame("old-pass", $form["values"]["db_pass"], "the password is shown");
+		$this->assertStringNotContainsString('type="password"', $this->Render($this->Start()->Handle("GET", ["step" => "configuration"])));
 
-		$rs = $this->Start()->Steps()->SaveConfiguration($this->ValidConfigForm(["environment" => "production", "db_pass" => ""]));
+		$rs = $this->Start()->Steps()->SaveConfiguration($this->ValidConfigForm(["environment" => "production", "db_pass" => "new-pass"]));
 		$this->assertTrue($rs["saved"], json_encode($rs["errors"]));
 		$this->assertSame("dev", $rs["environment"], "the environment can't change");
 		$config = $this->ReadConfig();
 		$this->assertSame(["use_environment" => "dev"], $config["general"]);
 		$this->assertSame(["db_host" => "prod-host", "db_pass" => "prod-pass"], $config["production"]);
-		$this->assertSame("old-pass", $config["dev"]["db_pass"], "an empty password keeps the current one");
+		$this->assertSame("new-pass", $config["dev"]["db_pass"]);
 		$this->assertSame("kept", $config["dev"]["custom_key"]);
 		$this->assertSame("app_db", $config["dev"]["db_name"]);
 	}
@@ -644,7 +646,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			$this->assertArrayHasKey($field, $rs["errors"], $field);
 			$this->assertFileDoesNotExist($this->root."/configs/magrathea.conf", $field);
 		}
-		$this->assertArrayNotHasKey("db_pass", $steps->SaveConfiguration($this->ValidConfigForm(["db_pass" => "a\"b"]))["values"], "the password isn't sent back");
+		$this->assertSame("a\"b", $steps->SaveConfiguration($this->ValidConfigForm(["db_pass" => "a\"b"]))["values"]["db_pass"], "the password is sent back as typed");
 	}
 
 	function testOtherInvalidValues() {
@@ -675,27 +677,87 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 
 	// 3. DATABASE
 
-	function testDatabaseStep() {
-		TestsHelper::Print("testing the Database step: connects, the timezone check, the tables...");
+	function testDatabaseStepShowsTheCredentialsWithoutConnecting() {
+		TestsHelper::Print("testing the Database step: shows the credentials (environment variables resolved) and doesn't connect...");
 		$this->VerifiedSession();
 		$this->assertTrue($this->Start()->Steps()->Database()["needsConfig"]);
 		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true]]);
 		$rs = $this->Start()->Steps()->Database();
 		$this->assertFalse($rs["configured"], "no database in the config");
-		$this->assertSame([], $this->db->log);
+		$this->assertSame([null], array_unique(array_column($rs["credentials"], "raw")));
 
+		putenv("MAGRATHEA_SETUP_TEST_PASS=env-s3cret");
+		putenv("MAGRATHEA_SETUP_TEST_UNSET");
+		try {
+			$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db",
+				"db_user" => "\$=MAGRATHEA_SETUP_TEST_UNSET", "db_pass" => "\$=MAGRATHEA_SETUP_TEST_PASS"]]);
+			$rs = $this->Start()->Steps()->Database();
+			$this->assertNull($rs["error"]);
+			$rows = array_column($rs["credentials"], null, "key");
+			$this->assertSame(Steps::DB_FIELDS, array_keys($rows));
+			$this->assertSame(["key" => "db_host", "label" => "Database host", "raw" => "h", "env" => null, "value" => "h"], $rows["db_host"]);
+			$this->assertSame(["raw" => "\$=MAGRATHEA_SETUP_TEST_PASS", "env" => "MAGRATHEA_SETUP_TEST_PASS", "value" => "env-s3cret"],
+				array_intersect_key($rows["db_pass"], ["raw" => 1, "env" => 1, "value" => 1]));
+			$this->assertSame("MAGRATHEA_SETUP_TEST_UNSET", $rows["db_user"]["env"]);
+			$this->assertNull($rows["db_user"]["value"], "an unset variable");
+			$this->assertNull($rows["db_port"]["raw"], "missing");
+			$this->assertSame([], $this->db->log, "opening the step doesn't connect");
+
+			$html = $this->Render($this->Start()->Handle("GET", ["step" => "database"]));
+			$this->assertStringContainsString("env-s3cret", $html, "the password is shown");
+			$this->assertStringContainsString("MAGRATHEA_SETUP_TEST_PASS", $html);
+			$this->assertStringContainsString('value="connect-database"', $html);
+			$this->assertSame([], $this->db->log, "rendering doesn't connect either");
+		} finally {
+			putenv("MAGRATHEA_SETUP_TEST_PASS");
+		}
+	}
+
+	function testDatabaseStepConnectsOnRequest() {
+		TestsHelper::Print("testing the Database step's Connect: the connection, the timezone check, the tables...");
+		$this->VerifiedSession();
+		try {
+			$this->Start()->Steps()->ConnectDatabase();
+			$this->fail("connected without a config");
+		} catch(MagratheaException $ex) {
+			$this->assertStringContainsString("Save the configuration first", $ex->getMessage());
+		}
 		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u", "timezone" => "America/Sao_Paulo"]]);
 		$this->db->tables = ["articles"];
-		$rs = $this->Start()->Steps()->Database();
-		$this->assertTrue($rs["connected"]);
-		$this->assertSame("app_db", $rs["database"]);
-		$this->assertSame(["articles"], array_column($rs["tables"], "name"));
-		$this->assertNotEmpty($rs["timezone"]);
+		$page = $this->Post(["action" => "connect-database"]);
+		$this->assertSame(200, $page["status"]);
+		$this->assertSame("database", $page["step"]);
+		$this->assertTrue($page["result"]["connected"]);
+		$this->assertSame(["articles"], array_column($page["result"]["tables"], "name"));
+		$this->assertNotEmpty($page["result"]["timezone"]);
+		$this->assertSame("app_db", $page["data"]["database"]);
+		$this->assertStringContainsString("Connected to <b>app_db</b>", $this->Render($page));
 
 		$this->db->connectError = "Access denied for user 'u'";
-		$rs = $this->Start()->Steps()->Database();
+		$rs = $this->Start()->Steps()->ConnectDatabase();
 		$this->assertFalse($rs["connected"]);
 		$this->assertStringContainsString("Access denied", $rs["error"]);
+	}
+
+	// 3. STRUCTURE
+
+	function testStructureStep() {
+		TestsHelper::Print("testing the Structure step: the folders, without connecting or creating anything...");
+		$this->VerifiedSession();
+		$this->assertTrue($this->Start()->Steps()->Structure()["needsConfig"]);
+		mkdir($this->root."/logs");
+		mkdir($this->root."/backups");
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u",
+			"logs_path" => $this->root."/logs", "cache_path" => $this->root."/cache", "backups_path" => $this->root."/backups"]]);
+		$rs = $this->Start()->Steps()->Structure();
+		$this->assertFalse($rs["needsConfig"]);
+		$this->assertSame(["folders"], array_values(array_unique(array_column($rs["findings"], "group"))));
+		$messages = implode("\n", array_column($rs["findings"], "message"));
+		$this->assertStringContainsString("Cache: `".$this->root."/cache` doesn't exist", $messages);
+		$this->assertStringContainsString("Backups: `".$this->root."/backups` exists and is writable", $messages);
+		$this->assertDirectoryDoesNotExist($this->root."/cache", "nothing is created");
+		$this->assertSame([], $this->db->log, "nothing connects");
+		$this->assertStringContainsString("<h2>Structure", $this->Render($this->Start()->Handle("GET", ["step" => "structure"])));
 	}
 
 	// 4. IMPORT

@@ -70,6 +70,15 @@ Groups `config` and `folders`, same shape as `Run()`'s.
 
 ---
 
+## `Folders(): array`
+
+The `folders` group of `Run()` on its own, for the Setup Wizard's Structure step: the logs, cache and
+backups folders, and `configs/` outside the document root (see `folders` below). It
+doesn't connect and creates nothing. When the config can't be read, it returns the `config` group's
+findings instead.
+
+---
+
 ## The checks
 
 ### `config`
