@@ -36,20 +36,26 @@ Each finding has [`TimezoneCheck::Run()`](timezone.md)'s shape, plus a `group`:
 | `level` | `TimezoneCheck::OK`, `INFO`, `WARNING` or `ERROR` (`"ok"`, `"info"`, `"warning"`, `"error"`) |
 | `message` | what was checked, or what's wrong and why it matters |
 | `group` | `config`, `folders`, `database`, `timezone` or `schema` (the class constants `CONFIG`, `FOLDERS`, …) |
-| `table`, `model`, `field`, `fix` | when they apply (mostly `schema`: see [SchemaCheck](../database/schema.md#findings)) |
+| `table`, `model`, `field`, `fix`, `check` | when they apply (mostly `schema`: see [SchemaCheck](../database/schema.md#findings)) |
 
-A check that passes is an `OK` finding, so the list reads as a checklist. An empty group means it
-didn't run, not that it's clean.
+A check that passes is an `OK` finding, so the list reads as a checklist. A check that doesn't run is
+an `INFO` saying why (`"Skipped: no database is configured."`), so no group is ever silently empty:
+silence was ambiguous (skipped, or clean?), a finding isn't.
 
 ### What stops what
 
-- **The config can't be read** (no file, a file that can't be parsed, no `use_environment`, or an
-  environment with no section): only the `config` group runs. Every other check reads the config.
-- **No database configured** (`db_host`, `db_name` and `db_user` all empty): a project without a
-  database is fine. One `INFO`, and the `database`, `timezone` and `schema` groups are skipped.
-- **A partly configured database**, or no `mysqli` extension: `ERROR`, and those groups are skipped.
-- **The connection fails**: one `ERROR`, and `timezone` and `schema` are skipped. They would only
-  report the same failure again.
+Each skipped group gets one `INFO`, `"Skipped: <reason>."`. `schema` gets two: one for the models
+and one for the timestamps (with `"check" => SchemaCheck::CHECK_TIMESTAMPS`), since reports show
+them apart.
+
+| Situation | Runs | Skipped, with the reason |
+|-----------|------|--------------------------|
+| **The config can't be read** (no file, a file that can't be parsed, no `use_environment`, or an environment with no section): every other check reads the config | `config` | `folders`, `database`, `timezone`, `schema`: "the config can't be read" |
+| **`Run(false)`** (`magrathea check --no-db`) | `config`, `folders` | `database`, `timezone`, `schema`: "the database checks are off for this run" |
+| **A partly configured database**, or no `mysqli` extension: `ERROR`s in `config` | `config`, `folders` | `database`, `timezone`, `schema`: "the database configuration has errors (see Configuration)" |
+| **No database configured** (`db_host`, `db_name` and `db_user` all empty): a project without a database is fine, one `INFO` in `config` | `config`, `folders` | `database`, `timezone`, `schema`: "no database is configured" |
+| **The connection fails**: one `ERROR` in `database`. The rest would only report the same failure again | `config`, `folders`, `database` | `timezone`, `schema`: "can't connect to the database" |
+| **`SchemaCheck::CheckAll()` throws**: one `ERROR` in `schema` | everything | the timestamps: "the models can't be checked against the database" |
 
 ---
 
@@ -132,5 +138,8 @@ reported once.
 
 ### `schema`
 
-[`SchemaCheck::CheckAll()`](../database/schema.md): every model against its table, and the tables no
-model maps. If it throws (it can't read the database), that's one `ERROR`.
+[`SchemaCheck::CheckAll()`](../database/schema.md): every model against its table (its problems, or one
+`OK` when it matches), each mapped table's
+`created_at` and `updated_at` (one finding per column, `OK` included, with `"check" => "timestamps"`),
+and the tables no model maps. If it throws (it can't read the database), that's one `ERROR`, and the
+timestamps are reported skipped.

@@ -97,19 +97,19 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testDatabaseSection() {
-		TestsHelper::Print("testing the Database section lists its six pages, in order...");
+		TestsHelper::Print("testing the Database section lists its five pages, in order...");
 		$menu = new AdminMenu();
 		$section = $menu->GetDatabaseSection();
 		$this->assertSame(["title" => "Database", "type" => "sub"], array_shift($section));
 		$this->assertSame(
-			["Explorer", "Queries", "Query editor", "Dumps", "Checks", "Connection"],
+			["Explorer", "Queries", "Query editor", "Dumps", "Connection"],
 			array_column($section, "title")
 		);
 		$this->assertSame(
-			["db-explorer", "db-query", "query-editor", "dumps", "checks", "db-connect"],
+			["db-explorer", "db-query", "query-editor", "dumps", "db-connect"],
 			array_map(fn($i) => $this->PageFromLink($i["link"]), $section)
 		);
-		foreach(["db-explorer", "query", "query-editor", "dumps", "checks", "connect"] as $i => $key) {
+		foreach(["db-explorer", "query", "query-editor", "dumps", "connect"] as $i => $key) {
 			$this->assertSame($menu->GetItem($key), $section[$i], $key);
 		}
 	}
@@ -140,18 +140,49 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		}
 	}
 
+	// Setup is the first section, after Objects when it's loaded
 	private function SetupSection(array $menu): array {
-		$this->assertSame(["title" => "Setup", "type" => "sub"], $menu[0]);
+		$start = array_search(["title" => "Setup", "type" => "sub"], $menu, true);
+		$this->assertNotFalse($start);
+		$this->assertSame([], array_filter(array_slice($menu, 0, $start), fn($i) => ($i["type"] ?? null) === "sub" && $i["title"] !== "Objects"));
 		$section = [];
-		foreach(array_slice($menu, 1) as $item) {
+		foreach(array_slice($menu, $start + 1) as $item) {
 			if(($item["type"] ?? null) === "sub") break;
 			$section[] = $item;
 		}
 		return $section;
 	}
 
+	function testMenuStartsWithVersionAndAppConfig() {
+		TestsHelper::Print("testing the menu starts with Version and App Configuration, outside any section...");
+		$admin = new \Magrathea\Admin\Admin();
+		$admin->SetFeatures();
+		$built = new AdminMenu();
+		$admin->AddMagratheaMenu($built);
+		$menu = $built->GetMenu();
+		$this->assertSame("Version", $menu[0]["title"]);
+		$this->assertSame("AdminFeatureAppConfig", $menu[1]["feature"] ?? null);
+		$this->assertSame(1, count(array_filter($menu, fn($i) => ($i["feature"] ?? null) === "AdminFeatureAppConfig")));
+	}
+
+	function testSetupSectionStartsWithChecks() {
+		TestsHelper::Print("testing Setup starts with Checks and Configuration File, Version and Checks each once in the menu...");
+		$admin = new class extends \Magrathea\Admin\Admin {
+			public function __construct() {}
+		};
+		$built = new AdminMenu();
+		$admin->AddMagratheaMenu($built);
+		$this->assertSame("Version", $built->GetMenu()[0]["title"]);
+		$setup = $this->SetupSection($built->GetMenu());
+		$this->assertSame(["Checks", "Configuration File"], array_slice(array_column($setup, "title"), 0, 2));
+		$pages = array_map(fn($i) => $this->PageFromLink($i["link"]), array_filter($built->GetMenu(), fn($i) => !empty($i["link"])));
+		$counts = array_count_values($pages);
+		$this->assertSame(1, $counts["version"]);
+		$this->assertSame(1, $counts["checks"]);
+	}
+
 	function testCorsMenuItemIsOptIn() {
-		TestsHelper::Print("testing the CORS Origins item is in Setup, after App Configuration, only when loaded...");
+		TestsHelper::Print("testing the CORS Origins item is in Setup, after Configuration File, only when loaded...");
 		$admin = new \Magrathea\Admin\Admin();
 		$admin->SetFeatures();
 		$built = new AdminMenu();
@@ -169,10 +200,10 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		$admin->AddMagratheaMenu($built);
 		$setup = $this->SetupSection($built->GetMenu());
 		$features = array_column($setup, "feature");
-		$this->assertSame(["AdminFeatureAppConfig", "AdminFeatureCors"], $features);
+		$this->assertSame(["AdminFeatureCors"], $features);
 		$titles = array_column($setup, "title");
 		$this->assertSame(
-			array_search("App Configuration", $titles, true) + 1,
+			array_search("Configuration File", $titles, true) + 1,
 			array_search("CORS Origins", $titles, true)
 		);
 	}

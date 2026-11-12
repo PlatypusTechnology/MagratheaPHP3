@@ -151,7 +151,7 @@ class adminEscapingTest extends \PHPUnit\Framework\TestCase {
 		$report = \Magrathea\Admin\CheckReport::Group([
 			["level" => \Magrathea\TimezoneCheck::WARNING, "message" => "Cache: `".self::XSS."` doesn't exist.", "group" => "folders"],
 			["level" => \Magrathea\TimezoneCheck::ERROR, "message" => "`t`.`updated_at` ".self::XSS, "group" => "schema", "table" => "t",
-				"fix" => "ALTER TABLE `t` -- ".self::XSS],
+				"check" => \Magrathea\DB\SchemaCheck::CHECK_TIMESTAMPS, "fix" => "ALTER TABLE `t` -- ".self::XSS],
 			["level" => \Magrathea\TimezoneCheck::INFO, "message" => self::XSS, "group" => self::XSS],
 		]);
 		$output = $this->Buffer(fn($e) => $e->CheckReport($report));

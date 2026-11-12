@@ -2,6 +2,7 @@
 
 namespace Magrathea\Admin;
 
+use Magrathea\DB\SchemaCheck;
 use Magrathea\ProjectCheck;
 use Magrathea\TimezoneCheck;
 
@@ -16,19 +17,19 @@ use Magrathea\TimezoneCheck;
 
 /**
 * The admin's Database → Checks page, as arrays: `ProjectCheck::Run()`'s findings in sections, one per group,
-* with the `schema` group split in two: the timestamps (the findings with a `fix`) and the models' drift.
+* with the `schema` group split in two: the timestamps (`"check" => SchemaCheck::CHECK_TIMESTAMPS`) and the models.
 * Read-only; the view only renders (`AdminElements::CheckReport()`).
 */
 class CheckReport {
 
-	/** sections, in the page's order: key => [group, title] */
+	/** sections, in the page's order: key => [group, check (a finding's `check`, or null for none), title] */
 	const SECTIONS = [
-		"config" => [ProjectCheck::CONFIG, "Configuration"],
-		"folders" => [ProjectCheck::FOLDERS, "Folders"],
-		"database" => [ProjectCheck::DATABASE, "Database"],
-		"timezone" => [ProjectCheck::TIMEZONE, "Timezone"],
-		"timestamps" => [ProjectCheck::SCHEMA, "Timestamps"],
-		"models" => [ProjectCheck::SCHEMA, "Models"],
+		"config" => [ProjectCheck::CONFIG, null, "Configuration"],
+		"folders" => [ProjectCheck::FOLDERS, null, "Folders"],
+		"database" => [ProjectCheck::DATABASE, null, "Database"],
+		"timezone" => [ProjectCheck::TIMEZONE, null, "Timezone"],
+		"timestamps" => [ProjectCheck::SCHEMA, SchemaCheck::CHECK_TIMESTAMPS, "Timestamps"],
+		"models" => [ProjectCheck::SCHEMA, null, "Models"],
 	];
 	/** findings without a known group */
 	const OTHER = "other";
@@ -47,13 +48,13 @@ class CheckReport {
 	* @return 	array 	["status" => the most severe level (`TimezoneCheck::OK` without findings),
 	* 					"counts" => [level => number of findings, for OK, INFO, WARNING and ERROR],
 	* 					"sections" => rows with ["key" (SECTIONS' key, or OTHER), "title", "findings",
-	* 					"status" (the most severe level; null when the section has no findings: it wasn't checked),
+	* 					"status" (the most severe level; null when the section has no findings, which `ProjectCheck::Run()`'s never leave: a check that didn't run is an INFO),
 	* 					"fixes" (every `fix` of the section, one per line)]]. An OTHER section ("Other") is
 	* 					added only when a finding has no known group
 	*/
 	public static function Group(array $findings): array {
 		$sections = [];
-		foreach(self::SECTIONS as $key => [$group, $title]) {
+		foreach(self::SECTIONS as $key => [$group, $check, $title]) {
 			$sections[$key] = ["key" => $key, "title" => $title, "findings" => []];
 		}
 		$other = [];
@@ -81,15 +82,13 @@ class CheckReport {
 
 	/**
 	* @param 	array 	$finding 	finding
-	* @return 	string|null 	its section's key; null when its group isn't one of SECTIONS'
+	* @return 	string|null 	its section's key: the one of SECTIONS' with its `group` and its `check`; null when none
 	*/
 	private static function SectionOf(array $finding): ?string {
 		$group = $finding["group"] ?? null;
-		if($group === ProjectCheck::SCHEMA) {
-			return empty($finding["fix"]) ? "models" : "timestamps";
-		}
-		foreach(self::SECTIONS as $key => [$sectionGroup, $title]) {
-			if($sectionGroup === $group) return $key;
+		$check = $finding["check"] ?? null;
+		foreach(self::SECTIONS as $key => [$sectionGroup, $sectionCheck, $title]) {
+			if($sectionGroup === $group && $sectionCheck === $check) return $key;
 		}
 		return null;
 	}

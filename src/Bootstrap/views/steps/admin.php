@@ -1,5 +1,5 @@
 <?php
-// $data: Steps::Admin(); $result: Steps::InstallAdmin() or Steps::CreateAdmin(). Helpers: see index.php
+// $data: Steps::Admin(); $result: Steps::InstallAdmin(), Steps::CreateAdmin() or Steps::ResetPassword(). Helpers: see index.php
 use Magrathea\Bootstrap\Steps;
 
 $errors = $result["errors"] ?? [];
@@ -42,7 +42,44 @@ $errors = $result["errors"] ?? [];
 		<?php if(!$data["installed"]) { ?>
 			<p class="muted">Install the tables first.</p>
 		<?php } else if(!$data["canCreateFirstUser"]) { ?>
-			<div class="alert level-ok">The admin has users already. A forgotten password: <code>vendor/bin/magrathea admin:reset-password &lt;email&gt;</code>, on the server.</div>
+			<div class="alert level-ok">The admin has users already.</div>
+
+			<h3>Super admins</h3>
+			<?php
+			if(!empty($result["reset"])) {
+				echo '<div class="alert level-ok">Changed the password of <b>'.$h($result["email"]).'</b>.';
+				if(!empty($result["generated"])) echo ' New password: <code>'.$h($result["password"]).'</code>. Write it down: it isn\'t shown again.';
+				if(empty($result["active"])) echo ' The user is inactive: they can\'t log in until they\'re activated.';
+				echo '</div>';
+			}
+			?>
+			<?php if(empty($data["superAdmins"])) { ?>
+				<div class="alert level-warning">There are users, but none is a super admin (<code>role_id</code> <?=(int)Steps::SUPER_ADMIN_ROLE?>).</div>
+			<?php } else { ?>
+				<p>A forgotten password: type a new one (at least <?=(int)Steps::MIN_PASSWORD?> characters), or leave it empty to generate one. On the server, <code>vendor/bin/magrathea admin:reset-password &lt;email&gt;</code> does the same.</p>
+				<table>
+					<tr><th>E-mail</th><th>Status</th><th>Last login</th><th>New password</th></tr>
+					<?php foreach($data["superAdmins"] as $user) {
+						$failed = isset($result["id"]) && empty($result["reset"]) && (int)$result["id"] === (int)$user["id"];
+						?>
+						<tr>
+							<td><?=$h($user["email"])?></td>
+							<td><?=$user["active"] ? "active" : '<span class="muted">inactive</span>'?></td>
+							<td><?=$user["last_login"] !== null ? $h($user["last_login"]) : '<span class="muted">never</span>'?></td>
+							<td>
+								<form method="post" action="<?=$h($wizard->GetStepLink("admin"))?>" class="inline-form">
+									<?=$csrfField()?>
+									<input type="hidden" name="action" value="reset-password">
+									<input type="hidden" name="id" value="<?=(int)$user["id"]?>">
+									<input type="text" name="password" value="<?=$failed ? $h($result["password"]) : ""?>" placeholder="empty: generate one" autocomplete="off" spellcheck="false" aria-label="New password for <?=$h($user["email"])?>">
+									<button type="submit" class="secondary">Reset password</button>
+								</form>
+								<?php if($failed) $fieldError($result["errors"], "password"); ?>
+							</td>
+						</tr>
+					<?php } ?>
+				</table>
+			<?php } ?>
 		<?php } else { ?>
 			<form method="post" action="<?=$h($wizard->GetStepLink("admin"))?>">
 				<?=$csrfField()?>

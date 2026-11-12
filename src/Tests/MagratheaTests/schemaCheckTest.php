@@ -193,10 +193,16 @@ class schemaCheckTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testCheckModelOfAModelThatMatches() {
-		TestsHelper::Print("testing SchemaCheck::CheckModel() finds nothing when the model matches its table...");
+		TestsHelper::Print("testing SchemaCheck::CheckModel() is one OK when the model matches its table...");
 		$this->ArticlesTable();
 		$class = $this->WriteModel("Article", "articles", ["id" => "int", "TITLE" => "text"]);
-		$this->assertSame([], $this->check->CheckModel($class));
+		$this->assertSame([[
+			"level" => TimezoneCheck::OK,
+			"message" => "`".$class."` matches `articles` (2 fields).",
+			"group" => "schema",
+			"model" => $class,
+			"table" => "articles",
+		]], $this->check->CheckModel($class));
 	}
 
 	function testCheckModelWithoutItsTable() {
@@ -235,17 +241,16 @@ class schemaCheckTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame("articles", $findings[1]["table"]);
 	}
 
-	function testCheckModelLeavesTimestampsToTheirOwnFinding() {
-		TestsHelper::Print("testing SchemaCheck::CheckModel() reports a missing timestamp once, even when \$dbValues lists it...");
+	function testCheckModelLeavesTimestampsToCheckTimestamps() {
+		TestsHelper::Print("testing SchemaCheck::CheckModel() leaves the timestamps, even listed in \$dbValues, to CheckTimestamps()...");
 		$this->schema->tables["articles"] = ["columns" => [
 			self::Column("id", "int(11)", "PRI"),
 			self::Column("updated_at", "datetime"),
 		]];
 		// a legacy model lists both timestamps
 		$class = $this->WriteModel("Article", "articles", ["id" => "int", "created_at" => "datetime", "updated_at" => "datetime"]);
-		$this->assertSame([
-			"error: `articles` has no `created_at` column: every SELECT built from `".$class."` fails.",
-		], self::Messages($this->check->CheckModel($class)));
+		// the timestamps aren't counted as its fields either
+		$this->assertSame(["ok: `".$class."` matches `articles` (1 field)."], self::Messages($this->check->CheckModel($class)));
 	}
 
 	function testCheckModelPrimaryKey() {
@@ -310,21 +315,64 @@ class schemaCheckTest extends \PHPUnit\Framework\TestCase {
 			"warning: `".$class."::\$dbValues[id]` is `string`, but it's the PK and its column is `char(36)`: declare it `uuid`, or `Insert()` sends no PK.",
 		], self::Messages($this->check->CheckModel($class)));
 		$class = $this->WriteModel("UuidToken", "tokens", ["id" => "uuid"]);
-		$this->assertSame([], $this->check->CheckModel($class));
+		$this->assertSame(["ok: `".$class."` matches `tokens` (1 field)."], self::Messages($this->check->CheckModel($class)));
 	}
 
 	function testCheckTimestampsOfATableThatFollowsTheContract() {
-		TestsHelper::Print("testing SchemaCheck::CheckTimestamps() accepts MySQL's and MariaDB's CURRENT_TIMESTAMP...");
+		TestsHelper::Print("testing SchemaCheck::CheckTimestamps() passes MySQL's and MariaDB's CURRENT_TIMESTAMP, one OK per column...");
 		$this->ArticlesTable();
-		$this->assertSame([], $this->check->CheckTimestamps("articles"));
+		$this->assertSame([
+			[
+				"level" => TimezoneCheck::OK,
+				"message" => "`articles`.`created_at` follows the contract (`DEFAULT CURRENT_TIMESTAMP`).",
+				"group" => "schema",
+				"table" => "articles",
+				"field" => "created_at",
+				"check" => SchemaCheck::CHECK_TIMESTAMPS,
+			],
+			[
+				"level" => TimezoneCheck::OK,
+				"message" => "`articles`.`updated_at` follows the contract (`DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`).",
+				"group" => "schema",
+				"table" => "articles",
+				"field" => "updated_at",
+				"check" => SchemaCheck::CHECK_TIMESTAMPS,
+			],
+		], $this->check->CheckTimestamps("articles"));
+		// reported in the contract's order, whatever the table's
 		$this->schema->tables["maria"] = ["columns" => [
-			self::Column("created_at", "timestamp", "", true, "current_timestamp()"),
 			self::Column("updated_at", "datetime(3)", "", false, "current_timestamp(3)", "on update current_timestamp(3)"),
+			self::Column("Created_At", "timestamp", "", true, "current_timestamp()"),
 		]];
-		$this->assertSame([], $this->check->CheckTimestamps("maria"));
-		// a missing column is CheckModel()'s
-		$this->schema->tables["bare"] = ["columns" => [self::Column("id", "int(11)", "PRI")]];
-		$this->assertSame([], $this->check->CheckTimestamps("bare"));
+		$this->assertSame([
+			"ok: `maria`.`Created_At` follows the contract (`DEFAULT CURRENT_TIMESTAMP`).",
+			"ok: `maria`.`updated_at` follows the contract (`DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`).",
+		], self::Messages($this->check->CheckTimestamps("maria")));
+	}
+
+	function testCheckTimestampsOfMissingColumns() {
+		TestsHelper::Print("testing SchemaCheck::CheckTimestamps() reports a missing timestamp, with an ADD COLUMN fix...");
+		$this->schema->tables["Weird`Bare"] = ["columns" => [self::Column("id", "int(11)", "PRI")]];
+		$this->assertSame([
+			[
+				"level" => TimezoneCheck::ERROR,
+				"message" => "`Weird`Bare` has no `created_at` column: every SELECT built from its models fails.",
+				"group" => "schema",
+				"table" => "Weird`Bare",
+				"field" => "created_at",
+				"check" => SchemaCheck::CHECK_TIMESTAMPS,
+				"fix" => "ALTER TABLE `Weird``Bare` ADD COLUMN `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;",
+			],
+			[
+				"level" => TimezoneCheck::ERROR,
+				"message" => "`Weird`Bare` has no `updated_at` column: every SELECT built from its models fails.",
+				"group" => "schema",
+				"table" => "Weird`Bare",
+				"field" => "updated_at",
+				"check" => SchemaCheck::CHECK_TIMESTAMPS,
+				"fix" => "ALTER TABLE `Weird``Bare` ADD COLUMN `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;",
+			],
+		], $this->check->CheckTimestamps("Weird`Bare"));
 	}
 
 	function testCheckTimestampsWithoutDefault() {
@@ -340,6 +388,7 @@ class schemaCheckTest extends \PHPUnit\Framework\TestCase {
 				"group" => "schema",
 				"table" => "posts",
 				"field" => "created_at",
+				"check" => SchemaCheck::CHECK_TIMESTAMPS,
 				"fix" => "ALTER TABLE `posts` MODIFY `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP;",
 			],
 			[
@@ -348,6 +397,7 @@ class schemaCheckTest extends \PHPUnit\Framework\TestCase {
 				"group" => "schema",
 				"table" => "posts",
 				"field" => "updated_at",
+				"check" => SchemaCheck::CHECK_TIMESTAMPS,
 				"fix" => "ALTER TABLE `posts` MODIFY `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;",
 			],
 		], $this->check->CheckTimestamps("posts"));
@@ -393,6 +443,8 @@ class schemaCheckTest extends \PHPUnit\Framework\TestCase {
 
 		$this->assertSame([
 			"warning: `".$this->namespace."\\Broken` (".$this->dumpFolder."/models/Broken.php) couldn't be loaded, so it wasn't checked: ParseError: Unclosed '{' on line 4",
+			"ok: `".$article."` matches `articles` (2 fields).",
+			"ok: `articles`.`created_at` follows the contract (`DEFAULT CURRENT_TIMESTAMP`).",
 			"error: `articles`.`updated_at` has no `ON UPDATE CURRENT_TIMESTAMP` (updates don't change it).",
 			"info: `articles`.`title` isn't in `".$draft."::\$dbValues`: the model doesn't read or write it.",
 			"error: `".$ghost."` maps the table `ghosts`, which doesn't exist.",

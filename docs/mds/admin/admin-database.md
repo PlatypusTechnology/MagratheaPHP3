@@ -3,7 +3,7 @@
 **Files:** `src/Admin/DatabaseExplorer.php`, `src/Admin/QueryRunner.php`, `src/Admin/QueryEditor.php`, `src/Admin/DumpManager.php`, `src/Admin/CheckReport.php`
 **Namespace:** `Magrathea\Admin`
 
-The admin's Database menu section (since 3.0). Every page renders its data through `AdminElements::Table()`,
+The admin's Database menu section (since 3.0), and the Checks page, which is in the Setup section. Every page renders its data through `AdminElements::Table()`,
 `Findings()` and the form elements, which escape it. Table and column names are checked against
 [`Schema`](../database/schema.md) before they reach SQL. Each page's logic lives in a small class that returns
 arrays (tests cover it with fakes); the views only render.
@@ -18,10 +18,10 @@ arrays (tests cover it with fakes); the views only render.
 | Queries | `query` | `db-query` |
 | Query editor | `query-editor` | `query-editor` |
 | Dumps | `dumps` | `dumps` |
-| Checks | `checks` | `checks` |
 | Connection | `connect` | `db-connect` |
 
-`Admin::AddMagratheaMenu()` adds the whole section. The 2.x keys `backups` and `structure` are gone (since 3.0):
+`Admin::AddMagratheaMenu()` adds the whole section. Checks (`checks`) isn't in it: it's the first item of Setup,
+above Configuration File. Version (`version`) sits at the top of the menu, under no section title. The 2.x keys `backups` and `structure` are gone (since 3.0):
 `GetItem()` returns `null` for them, and `AdminMenu::Add()` adds nothing for `null`, so a custom menu that still
 asks for them silently loses those entries. Use `dumps` and `checks`.
 
@@ -35,7 +35,7 @@ Database → Explorer (`?magrathea_page=db-explorer`) is read-only. Its data com
   (`information_schema`'s estimate, not a `COUNT(*)`), engine, the models that map it
   ([`SchemaCheck::FindModels()`](../database/schema.md), table names compared case-insensitively) and its
   status: the most severe level among those models' `CheckModel()` findings and the table's
-  `CheckTimestamps()` findings (`ok` with none, "no model" when no model maps it). Models that couldn't be
+  `CheckTimestamps()` findings (an `OK` per matching model and per compliant timestamp column; "no model" when no model maps it). Models that couldn't be
   loaded are listed above the table.
 - **A table** (`&table=<name>`): its columns (name, type, null, default, extra, key, and the Magrathea type
   `Schema::MagratheaType()` suggests), its indexes, `SHOW CREATE TABLE` with a Copy button, the mapping
@@ -216,20 +216,24 @@ received in this request (`is_uploaded_file()`); tests override it.
 
 ## Checks
 
-Database → Checks (`?magrathea_page=checks`) replaces the Structure page (since 3.0), which was in the Setup section. It
+Setup → Checks (`?magrathea_page=checks`) replaces the Structure page (since 3.0). It
 shows [`ProjectCheck::Run()`](../core/project-check.md)'s findings; the logic is `Admin\CheckReport`.
 
 - **Summary:** how many findings of each level (`ok`, `info`, `warning`, `error`).
 - **One card per group**, in this order, each with its most severe level as a badge: Configuration (`config`, with a
   link to the configuration file page), Folders (`folders`: the logs, cache and backups folders, each message naming
   its path, with links to Logs and Dumps), Database (`database`), Timezone (`timezone`), and the `schema` group split
-  in two: **Timestamps** (the findings with a `fix`: `SchemaCheck::CheckTimestamps()`) and **Models** (the rest: the
-  models' drift, models that couldn't load, tables no model maps). A finding whose group isn't one of these goes to a
+  in two: **Timestamps** (the findings with `"check" => "timestamps"`: `SchemaCheck::CheckTimestamps()`, one per
+  `created_at`/`updated_at` of each mapped table, `OK` when it follows the contract, `ERROR` with an `ADD COLUMN` fix
+  when it's missing) and **Models** (the rest: an `OK` per model that matches its table, the models' drift, models
+  that couldn't load, tables no model maps). A finding whose group isn't one of these goes to a
   last "Other" card.
 - **Fixes:** each finding shows its `fix`, and a card with fixes also shows all of them in one block with a "Copy"
   button. They're shown, never run: copy them to the Queries page or a migration.
-- A card with no findings says so: its check was skipped (`ProjectCheck::Run()` stops after a config error, and the
-  database groups need a database and a connection) or it found nothing.
+- **Skipped checks** are `INFO` findings saying why ("Skipped: no database is configured.", "Skipped: can't connect
+  to the database.": see [what stops what](../core/project-check.md#what-stops-what)), so every card has at least one
+  finding: a passing check is an `OK`, a skipped one an `INFO`. A card without findings ("No findings") can only come
+  from findings `ProjectCheck::Run()` didn't produce.
 
 Every message and fix goes through `AdminElements::Findings()` and `htmlspecialchars()`. The page runs every check
 on each load, the database ones included; nothing it shows is cached.

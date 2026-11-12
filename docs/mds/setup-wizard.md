@@ -115,7 +115,7 @@ so until there's one.
 | 4. Database | the credentials (environment variables resolved), without connecting; on request, the connection, `TimezoneCheck::Run()` and the tables (`Schema::Tables()`) | `connect-database` |
 | 5. Import (optional) | the `.sql` files of the backups folder | `upload-dump`, `import-dump` |
 | 6. Admin | the admin's tables, the first super admin | `install-admin`, `generate-password`, `create-admin` |
-| 7. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run) | |
+| 7. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run); a skipped check says why | |
 | 8. Finish | what it removes | `finish` |
 
 ### 2. Configuration

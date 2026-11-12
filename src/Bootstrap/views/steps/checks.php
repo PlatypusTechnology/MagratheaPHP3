@@ -18,14 +18,14 @@
 		<h3>
 			<?=$h($section["title"])?>
 			<?php if($section["status"] === null) { ?>
-				<span class="badge muted">not checked</span>
+				<span class="badge muted">no findings</span>
 			<?php } else { ?>
 				<span class="badge level-<?=$h($section["status"])?>"><?=$h($section["status"])?></span>
 			<?php } ?>
 		</h3>
 		<?php
 		if(empty($section["findings"])) {
-			echo '<p class="muted">Nothing to report: skipped (after an error above, or without a database), or nothing found.</p>';
+			echo '<p class="muted">No findings: this check reported nothing, not even a pass or a skip.</p>';
 		} else {
 			$findings($section["findings"]);
 		}

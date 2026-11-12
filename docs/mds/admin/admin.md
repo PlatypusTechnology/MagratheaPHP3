@@ -3,7 +3,7 @@
 **Files:** `src/Admin/Admin.php`, `src/Admin/AdminManager.php`
 **Namespace:** `Magrathea\Admin`
 
-MagratheaPHP ships with a built-in admin panel system. It provides a configurable web UI for managing application data, users, configuration, cache, CORS origins and API exploration, plus a Database section (explorer, queries, query editor, dumps, checks). The admin panel is feature-based: you enable only what you need.
+MagratheaPHP ships with a built-in admin panel system. It provides a configurable web UI for managing application data (the Objects area: a CRUD for every model), users, configuration, cache, CORS origins and API exploration, plus a Database section (explorer, queries, query editor, dumps, checks). The admin panel is feature-based: you enable only what you need.
 
 ---
 
@@ -43,7 +43,7 @@ class MyAppAdmin extends \Magrathea\Admin\Admin implements \Magrathea\Admin\iAdm
     }
 
     public function SetFeatures() {
-        parent::SetFeatures();                   // App Config, Cache, Users, User Logs
+        parent::SetFeatures();                   // Objects, App Config, Cache, Users, User Logs
         $this->AddCrudFeature(new \App\Article\ArticleAdmin());
     }
 }
@@ -110,6 +110,14 @@ $admin->AddFeaturesArray([
     new ReportsFeature(),
     new OpenApiAdmin("swagger.yaml"),
 ]);
+```
+
+#### `RemoveFeature(string $key): Admin`
+Remove a feature by its `featureId`, along with its menu items. Call it after `parent::SetFeatures()`. A key that
+isn't registered is ignored.
+
+```php
+$this->RemoveFeature("AdminFeatureObjects"); // no Objects area
 ```
 
 #### `AddJs(string $filePath): Admin`
@@ -189,12 +197,19 @@ sub-folders, a missing file) answers 404, "action not found" for an action and a
 page. Before 2.4.0 the name was concatenated into an `include`, so `../` reached any PHP file on the server.
 Your own pages belong in admin features (`?magrathea_feature=`), not in these folders.
 
+#### The Objects section
+
+The menu starts with Objects (since 3.0): a CRUD for every model the project has, built from the models, with
+nothing to register. See [Admin: Objects](admin-objects.md).
+
 #### The Database section
 
-Explorer, Queries, the Query editor, Dumps and Checks (since 3.0), and the section's menu items, have their own page:
-[Admin: the Database section](admin-database.md).
+Explorer, Queries, the Query editor and Dumps (since 3.0), the section's menu items, and the Checks page (in
+Setup), have their own page: [Admin: the Database section](admin-database.md).
 
-The Version page shows the app, Magrathea and PHP versions. Its "Server Time" card links to the Server page
+The menu opens with Version and App Configuration, at the top and under no section title; the Setup section
+starts with Checks, above Configuration File. The Version page shows the app,
+Magrathea and PHP versions; the home page shows the app and Magrathea versions under the logo, linking to it. Its "Server Time" card links to the Server page
 (Debugging → Server), which shows the time, the timezone and its check (`TimezoneCheck::Run()`).
 
 #### Backups, logs, and the removed Query Tester
@@ -316,6 +331,7 @@ AdminManager::Instance()->Log("deleted_product", $product->id, $product->ToArray
 
 | Feature ID | Description |
 |-----------|-------------|
+| `AdminFeatureObjects` | A CRUD for every model of the project, first in the menu ([Admin: Objects](admin-objects.md)); `RemoveFeature("AdminFeatureObjects")` takes it out |
 | `AdminFeatureAppConfig` | Database-stored app configuration |
 | `AdminFeatureCache` | Cache management and clearing |
 | `AdminFeatureUser` | Admin user management |
@@ -335,7 +351,8 @@ removed in 3.0: the admin no longer edits files on the server.
 
 ## Adding Custom CRUD Features
 
-The most common admin customization is adding CRUD management for your models:
+The Objects area already gives every model a CRUD. Write an `AdminCrudObject` when a model needs its own
+menu item, its own permissions (`HasPermission()`), or other columns and fields than the Objects area shows:
 
 ```php
 namespace App\Product;

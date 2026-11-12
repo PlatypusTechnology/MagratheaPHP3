@@ -16,7 +16,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 - An **ORM** (Model + ModelControl) for MySQL via MySQLi
 - A **fluent Query Builder** (SELECT, INSERT, UPDATE, DELETE)
 - A **RESTful API framework** with CORS, JWT, and caching out of the box
-- An **Admin Panel** system with pluggable features (CRUD, user management, app config, cache, CORS origins, etc.) and a Database section (explorer, queries, query editor, dumps, checks)
+- An **Admin Panel** system with pluggable features (CRUD, an Objects area with a CRUD for every model, user management, app config, cache, CORS origins, etc.) and a Database section (explorer, queries, query editor, dumps, checks)
 - A **CLI** for agents and scripts (`vendor/bin/magrathea`): project checks, model ↔ table drift, schema, queries, dumps
 - A **Setup Wizard** (`public/setup.php`), locked by a token, for a human to configure a new install
 - **INI-based configuration** with multi-environment support
@@ -67,6 +67,7 @@ MagratheaPHP is a lightweight, opinionated PHP framework designed around rapid A
 | [Admin System Overview](admin/admin.md) | Admin panel manager |
 | [AdminManager](admin/admin-manager.md) | Admin singleton & runtime |
 | [Admin Features](admin/admin-features.md) | Pluggable admin feature system |
+| [Admin: Objects](admin/admin-objects.md) | A CRUD for every model of the project: list, structure, create, edit, delete |
 | [Admin: Database Section](admin/admin-database.md) | Explorer, Queries, Query editor, Dumps and Checks pages |
 
 ### Utilities

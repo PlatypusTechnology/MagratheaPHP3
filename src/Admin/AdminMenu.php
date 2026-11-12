@@ -103,7 +103,6 @@ class AdminMenu {
 			$this->GetItem("query"),
 			$this->GetItem("query-editor"),
 			$this->GetItem("dumps"),
-			$this->GetItem("checks"),
 			$this->GetItem("connect")
 		);
 		return $rs;
@@ -167,6 +166,11 @@ class AdminMenu {
 			'class' => 'menu-link',
 			'link' => MagratheaPHP::GetDocumentationLink(),
 		];
+		$docsLink = [
+			'title' => 'Documentation',
+			'class' => 'menu-link',
+			'link' => MagratheaPHP::GetDocumentationLink()."/docs/",
+		];
 		$repoLink = [
 			'title' => "Github repo",
 			'class' => 'menu-link',
@@ -179,7 +183,7 @@ class AdminMenu {
 		];
 		return [
 			$this->CreateTitle("Documentation"),
-			$documentationLink, $repoLink, $platypusLink
+			$documentationLink, $docsLink, $repoLink, $platypusLink
 		];
 	}
 

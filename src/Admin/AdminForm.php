@@ -71,9 +71,10 @@ class AdminForm {
 	 */
 	public function Build($elements, $object=[]): AdminForm {
 		if (\Magrathea\isMagratheaModel($object)) {
+			// the PK, under its own name: a disabled input doesn't post
 			array_push($elements,
 				[
-					"key" => "id",
+					"key" => $object->GetPkName(),
 					"type" => "hidden",
 					"size" => "hidden",
 				],

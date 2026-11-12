@@ -59,7 +59,7 @@ Returns `["title", "icon", "feature", "active"]`, consumed by `AdminMenu` when b
 
 Manages database-stored application configuration (via `ConfigApp`). Allows admin users to view and edit key-value settings at runtime without touching files.
 
-**Menu item:** "App Configuration", in the Setup section
+**Menu item:** "App Configuration", at the top of the menu, right after Version, under no section title
 **Feature ID:** `AdminFeatureAppConfig`
 
 ---
@@ -115,7 +115,7 @@ Errors answer HTTP 200 with an alert (the admin's `ajax()` drops non-JSON error 
 non-POST `Save` answers 405. The file must be writable by the web server's user, and like everything
 in `configs/`, it must not be reachable from the web.
 
-**Menu item:** "CORS Origins", in the Setup section after App Configuration
+**Menu item:** "CORS Origins", in the Setup section after Configuration File
 **Feature ID:** `AdminFeatureCors`
 
 ---
@@ -163,7 +163,21 @@ looked for. `SetControl()` can replace the control afterwards.
 
 There are no properties to choose columns or form fields: the list shows every field except
 `created_at`/`updated_at` (`Columns()`), and the form is built from the model's field types
-(`Fields()`). Override those methods to change them.
+(`Fields()`, through `GetField()`). Override those methods to change them.
+
+Since 3.0, `GetField()` uses `Admin\ModelFields::Field()`, the same mapping as the
+[Objects area](admin-objects.md): `boolean` is a switch, `text` a textarea, `int`/`float`/`decimal` a number
+input, `date` a date input. A relation is a select of the related objects, or a text input for the id when the
+related table has more than 100 rows: before 3.0 it loaded the whole table into the select, through the
+control's `GetSelectArray()`. Labels are escaped.
+
+**Saving.** `Save()` assigns only the fields that `Fields()` puts in the form and aren't disabled
+(`ModelFields::Values()`): not the PK, not the timestamps, nothing else posted. An unchecked switch or checkbox
+of a `boolean` field is `false`: before 3.0 it wasn't posted, so it could never be unchecked. An empty value of
+a field that isn't `string`/`text` is `null`. The object is identified by its PK, posted under the PK's own name
+(`AdminForm::Build()` adds it as a hidden field). Before 3.0 both were `id`, so models with another PK name
+couldn't be saved or deleted. The list's "Edit" link puts the id in the `onclick` as a JSON string, so string
+and uuid PKs work.
 
 **Pages.** Everything is under the feature's URL, `?magrathea_feature=CRUDProduct` (the
 `featureId`); `magrathea_feature_subpage` selects `List`, `Form` (with `id`), `Save` or `Delete`

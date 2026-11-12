@@ -59,6 +59,7 @@ class Start extends \Magrathea\Singleton {
 		"install-admin" => "admin",
 		"generate-password" => "admin",
 		"create-admin" => "admin",
+		"reset-password" => "admin",
 		"finish" => "finish",
 	];
 	const VERIFY = "verify";

@@ -5,6 +5,8 @@ namespace Magrathea\Bootstrap;
 use Magrathea\Admin\CheckReport;
 use Magrathea\Admin\DumpManager;
 use Magrathea\Admin\Install;
+use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
 use Magrathea\Config;
 use Magrathea\ConfigFile;
 use Magrathea\DB\Database;
@@ -55,23 +57,28 @@ class Steps {
 	const GENERATED_BYTES = 8;
 	/** the environment that may keep `bootstrap_unlocked` after Finish */
 	const DEV = "dev";
+	/** the super admin's `role_id` (`AdminUser::GetRoles()`): the Admin step lists them and resets their passwords */
+	const SUPER_ADMIN_ROLE = 1;
 
 	private Start $start;
 	private ?DumpManager $dumps;
 	private ?Install $install;
 	private ?\Magrathea\Admin\Start $admin;
+	private ?AdminUserControl $users;
 
 	/**
 	* @param 	Start 						$start 		the wizard
 	* @param 	DumpManager|null 			$dumps 		dumps (default: a new one, when it's used)
 	* @param 	Install|null 				$install 	the admin's install (default: a new one)
 	* @param 	\Magrathea\Admin\Start|null $admin 		the admin (default: its instance), for `CanCreateFirstUser()`
+	* @param 	AdminUserControl|null 		$users 		the admin's users (default: a new one), for `SuperAdmins()` and `ResetPassword()`
 	*/
-	public function __construct(Start $start, ?DumpManager $dumps = null, ?Install $install = null, ?\Magrathea\Admin\Start $admin = null) {
+	public function __construct(Start $start, ?DumpManager $dumps = null, ?Install $install = null, ?\Magrathea\Admin\Start $admin = null, ?AdminUserControl $users = null) {
 		$this->start = $start;
 		$this->dumps = $dumps;
 		$this->install = $install;
 		$this->admin = $admin;
+		$this->users = $users;
 	}
 
 	/** @return 	Start 	the wizard */
@@ -127,6 +134,7 @@ class Steps {
 			"install-admin" => $this->InstallAdmin(),
 			"generate-password" => $this->GeneratePassword($post["email"] ?? null),
 			"create-admin" => $this->CreateAdmin($post["email"] ?? null, $post["password"] ?? null),
+			"reset-password" => $this->ResetPassword($post["id"] ?? null, $post["password"] ?? null),
 			"finish" => $this->Finish(($post["keep_unlocked"] ?? null) === "1"),
 			default => throw new MagratheaException("unknown action: ".$action),
 		};
@@ -394,12 +402,13 @@ class Steps {
 
 	/**
 	* @return 	array 	["needsConfig", "configured", "connected", "installed" (`_magrathea_config` exists),
-	* 					"canCreateFirstUser" (`Admin\Start::CanCreateFirstUser()`), "error"]
+	* 					"canCreateFirstUser" (`Admin\Start::CanCreateFirstUser()`), "superAdmins" (`SuperAdmins()`, once
+	* 					there are users), "error"]
 	*/
 	public function Admin(): array {
 		$this->RequireVerified();
 		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "connected" => false,
-			"installed" => false, "canCreateFirstUser" => false, "error" => null];
+			"installed" => false, "canCreateFirstUser" => false, "superAdmins" => [], "error" => null];
 		if($rs["needsConfig"] || !$this->UsesDatabase()) return $rs;
 		$rs["configured"] = true;
 		try {
@@ -411,6 +420,67 @@ class Steps {
 			return $rs;
 		}
 		$rs["canCreateFirstUser"] = $rs["installed"] && $this->AdminStart()->CanCreateFirstUser();
+		if($rs["installed"] && !$rs["canCreateFirstUser"]) {
+			try {
+				$rs["superAdmins"] = $this->SuperAdmins();
+			} catch(\Throwable $ex) {
+				$rs["error"] = $ex->getMessage();
+			}
+		}
+		return $rs;
+	}
+
+	/**
+	* The admin's super admins (`role_id` = `SUPER_ADMIN_ROLE`), inactive ones included, by id
+	* @return 	array 	[["id" => int, "email", "active" => bool, "last_login" => string|null]]
+	* @throws 	\Magrathea\Exceptions\MagratheaDBException
+	*/
+	public function SuperAdmins(): array {
+		$this->RequireVerified();
+		$users = $this->Users()->GetWhere(["role_id" => self::SUPER_ADMIN_ROLE]);
+		$list = array_map(fn(AdminUser $user) => [
+			"id" => (int)$user->id,
+			"email" => (string)$user->email,
+			"active" => !empty($user->active),
+			"last_login" => $user->last_login ? (string)$user->last_login : null,
+		], $users);
+		usort($list, fn($a, $b) => $a["id"] <=> $b["id"]);
+		return $list;
+	}
+
+	/**
+	* Sets a super admin's password (`AdminUserControl::SetNewPassword()`, which logs `change-password`), like
+	* `admin:reset-password`. An empty password generates one (`GENERATED_BYTES` random bytes, in hex), given back
+	* once. It refuses users that aren't super admins, and doesn't activate an inactive one
+	* @param 	mixed 	$id 		the user's id
+	* @param 	mixed 	$password 	at least MIN_PASSWORD characters; empty (or missing) generates one
+	* @return 	array 	["reset" => bool, "errors" => [field => message], "id", "email", "password" (the new one, or the
+	* 					typed one given back on errors), "generated" => bool, "active" => bool]
+	* @throws 	MagratheaException 	no database, the user isn't a super admin, or the password wasn't saved
+	*/
+	public function ResetPassword($id, $password): array {
+		$this->RequireVerified();
+		$this->RequireDatabase();
+		$this->Connect();
+		$id = filter_var($id, FILTER_VALIDATE_INT, ["options" => ["min_range" => 1]]);
+		$user = null;
+		if($id !== false) {
+			foreach($this->Users()->GetWhere(["id" => $id, "role_id" => self::SUPER_ADMIN_ROLE]) as $found) $user = $found;
+		}
+		if(!$user) throw new MagratheaException("There's no super admin with that id.");
+		$typed = is_string($password) ? $password : "";
+		$generated = $typed === "";
+		$password = $generated ? bin2hex(random_bytes(self::GENERATED_BYTES)) : $typed;
+		$rs = ["reset" => false, "errors" => [], "id" => (int)$user->id, "email" => (string)$user->email,
+			"password" => $password, "generated" => $generated, "active" => !empty($user->active)];
+		if(mb_strlen($password) < self::MIN_PASSWORD) {
+			$rs["errors"]["password"] = "At least ".self::MIN_PASSWORD." characters, or leave it empty to generate one.";
+			return $rs;
+		}
+		$saved = $this->Users()->SetNewPassword($user, $password);
+		if(!empty($saved["error"])) throw new MagratheaException($saved["error"]);
+		if(empty($saved["success"])) throw new MagratheaException("The password for ".$user->email." couldn't be saved.");
+		$rs["reset"] = true;
 		return $rs;
 	}
 
@@ -466,7 +536,7 @@ class Steps {
 		}
 		if($errors) return ["created" => false, "errors" => $errors, "email" => $email, "password" => is_string($password) ? $password : ""];
 		if(!$this->AdminStart()->CanCreateFirstUser()) {
-			throw new MagratheaException("The admin already has users: the first one is created only once. Reset a password with `vendor/bin/magrathea admin:reset-password <email>`.");
+			throw new MagratheaException("The admin already has users: the first one is created only once. Reset a super admin's password below, or with `vendor/bin/magrathea admin:reset-password <email>`.");
 		}
 		$this->Installer()->CreateFirstUser($email, $password);
 		return ["created" => true, "errors" => [], "email" => $email];
@@ -598,6 +668,10 @@ class Steps {
 	/** @return 	\Magrathea\Admin\Start */
 	protected function AdminStart(): \Magrathea\Admin\Start {
 		return $this->admin ?? \Magrathea\Admin\Start::Instance();
+	}
+	/** @return 	AdminUserControl */
+	protected function Users(): AdminUserControl {
+		return $this->users ??= new AdminUserControl();
 	}
 
 }

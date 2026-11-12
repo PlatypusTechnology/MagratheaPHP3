@@ -135,11 +135,19 @@ class Admin implements iAdmin {
 	 * Sets the default features for the admin panel.
 	 */
 	public function SetFeatures() {
+		$this->LoadObjects();
 		$this->LoadAppConfig();
 		$this->LoadCache();
 		$this->LoadUser();
 	}
 
+	/**
+	 * Loads the Objects feature: a CRUD for every model of the project (`ObjectsExplorer`), at the top of the menu.
+	 * On by default (`SetFeatures()` calls it); `RemoveFeature("AdminFeatureObjects")` takes it out.
+	 */
+	protected function LoadObjects() {
+		$this->AddFeature(new \Magrathea\Admin\Features\Objects\AdminFeatureObjects());
+	}
 	/**
 	 * Loads the AppConfig feature.
 	 */
@@ -165,6 +173,18 @@ class Admin implements iAdmin {
 	protected function LoadUser() {
 		$this->AddFeature(new \Magrathea\Admin\Features\User\AdminFeatureUser());
 		$this->AddFeature(new \Magrathea\Admin\Features\UserLogs\AdminFeatureUserLog());
+	}
+
+	/**
+	 * Removes a feature, and its menu items (call it after `parent::SetFeatures()`).
+	 * A key that isn't registered is ignored.
+	 * @param string	$key		feature key (its `featureId`, e.g. "AdminFeatureObjects")
+	 * @return Admin		itself
+	 */
+	public function RemoveFeature(string $key): Admin {
+		unset($this->adminFeatures[$key]);
+		$this->crudFeatures = array_values(array_filter($this->crudFeatures, fn($k) => $k !== $key));
+		return $this;
 	}
 
 	/**
@@ -246,12 +266,20 @@ class Admin implements iAdmin {
 	 * @return AdminMenu
 	 */
 	public function AddMagratheaMenu(AdminMenu &$adminMenu): AdminMenu {
-		$adminMenu
-			->Add("Setup")
-			->Add($adminMenu->GetItem("conf-file"));
-
+		$adminMenu->Add($adminMenu->GetItem("version"));
 		if(@$this->adminFeatures["AdminFeatureAppConfig"])
 			$adminMenu->Add($this->adminFeatures["AdminFeatureAppConfig"]->GetMenuItem());
+
+		if(@$this->adminFeatures["AdminFeatureObjects"])
+			$adminMenu
+				->Add("Objects")
+				->Add($this->adminFeatures["AdminFeatureObjects"]->GetMenuItem());
+
+		$adminMenu
+			->Add("Setup")
+			->Add($adminMenu->GetItem("checks"))
+			->Add($adminMenu->GetItem("conf-file"));
+
 		if(@$this->adminFeatures["AdminFeatureCors"])
 			$adminMenu->Add($this->adminFeatures["AdminFeatureCors"]->GetMenuItem());
 		$adminMenu
@@ -266,8 +294,7 @@ class Admin implements iAdmin {
 				->Add($this->adminFeatures["AdminFeatureCache"]->GetMenuItem());
 
 		$adminMenu
-			->Add($adminMenu->GetDebugSection())
-			->Add($adminMenu->GetItem("version"));
+			->Add($adminMenu->GetDebugSection());
 
 		if(@$this->adminFeatures["AdminFeatureUser"] && @$this->adminFeatures["AdminFeatureUserLog"])
 			$adminMenu

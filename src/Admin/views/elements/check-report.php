@@ -44,7 +44,7 @@ foreach($report["sections"] as $magratheaSection) {
 		<div class="card-body">
 			<?php
 			if(empty($magratheaSection["findings"])) {
-				echo '<p class="text-muted mb-0">Nothing to report: this check was skipped (after an error above, or without a database), or it found nothing.</p>';
+				echo '<p class="text-muted mb-0">No findings: this check reported nothing, not even a pass or a skip.</p>';
 			} else {
 				$this->Findings($magratheaSection["findings"]);
 			}

@@ -6,6 +6,7 @@ use Magrathea\Admin\AdminElements;
 use Magrathea\Admin\AdminFeature;
 use Magrathea\Admin\AdminManager;
 use Magrathea\Admin\iAdminFeature;
+use Magrathea\Admin\ModelFields;
 use Magrathea\Exceptions\MagratheaModelException;
 use Magrathea\MagratheaModel;
 use Magrathea\MagratheaModelControl;
@@ -115,15 +116,17 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 		return array_keys($properties);
 	}
 	/**
-	 * Gets the column value for editing an object row
+	 * Gets the column value for editing an object row. The id is a JSON string in the onclick, so string
+	 * and uuid PKs work and can't break out of it.
 	 * @return array
 	 */
 	public function GetEditColumn(): array {
 		return [
 			"title" => "...",
 			"key" => function ($item) {
-				$action = "editCrudObject(".$item->GetID().")";
-				return '<a href="#" onclick="'.$action.'">Edit</a>';
+				$id = json_encode((string)$item->GetID(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+				$action = "event.preventDefault(); editCrudObject(".$id.")";
+				return '<a href="#" onclick="'.htmlspecialchars($action, ENT_QUOTES).'">Edit</a>';
 			}
 		];
 	}
@@ -144,7 +147,7 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 		if(count($fields) % 2 != 0) {
 			array_push($fields, ["type" => "empty"]);
 		}
-		if($object->id) {
+		if(!empty($object->GetID())) {
 			array_push($fields,
 				["type" => "empty", "size" => "col-6"],
 				$this->GetDeleteButton(),
@@ -159,41 +162,23 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 		return $fields;
 	}
 	/**
-	 * Get a field related to type
+	 * Get a field related to type (`ModelFields::Field()`): "pk" is disabled; a relation ("\\Class") is a select of
+	 * the related objects, or a text input for the id when they're more than `ModelFields::RELATION_OPTIONS_LIMIT`
 	 * @param string $key 			Object property
-	 * @param string $type			Object type
+	 * @param string $type			Object type (`GetFields()`: a `$dbValues` type, "pk", or a related model class)
 	 * @return array
 	 */
 	public function GetField(string $key, string $type): array {
+		$modelFields = new ModelFields();
 		if(str_starts_with($type, "\\")) {
-			$base = new $type();
-			$control = $base->GetControl();
-			$relational = $control->GetSelectArray();
-			return [
-				"name" => ucfirst($key)." (".$type.")",
-				"key" => $key,
-				"type" => $relational,
-				"size" => "col-6",
-			];
+			return $modelFields->Field($key, "int", ltrim($type, "\\"));
 		}
-		switch ($type) {
-			case "pk":
-				$fieldType = "disabled";
-				break;
-			case "date":
-				$fieldType = "date";
-				break;
-			case "int":
-			case "text":
-			default:
-				$fieldType = "text";
+		if($type === "pk") {
+			$field = $modelFields->Field($key, "pk");
+			$field["type"] = "disabled";
+			return $field;
 		}
-		return [
-			"name" => ucfirst($key)." (".$type.")",
-			"key" => $key,
-			"type" => $fieldType,
-			"size" => "col-6",
-		];
+		return $modelFields->Field($key, $type);
 	}
 	/**
 	 * Gets the button for saving an object
@@ -269,11 +254,19 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 	/**
 	 * Saves the object
 	 */
+	/**
+	 * Saves the object (POST): only the fields of `Fields()` are assigned (`ModelFields::Values()`), the object is
+	 * identified by its PK (posted under the PK's name)
+	 */
 	public function Save() {
 		$this->RefuseIfNotPost();
-		$id = @$_POST["id"];
-		$o = new $this->fullObjectName($id);
-		$o = $o->Assign($_POST);
+		$id = @$_POST[$this->object->GetPkName()];
+		try {
+			$o = new $this->fullObjectName(is_scalar($id) ? $id : null);
+		} catch(MagratheaModelException $ex) {
+			return $this->ReturnException($ex, $_POST);
+		}
+		$o = $o->Assign((new ModelFields())->Values($o, $_POST, $this->Fields($o)));
 		try {
 			$success = $o->Save();
 		} catch(\Magrathea\Exceptions\MagratheaDBException $ex) {
@@ -291,11 +284,12 @@ class AdminCrudObject extends AdminFeature implements iAdminFeature {
 	 */
 	public function Delete() {
 		$this->RefuseIfNotPost();
-		$id = @$_POST["id"];
-		$o = new $this->fullObjectName($id);
+		$id = @$_POST[$this->object->GetPkName()];
+		if(!is_scalar($id) || (string)$id === "") return $this->ReturnError("Which object? The id is empty");
 		try {
+			$o = new $this->fullObjectName($id);
 			$success = $o->Delete();
-		} catch(\Magrathea\Exceptions\MagratheaDBException $ex) {
+		} catch(MagratheaModelException | \Magrathea\Exceptions\MagratheaDBException $ex) {
 			return $this->ReturnException($ex);
 		}
 		echo json_encode([

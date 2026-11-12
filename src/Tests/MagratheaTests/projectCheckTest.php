@@ -135,9 +135,25 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		Logger::Instance()->SetLogPath(null);
 	}
 
+	// the groups that ran: a skipped check is a finding too, see Skips()
 	private function GroupsOf(array $findings): array {
-		return array_values(array_unique(array_map(fn($f) => $f["group"], $findings)));
+		$ran = array_filter($findings, fn($f) => !str_starts_with($f["message"], "Skipped: "));
+		return array_values(array_unique(array_map(fn($f) => $f["group"], $ran)));
 	}
+	// the skipped checks, as "group" or "group/check" => message
+	private function Skips(array $findings): array {
+		$skips = [];
+		foreach($findings as $f) {
+			if(!str_starts_with($f["message"], "Skipped: ")) continue;
+			$this->assertSame(TimezoneCheck::INFO, $f["level"], $f["message"]);
+			$skips[$f["group"].(isset($f["check"]) ? "/".$f["check"] : "")] = $f["message"];
+		}
+		return $skips;
+	}
+	private static function Skipped(array $keys, string $reason): array {
+		return array_fill_keys($keys, "Skipped: ".$reason.".");
+	}
+	const DATABASE_CHECKS = ["database", "timezone", "schema", "schema/timestamps"];
 	private function InGroup(array $findings, string $group): array {
 		return array_values(array_filter($findings, fn($f) => $f["group"] === $group));
 	}
@@ -162,6 +178,7 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$this->WriteConfig($this->Healthy());
 		$findings = TestableProjectCheck::Run();
 		$this->assertSame(["config", "folders", "database", "timezone", "schema"], $this->GroupsOf($findings));
+		$this->assertSame([], $this->Skips($findings));
 		$this->assertNotContains(TimezoneCheck::ERROR, $this->Levels($findings), json_encode($findings));
 		foreach($findings as $f) {
 			$this->assertContains($f["level"], [TimezoneCheck::OK, TimezoneCheck::INFO, TimezoneCheck::WARNING, TimezoneCheck::ERROR]);
@@ -199,6 +216,7 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$findings = TestableProjectCheck::Run();
 		$this->AssertOne($findings, "No config file", TimezoneCheck::ERROR, "config");
 		$this->assertSame(["config"], $this->GroupsOf($findings));
+		$this->assertSame(self::Skipped(["folders", ...self::DATABASE_CHECKS], "the config can't be read"), $this->Skips($findings));
 		$this->assertSame([], $this->db->log);
 	}
 
@@ -241,6 +259,7 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$this->AssertOne($findings, "No database configured", TimezoneCheck::INFO, "config");
 		$this->assertSame([], $this->With($findings, "mysqli"));
 		$this->assertSame(["config", "folders"], $this->GroupsOf($findings));
+		$this->assertSame(self::Skipped(self::DATABASE_CHECKS, "no database is configured"), $this->Skips($findings));
 		$this->assertNotContains(TimezoneCheck::ERROR, $this->Levels($findings));
 		$this->assertSame([], $this->db->log);
 	}
@@ -255,6 +274,7 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$this->AssertOne($findings, "`db_user` is empty", TimezoneCheck::ERROR, "config");
 		$this->assertSame([], $this->With($findings, "`db_host` is empty"));
 		$this->assertSame(["config", "folders"], $this->GroupsOf($findings));
+		$this->assertSame(self::Skipped(self::DATABASE_CHECKS, "the database configuration has errors (see Configuration)"), $this->Skips($findings));
 		$this->assertSame([], $this->db->log);
 	}
 
@@ -265,6 +285,7 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$findings = TestableProjectCheck::Run();
 		$this->AssertOne($findings, "`mysqli` extension isn't loaded", TimezoneCheck::ERROR, "config");
 		$this->assertSame(["config", "folders"], $this->GroupsOf($findings));
+		$this->assertSame(self::Skipped(self::DATABASE_CHECKS, "the database configuration has errors (see Configuration)"), $this->Skips($findings));
 		$this->assertSame([], $this->db->log);
 	}
 
@@ -382,10 +403,11 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 	// DATABASE
 
 	function testWithoutDatabaseNeverConnects() {
-		TestsHelper::Print("testing ProjectCheck::Run(false): no database, timezone or schema groups, and no query...");
+		TestsHelper::Print("testing ProjectCheck::Run(false): the database, timezone and schema checks skipped, and no query...");
 		$this->WriteConfig($this->Healthy());
 		$findings = TestableProjectCheck::Run(false);
 		$this->assertSame(["config", "folders"], $this->GroupsOf($findings));
+		$this->assertSame(self::Skipped(self::DATABASE_CHECKS, "the database checks are off for this run"), $this->Skips($findings));
 		$this->assertSame([], $this->db->log);
 	}
 
@@ -405,6 +427,7 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 		$findings = TestableProjectCheck::Run();
 		$this->AssertOne($findings, "Can't connect to the database: Access denied", TimezoneCheck::ERROR, "database");
 		$this->assertSame(["config", "folders", "database"], $this->GroupsOf($findings));
+		$this->assertSame(self::Skipped(["timezone", "schema", "schema/timestamps"], "can't connect to the database"), $this->Skips($findings));
 		$this->assertCount(1, array_filter($findings, fn($f) => $f["level"] === TimezoneCheck::ERROR));
 	}
 
@@ -424,10 +447,12 @@ class projectCheckTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testSchemaCheckFails() {
-		TestsHelper::Print("testing ProjectCheck: a SchemaCheck that throws is one ERROR, in schema...");
+		TestsHelper::Print("testing ProjectCheck: a SchemaCheck that throws is one ERROR, in schema, and the timestamps skipped...");
 		$this->WriteConfig($this->Healthy());
 		$this->db->queryAllError = "SELECT command denied";
-		$this->AssertOne(TestableProjectCheck::Run(), "can't be checked against the database: SELECT command denied", TimezoneCheck::ERROR, "schema");
+		$findings = TestableProjectCheck::Run();
+		$this->AssertOne($findings, "can't be checked against the database: SELECT command denied", TimezoneCheck::ERROR, "schema");
+		$this->assertSame(["schema/timestamps" => "Skipped: the models can't be checked against the database."], $this->Skips($findings));
 	}
 
 	// TIMEZONECHECK, SPLIT

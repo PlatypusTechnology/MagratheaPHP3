@@ -1060,17 +1060,19 @@ class MyAppAdmin extends \Magrathea\Admin\Admin implements \Magrathea\Admin\iAdm
 **Key methods:**
 - `Initialize()`: title, primary color, logo path (called once on load)
 - `Auth($user)`: return `parent::Auth($user)` for the default Magrathea auth
-- `SetFeatures()`: always call `parent::SetFeatures()` first (it loads App Config, Cache, Users and User Logs), then your own
+- `SetFeatures()`: always call `parent::SetFeatures()` first (it loads Objects, App Config, Cache, Users and User Logs), then your own. Objects is a CRUD for every model the code folders have (not the framework's), first in the menu; `$this->RemoveFeature("AdminFeatureObjects")` after `parent::SetFeatures()` takes it out
 - `LoadApi()`: creates `ApiExplorer`, calls `SetApi(new YourApiClass())`, adds the feature
 - `LoadFeatures()`: calls `AddCrudFeature()` for each CRUD admin class
-- `BuildMenu()`: builds the sidebar; `CreateTitle()` for section headers, `AddFeaturesMenu()` for the CRUD items, `AddMagratheaMenu()` for the framework's pages (including the Database section: explorer, queries, dumps, checks); always end with `GetLogoutMenuItem()`
+- `BuildMenu()`: builds the sidebar; `CreateTitle()` for section headers, `AddFeaturesMenu()` for the CRUD items, `AddMagratheaMenu()` for the framework's pages (the menu opens with Version and App Configuration, under no title; Setup starts with checks; the Database section: explorer, queries, query editor, dumps, connection); always end with `GetLogoutMenuItem()`
 - `AddFeature()` vs `AddCrudFeature()`: `AddCrudFeature` for `AdminCrudObject` subclasses, `AddFeature` for everything else
 
 ---
 
 ## 16. Admin Panel — CRUD Features
 
-Each model gets a companion CRUD admin class extending `AdminCrudObject`, `features/Article/ArticleAdmin.php`. Configure it in `Initialize()` by handing it a model instance.
+The admin's **Objects** section already lists every model with a CRUD (list, structure, create, edit, delete), with nothing to write. Write an `AdminCrudObject` only when a model needs its own menu item, permissions, columns or fields.
+
+Each model that needs one gets a companion CRUD admin class extending `AdminCrudObject`, `features/Article/ArticleAdmin.php`. Configure it in `Initialize()` by handing it a model instance.
 
 ```php
 <?php
@@ -1328,8 +1330,8 @@ vendor/bin/magrathea models:verify Article     # one model
 vendor/bin/magrathea db:describe articles --json   # columns, suggested types, indexes, the models that map it
 ```
 
-- **`check`** must report no ERROR. `--no-db` skips everything that connects.
-- **`models:verify`** finds every model in the code folders and reports, per model: a missing table, a `$dbPk` that isn't the table's primary key, unknown field types and types that don't match their column, `$dbValues` fields with no column (ERROR: writes fail), columns the model doesn't list (INFO), missing `created_at`/`updated_at`, and timestamp columns that break the table contract (§4). A timestamp finding carries a `fix`: the `ALTER TABLE` that fixes it. **The fix is shown, never run: ask the human before running an ALTER**, and on a large table, warn that it can lock writes.
+- **`check`** must report no ERROR. `--no-db` skips everything that connects. A check that didn't run is an INFO starting `Skipped:` with the reason: a skipped check isn't a passing one.
+- **`models:verify`** finds every model in the code folders and reports, per model: a missing table, a `$dbPk` that isn't the table's primary key, unknown field types and types that don't match their column, `$dbValues` fields with no column (ERROR: writes fail), columns the model doesn't list (INFO), or one OK when the model matches its table; and per mapped table, `created_at` and `updated_at`: OK when the column follows the table contract (§4), ERROR when it's missing or breaks it. A failing timestamp finding carries a `fix`: the `ALTER TABLE … ADD COLUMN`/`MODIFY` that fixes it. **The fix is shown, never run: ask the human before running an ALTER**, and on a large table, warn that it can lock writes.
 - **`db:describe <table>`** is how to read a table before writing its model: copy the suggested type of each column into `$dbValues`.
 - `db:tables` lists the tables; `db:query "<sql>"` runs read-only SQL (one `SELECT`/`SHOW`/`DESCRIBE`/`EXPLAIN`). Anything else needs `--write`, and `db:import` needs `--yes`: never add them without the human's go-ahead.
 - `admin:create-user <email>` creates the admin's first user, a super admin, only while there are none (§1); `admin:reset-password <email>` sets an admin's password. Both generate the password and print it once, unless `--password=…` (12+ characters).
@@ -1337,7 +1339,7 @@ vendor/bin/magrathea db:describe articles --json   # columns, suggested types, i
 
 Also run the project's own test suite, and `php -l` on every PHP file you wrote.
 
-The admin's **Database** section (Explorer, Queries, Query editor, Dumps, Checks) shows the same data to humans.
+The admin's **Database** section (Explorer, Queries, Query editor, Dumps) and **Setup → Checks** show the same data to humans.
 
 ---
 

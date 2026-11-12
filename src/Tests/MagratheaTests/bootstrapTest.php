@@ -3,6 +3,7 @@
 use Magrathea\Admin\AdminCsrf;
 use Magrathea\Admin\DumpManager;
 use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
 use Magrathea\Admin\Install;
 use Magrathea\Bootstrap\SetupToken;
 use Magrathea\Bootstrap\Start;
@@ -75,6 +76,34 @@ class SetupFakeAdminStart extends \Magrathea\Admin\Start {
 	public function HasUsers(): bool { return $this->users > 0; }
 }
 
+// the admin's users: GetWhere() filters $users (static, as GetWhere() is); SetNewPassword() is recorded
+class SetupFakeUserControl extends AdminUserControl {
+	public static $users = [];
+	public static $wheres = [];
+	public $calls = [];
+	public $saveResult = ["success" => true];
+	public static function GetWhere(string|array $arr, $condition = "AND") {
+		static::$wheres[] = $arr;
+		return array_values(array_filter(static::$users, function($user) use ($arr) {
+			foreach($arr as $field => $value) if($user->$field != $value) return false;
+			return true;
+		}));
+	}
+	public function SetNewPassword(AdminUser $user, string $pwd) {
+		$this->calls[] = ["SetNewPassword", $user->email, $pwd];
+		return $this->saveResult;
+	}
+	public static function User(int $id, string $email, int $role, bool $active = true, ?string $lastLogin = null): AdminUser {
+		$user = new AdminUser();
+		$user->id = $id;
+		$user->email = $email;
+		$user->role_id = $role;
+		$user->active = $active ? 1 : 0;
+		$user->last_login = $lastLogin;
+		return $user;
+	}
+}
+
 // dumps, recorded
 class SetupFakeDumpManager extends DumpManager {
 	public $calls = [];
@@ -103,6 +132,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 	private SetupFakeInstall $install;
 	private SetupFakeAdminStart $admin;
 	private SetupFakeDumpManager $dumps;
+	private SetupFakeUserControl $users;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -123,8 +153,11 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$this->admin = SetupFakeAdminStart::Instance();
 		$this->admin->users = 0;
 		$this->dumps = new SetupFakeDumpManager();
+		$this->users = new SetupFakeUserControl();
+		SetupFakeUserControl::$users = [];
+		SetupFakeUserControl::$wheres = [];
 		$start = Start::Instance()->SetMagRoot($this->root);
-		$start->SetSteps(new Steps($start, $this->dumps, $this->install, $this->admin));
+		$start->SetSteps(new Steps($start, $this->dumps, $this->install, $this->admin, $this->users));
 	}
 
 	protected function tearDown(): void {
@@ -509,6 +542,8 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			"InstallAdmin" => fn() => $steps->InstallAdmin(),
 			"GeneratePassword" => fn() => $steps->GeneratePassword("a@b.com"),
 			"CreateAdmin" => fn() => $steps->CreateAdmin("a@b.com", "123456789012"),
+			"SuperAdmins" => fn() => $steps->SuperAdmins(),
+			"ResetPassword" => fn() => $steps->ResetPassword(1, "123456789012"),
 			"Checks" => fn() => $steps->Checks(),
 			"FinishForm" => fn() => $steps->FinishForm(),
 			"Finish" => fn() => $steps->Finish(),
@@ -838,6 +873,71 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			$this->assertStringContainsString("already has users", $ex->getMessage());
 		}
 		$this->assertCount(1, $this->install->calls);
+	}
+
+	function testTheAdminStepListsSuperAdminsAndResetsTheirPasswords() {
+		TestsHelper::Print("testing the Admin step: super admins listed, passwords reset (typed or generated), others refused...");
+		$this->VerifiedSession();
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u"]]);
+		$this->db->tables = [ProjectCheck::ADMIN_TABLE];
+		SetupFakeUserControl::$users = [
+			SetupFakeUserControl::User(5, "<b>late</b>@example.com", Steps::SUPER_ADMIN_ROLE, false),
+			SetupFakeUserControl::User(2, "root@example.com", Steps::SUPER_ADMIN_ROLE, true, "2026-11-01 10:00:00"),
+			SetupFakeUserControl::User(3, "editor@example.com", 2),
+		];
+		$steps = $this->Start()->Steps();
+
+		$this->assertSame([], $steps->Admin()["superAdmins"], "no list while the first user can still be created");
+		$this->admin->users = 3;
+		$this->assertSame([
+			["id" => 2, "email" => "root@example.com", "active" => true, "last_login" => "2026-11-01 10:00:00"],
+			["id" => 5, "email" => "<b>late</b>@example.com", "active" => false, "last_login" => null],
+		], $steps->Admin()["superAdmins"]);
+
+		$html = $this->Render($this->Start()->Handle("GET", ["step" => "admin"]));
+		$this->assertStringContainsString("root@example.com", $html);
+		$this->assertStringContainsString("&lt;b&gt;late&lt;/b&gt;@example.com", $html, "escaped");
+		$this->assertStringNotContainsString("editor@example.com", $html, "only super admins");
+		$this->assertStringContainsString('value="reset-password"', $html);
+
+		$short = $steps->ResetPassword("2", "too short");
+		$this->assertFalse($short["reset"]);
+		$this->assertArrayHasKey("password", $short["errors"]);
+		$this->assertSame("too short", $short["password"], "the typed password is given back");
+		$this->assertSame([], $this->users->calls);
+
+		$typed = $steps->ResetPassword("2", "a long password");
+		$this->assertTrue($typed["reset"]);
+		$this->assertFalse($typed["generated"]);
+		$this->assertSame([["SetNewPassword", "root@example.com", "a long password"]], $this->users->calls);
+
+		$page = $this->Post(["action" => "reset-password", "id" => "5", "password" => ""]);
+		$this->assertNull($page["error"]);
+		$generated = $page["result"];
+		$this->assertTrue($generated["generated"]);
+		$this->assertFalse($generated["active"]);
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{'.(Steps::GENERATED_BYTES * 2).'}$/', $generated["password"]);
+		$this->assertSame(["SetNewPassword", "<b>late</b>@example.com", $generated["password"]], $this->users->calls[1]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString($generated["password"], $html, "shown once");
+		$this->assertStringContainsString("inactive", $html);
+
+		foreach([3, 99, "x", null, "-1"] as $id) {
+			try {
+				$steps->ResetPassword($id, "a long password");
+				$this->fail("reset the password of [".var_export($id, true)."]");
+			} catch(MagratheaException $ex) {
+				$this->assertStringContainsString("no super admin", $ex->getMessage());
+			}
+		}
+		$this->users->saveResult = ["success" => false];
+		try {
+			$steps->ResetPassword(2, "a long password");
+			$this->fail("a failed save was reported as reset");
+		} catch(MagratheaException $ex) {
+			$this->assertStringContainsString("couldn't be saved", $ex->getMessage());
+		}
+		$this->assertCount(3, $this->users->calls);
 	}
 
 	// 7. FINISH
