@@ -18,8 +18,9 @@ use Magrathea\Exceptions\MagratheaException;
 /**
 * The admin's Database → Dumps page, as arrays: the `.sql` files in the backups folder (`Dump::Folder()`), and their
 * export, upload, download, import and delete, through `Dump`. Every name goes through `Dump::ValidateBackupFileName()`,
-* and a file that must exist through `AdminFiles::ResolveInFolder()`. An upload is only saved: nothing runs it. An import
-* runs only when it's confirmed with the database's name. The view only renders.
+* and a file that must exist through `AdminFiles::ResolveInFolder()`. `Upload()` only saves: nothing runs it. An import
+* runs only when it's confirmed with the database's name, `ImportUpload()` and `ImportSql()` (the Setup Wizard's) too: they
+* save the upload or the pasted SQL as `ImportFileName()` and run it in one go. The view only renders.
 */
 class DumpManager {
 
@@ -106,13 +107,7 @@ class DumpManager {
 	* @throws 	MagratheaException 	no file, an upload error, not a `.sql` file, invalid name, existing file, or it couldn't be saved
 	*/
 	public function Upload($upload, $name = null): array {
-		if(!is_array($upload) || !isset($upload["error"], $upload["tmp_name"]) || !is_int($upload["error"])) {
-			throw new MagratheaException("no file uploaded");
-		}
-		if($upload["error"] !== UPLOAD_ERR_OK) throw new MagratheaException(self::UploadError($upload["error"]));
-		if(!is_string($upload["name"] ?? null) || !str_ends_with(strtolower($upload["name"]), ".sql")) {
-			throw new MagratheaException("only .sql files can be uploaded");
-		}
+		self::RequireUpload($upload);
 		if($name === null || $name === "") $name = $upload["name"];
 		$name = Dump::ValidateBackupFileName($name);
 		$folder = Dump::Folder();
@@ -165,15 +160,114 @@ class DumpManager {
 	public function Import($file, $confirm = null, $driver = null, bool $continue = false): array {
 		$this->Resolve($file);
 		$name = Dump::ValidateBackupFileName($file);
-		$database = $this->DatabaseName();
-		$rs = ["status" => self::CONFIRM, "file" => $name, "database" => $database, "error" => null, "result" => null];
-		if($confirm === null || $confirm === "") return $rs;
-		if($database === "" || $confirm !== $database) {
-			return ["error" => "the database name doesn't match: nothing ran"] + $rs;
+		$rs = $this->Pending($name);
+		$refusal = self::Refusal($rs, $confirm);
+		if($refusal !== null) return $refusal;
+		return ["status" => self::OK, "result" => $this->dump->Import($name, self::ImportOptions($driver, $continue))] + $rs;
+	}
+
+	/**
+	* The name an upload or a pasted SQL is saved under before it runs (`ImportUpload()`, `ImportSql()`)
+	* @return 	string 	`import-YYYYmmdd-His.sql`
+	*/
+	public static function ImportFileName(): string {
+		return "import-".date("Ymd-His").".sql";
+	}
+
+	/**
+	* Where `ImportUpload()` and `ImportSql()` keep their file
+	* @return 	string|null 	the backups folder's real path, when it exists and is writable; null otherwise
+	*/
+	public function WritableFolder(): ?string {
+		try {
+			$base = realpath(Dump::Folder());
+		} catch(\Throwable $ex) {
+			return null;
 		}
+		return ($base && is_dir($base) && is_writable($base)) ? $base : null;
+	}
+
+	/**
+	* Saves an uploaded `.sql` file as `ImportFileName()` and imports it, only when it's confirmed with the database's
+	* name (nothing is saved otherwise). It's kept in the backups folder (`WritableFolder()`); without one, it runs from
+	* a temporary file, deleted afterwards. The uploaded file's own name is ignored.
+	* @param 	mixed 	$upload 	one `$_FILES` entry
+	* @param 	mixed 	$confirm 	the database's name, typed to confirm (empty: not confirmed yet)
+	* @param 	mixed 	$driver 	`Dump::BINARY` or `Dump::PHP` (empty: binary when available)
+	* @param 	bool 	$continue 	don't stop at the first error
+	* @return 	array 	`Import()`'s result, plus "temporary" (bool: the file was deleted, there's no backups folder)
+	* @throws 	MagratheaException 	see `Upload()` (except names), an existing file of that name, and `Dump::ImportFile()`
+	*/
+	public function ImportUpload($upload, $confirm = null, $driver = null, bool $continue = false): array {
+		self::RequireUpload($upload);
+		$tmp = (string)$upload["tmp_name"];
+		return $this->SaveAndImport(fn($to) => $this->MoveUploadedFile($tmp, $to), $confirm, $driver, $continue);
+	}
+
+	/**
+	* Saves pasted SQL as `ImportFileName()` and imports it: the same as `ImportUpload()`, for a string
+	* @param 	mixed 	$sql 		the statements
+	* @param 	mixed 	$confirm 	the database's name, typed to confirm (empty: not confirmed yet)
+	* @param 	mixed 	$driver 	`Dump::BINARY` or `Dump::PHP` (empty: binary when available)
+	* @param 	bool 	$continue 	don't stop at the first error
+	* @return 	array 	see `ImportUpload()`
+	* @throws 	MagratheaException 	no SQL, an existing file of that name, it couldn't be saved, and `Dump::ImportFile()`
+	*/
+	public function ImportSql($sql, $confirm = null, $driver = null, bool $continue = false): array {
+		if(!is_string($sql) || trim($sql) === "") throw new MagratheaException("no SQL to import");
+		return $this->SaveAndImport(fn($to) => file_put_contents($to, $sql) === strlen($sql), $confirm, $driver, $continue);
+	}
+
+	/**
+	* @param 	callable 	$save 	writes the file to the path it gets; false when it couldn't
+	*/
+	private function SaveAndImport(callable $save, $confirm, $driver, bool $continue): array {
+		$name = self::ImportFileName();
+		$folder = $this->WritableFolder();
+		$rs = $this->Pending($name) + ["temporary" => $folder === null];
+		$refusal = self::Refusal($rs, $confirm);
+		if($refusal !== null) return $refusal;
+		if($folder !== null) {
+			$path = $folder.DIRECTORY_SEPARATOR.$name;
+			if(file_exists($path) || is_link($path)) throw new MagratheaException("file already exists: ".$name);
+		} else {
+			$path = tempnam(sys_get_temp_dir(), "magrathea-import-");
+			if($path === false) throw new MagratheaException("could not create a temporary file");
+		}
+		try {
+			if(!$save($path)) throw new MagratheaException("could not save ".$name);
+			return ["status" => self::OK, "result" => $this->dump->ImportFile($path, self::ImportOptions($driver, $continue))] + $rs;
+		} finally {
+			if($folder === null && file_exists($path)) @unlink($path);
+		}
+	}
+
+	/** an import that hasn't run yet */
+	private function Pending(string $file): array {
+		return ["status" => self::CONFIRM, "file" => $file, "database" => $this->DatabaseName(), "error" => null, "result" => null];
+	}
+	/** @return 	array|null 	what to answer when `$confirm` isn't the database's name; null when it is */
+	private static function Refusal(array $pending, $confirm): ?array {
+		if($confirm === null || $confirm === "") return $pending;
+		if($pending["database"] === "" || $confirm !== $pending["database"]) {
+			return ["error" => "the database name doesn't match: nothing ran"] + $pending;
+		}
+		return null;
+	}
+	private static function ImportOptions($driver, bool $continue): array {
 		$options = ["continue" => $continue];
 		if($driver !== null && $driver !== "") $options["driver"] = $driver;
-		return ["status" => self::OK, "result" => $this->dump->Import($name, $options)] + $rs;
+		return $options;
+	}
+	/** @throws 	MagratheaException 	no file, an upload error, or not a `.sql` file */
+	private static function RequireUpload($upload): void {
+		if(!is_array($upload) || !isset($upload["error"], $upload["tmp_name"]) || !is_int($upload["error"])) {
+			throw new MagratheaException("no file uploaded");
+		}
+		if($upload["error"] !== UPLOAD_ERR_OK) throw new MagratheaException(self::UploadError($upload["error"]));
+		if(!is_string($upload["name"] ?? null) || !str_ends_with(strtolower($upload["name"]), ".sql")) {
+			throw new MagratheaException("only .sql files can be uploaded");
+		}
 	}
 
 	/**

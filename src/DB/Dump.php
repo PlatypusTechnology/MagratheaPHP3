@@ -137,6 +137,19 @@ class Dump {
 		$file = self::ValidateBackupFileName($file);
 		$path = self::Path($file);
 		if(!is_file($path)) throw new MagratheaException("file not found: ".$file);
+		return $this->ImportFile($path, $options);
+	}
+
+	/**
+	* Imports a `.sql` file by its full path, which doesn't have to be in the backups folder (a temporary file):
+	* `Import()` without the name check. Never hand it a path that came from a request.
+	* @param 	string 	$path 		the file's full path
+	* @param 	array 	$options 	same as `Import()`
+	* @return 	array 	same as `Import()`
+	* @throws 	MagratheaException 	no such file, invalid options, or what `Import()` throws for a failing statement
+	*/
+	public function ImportFile(string $path, array $options = []): array {
+		if(!is_file($path)) throw new MagratheaException("file not found: ".basename($path));
 		$driver = $this->Driver($options["driver"] ?? null, "mysql");
 		$continue = !empty($options["continue"]);
 		$rs = $driver === self::BINARY ? $this->ImportBinary($path, $continue) : $this->ImportPhp($path, $continue);

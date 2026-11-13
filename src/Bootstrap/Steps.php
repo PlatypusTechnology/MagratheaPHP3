@@ -129,7 +129,8 @@ class Steps {
 		return match($action) {
 			"save-config" => $this->SaveConfiguration($post),
 			"connect-database" => $this->ConnectDatabase(),
-			"upload-dump" => $this->Upload($files["upload"] ?? null, $post["name"] ?? null),
+			"upload-dump" => $this->Upload($files["upload"] ?? null, $post["confirm"] ?? null, $post["driver"] ?? null, ($post["continue"] ?? null) === "1"),
+			"paste-sql" => $this->Paste($post["sql"] ?? null, $post["confirm"] ?? null, $post["driver"] ?? null, ($post["continue"] ?? null) === "1"),
 			"import-dump" => $this->Import($post["file"] ?? null, $post["confirm"] ?? null, $post["driver"] ?? null, ($post["continue"] ?? null) === "1"),
 			"install-admin" => $this->InstallAdmin(),
 			"generate-password" => $this->GeneratePassword($post["email"] ?? null),
@@ -348,17 +349,19 @@ class Steps {
 	// 5. IMPORT
 
 	/**
-	* @return 	array 	["needsConfig", "configured", "folder", "database", "files" => `DumpManager::Files()`, "error"]
+	* @return 	array 	["needsConfig", "configured", "folder", "database", "files" => `DumpManager::Files()`,
+	* 					"temporary" (no writable backups folder: an upload or a paste runs from a temporary file), "error"]
 	*/
 	public function Dumps(): array {
 		$this->RequireVerified();
-		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "folder" => null, "database" => null, "files" => [], "error" => null];
+		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "folder" => null, "database" => null, "files" => [], "temporary" => true, "error" => null];
 		if($rs["needsConfig"]) return $rs;
 		$rs["configured"] = $this->UsesDatabase();
 		$rs["database"] = (string)Config::Instance()->Get("db_name");
+		$rs["temporary"] = $this->Dumper()->WritableFolder() === null;
 		try {
 			$rs["folder"] = Dump::Folder();
-			$rs["files"] = $this->Dumper()->Files();
+			if(is_dir($rs["folder"])) $rs["files"] = $this->Dumper()->Files();
 		} catch(\Throwable $ex) {
 			$rs["error"] = $ex->getMessage();
 		}
@@ -366,16 +369,38 @@ class Steps {
 	}
 
 	/**
-	* Saves an uploaded `.sql` in the backups folder (`DumpManager::Upload()`): nothing runs it
+	* Saves an uploaded `.sql` and imports it (`DumpManager::ImportUpload()`): only when it's confirmed with the database's name
 	* @param 	mixed 	$upload 	one `$_FILES` entry
-	* @param 	mixed 	$name 		name to save it under (empty: the uploaded file's)
-	* @return 	array 	["uploaded" => `DumpManager::Upload()`'s result]
-	* @throws 	MagratheaException 	see `DumpManager::Upload()`
+	* @param 	mixed 	$confirm 	the database's name, typed (empty: asks for it)
+	* @param 	mixed 	$driver 	`binary`, `php`, or empty (binary when available)
+	* @param 	bool 	$continue 	don't stop at the first error
+	* @return 	array 	["import" => `DumpManager::ImportUpload()`'s result, "firstError", "source" => "upload"]
+	* @throws 	MagratheaException 	no database, see `DumpManager::ImportUpload()`
 	*/
-	public function Upload($upload, $name = null): array {
+	public function Upload($upload, $confirm = null, $driver = null, bool $continue = false): array {
 		$this->RequireVerified();
-		$this->RequireConfig();
-		return ["uploaded" => $this->Dumper()->Upload($upload, $name)];
+		$this->RequireDatabase();
+		$this->Connect();
+		return $this->ImportResult($this->Dumper()->ImportUpload($upload, $confirm, ($driver === "" ? null : $driver), $continue)) + ["source" => "upload"];
+	}
+
+	/**
+	* Saves pasted SQL and imports it (`DumpManager::ImportSql()`): only when it's confirmed with the database's name
+	* @param 	mixed 	$sql 		the statements
+	* @param 	mixed 	$confirm 	the database's name, typed (empty: asks for it)
+	* @param 	mixed 	$driver 	`binary`, `php`, or empty (binary when available)
+	* @param 	bool 	$continue 	don't stop at the first error
+	* @return 	array 	["import" => `DumpManager::ImportSql()`'s result, "firstError", "source" => "paste",
+	* 					"sql" => the statements, to fill the form again, when it wasn't confirmed]
+	* @throws 	MagratheaException 	no database, see `DumpManager::ImportSql()`
+	*/
+	public function Paste($sql, $confirm = null, $driver = null, bool $continue = false): array {
+		$this->RequireVerified();
+		$this->RequireDatabase();
+		$this->Connect();
+		$rs = $this->ImportResult($this->Dumper()->ImportSql($sql, $confirm, ($driver === "" ? null : $driver), $continue)) + ["source" => "paste"];
+		if($rs["import"]["status"] === DumpManager::CONFIRM) $rs["sql"] = (string)$sql;
+		return $rs;
 	}
 
 	/**
@@ -391,7 +416,11 @@ class Steps {
 		$this->RequireVerified();
 		$this->RequireDatabase();
 		$this->Connect();
-		$import = $this->Dumper()->Import($file, $confirm, ($driver === "" ? null : $driver), $continue);
+		return $this->ImportResult($this->Dumper()->Import($file, $confirm, ($driver === "" ? null : $driver), $continue));
+	}
+
+	/** an import's result, and its first error (with `continue`) as one line */
+	private function ImportResult(array $import): array {
 		$errors = $import["result"]["errors"] ?? [];
 		$first = $errors ? reset($errors) : null;
 		if(is_array($first)) $first = (isset($first["statement"]) ? "statement ".$first["statement"].": " : "").($first["error"] ?? "");

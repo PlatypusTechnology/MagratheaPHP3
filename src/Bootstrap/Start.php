@@ -56,6 +56,7 @@ class Start extends \Magrathea\Singleton {
 		"connect-database" => "database",
 		"upload-dump" => "import",
 		"import-dump" => "import",
+		"paste-sql" => "import",
 		"install-admin" => "admin",
 		"generate-password" => "admin",
 		"create-admin" => "admin",

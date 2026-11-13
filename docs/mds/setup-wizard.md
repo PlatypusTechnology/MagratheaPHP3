@@ -113,7 +113,7 @@ so until there's one.
 | 2. Configuration | the config's form | `save-config` |
 | 3. Structure | `ProjectCheck::Folders()`: the logs, cache and backups folders exist and are writable, the configs folder outside the web root | |
 | 4. Database | the credentials (environment variables resolved), without connecting; on request, the connection, `TimezoneCheck::Run()` and the tables (`Schema::Tables()`) | `connect-database` |
-| 5. Import (optional) | the `.sql` files of the backups folder | `upload-dump`, `import-dump` |
+| 5. Import (optional) | the `.sql` files of the backups folder; "Upload a dump" and "Paste SQL" | `import-dump`, `upload-dump`, `paste-sql` |
 | 6. Admin | the admin's tables, the first super admin | `install-admin`, `generate-password`, `create-admin` |
 | 7. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run); a skipped check says why | |
 | 8. Finish | what it removes | `finish` |
@@ -161,10 +161,18 @@ server only holds that request, never the page.
 
 ### 5. Import
 
-Through the admin's `DumpManager`: an upload is only saved in the backups folder (`Upload()`); an
-import (`Import()`) runs only when the database's name is typed to confirm. It shows the driver, the
-statement count (php driver only) and, with "continue past errors", how many failed and the first
-error. Without it, the first error stops the import and is shown.
+Through the admin's `DumpManager`, three ways, each confirmed by typing the database's name (nothing
+runs, or is saved, until it matches):
+
+- **From the backups folder** (`import-dump`, `Import()`): one of its `.sql` files, listed when there are any;
+- **Upload a dump** (`upload-dump`, `Steps::Upload()` → `ImportUpload()`) and **Paste SQL** (`paste-sql`,
+  `Steps::Paste()` → `ImportSql()`), the two panels of an accordion (`<details name>`, no JavaScript): the
+  file or the text is saved as `import-YYYYmmdd-His.sql` and runs in the same request. It's kept in the
+  backups folder; when there's no writable one, it runs from a temporary file, deleted afterwards. An
+  unconfirmed paste comes back in the textarea; an unconfirmed upload has to be chosen again.
+
+Each shows the driver, the statement count (php driver only) and, with "continue past errors", how many
+failed and the first error. Without it, the first error stops the import and is shown.
 
 ### 6. Admin
 

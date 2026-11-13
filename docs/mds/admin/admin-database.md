@@ -207,6 +207,13 @@ $dumps->Import("before-migration", "App");        // still "confirm", "error" =>
 $dumps->Import("before-migration", "app");        // ["status" => "ok", …, "result" => ["driver" => "binary", "statements" => null]]
 ```
 
+The admin's page doesn't use them, but the Setup Wizard's Import step does:
+`ImportUpload($upload, $confirm, $driver, $continue)` and `ImportSql($sql, $confirm, $driver, $continue)` take
+the same confirmation as `Import()` (nothing is saved until it matches), then save the upload or the pasted SQL as
+`DumpManager::ImportFileName()` (`import-YYYYmmdd-His.sql`, the upload's own name is ignored) and run it with
+`Dump::ImportFile()`. The file stays in the backups folder when `WritableFolder()` finds it (it exists and is
+writable); otherwise it runs from a temporary file, deleted afterwards, and the result has `"temporary" => true`.
+
 `DumpManager`'s constructor takes an optional `Dump` (default `new Dump()`) and the database name an import is
 confirmed with (default the config's `db_name`), so tests can pass fakes. Every method throws `MagratheaException`
 on a bad name or a failure; the views show its message. The protected `MoveUploadedFile()` moves only a file PHP

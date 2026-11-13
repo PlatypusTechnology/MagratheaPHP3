@@ -114,9 +114,14 @@ class SetupFakeDumpManager extends DumpManager {
 		$this->calls[] = ["Import", $file, $confirm, $driver, $continue];
 		return $this->importResult;
 	}
-	public function Upload($upload, $name = null): array {
-		$this->calls[] = ["Upload", $upload, $name];
-		return ["file" => "up.sql", "size" => 5];
+	public function WritableFolder(): ?string { return "/backups"; }
+	public function ImportUpload($upload, $confirm = null, $driver = null, bool $continue = false): array {
+		$this->calls[] = ["ImportUpload", $upload, $confirm, $driver, $continue];
+		return $this->importResult;
+	}
+	public function ImportSql($sql, $confirm = null, $driver = null, bool $continue = false): array {
+		$this->calls[] = ["ImportSql", $sql, $confirm, $driver, $continue];
+		return $this->importResult;
 	}
 }
 
@@ -537,6 +542,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			"ConnectDatabase" => fn() => $steps->ConnectDatabase(),
 			"Dumps" => fn() => $steps->Dumps(),
 			"Upload" => fn() => $steps->Upload(["name" => "a.sql"]),
+			"Paste" => fn() => $steps->Paste("SELECT 1;"),
 			"Import" => fn() => $steps->Import("a.sql", "app_db"),
 			"Admin" => fn() => $steps->Admin(),
 			"InstallAdmin" => fn() => $steps->InstallAdmin(),
@@ -817,9 +823,27 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString("12 statements ran", $html);
 		$this->assertStringContainsString("Table &#039;x&#039; exists", $html);
 
-		$page = $this->Post(["action" => "upload-dump", "name" => "up.sql"], ["step" => "import"]);
-		$this->assertSame("Upload", $this->dumps->calls[1][0]);
-		$this->assertStringContainsString("Nothing ran", $this->Render($page));
+		$this->assertStringContainsString("Upload a dump", $html);
+		$this->assertStringContainsString("Paste SQL", $html);
+		$this->assertStringContainsString("import-YYYYmmdd-His.sql", $html);
+
+		$this->dumps->importResult = ["status" => DumpManager::OK, "file" => "import-20261113-101010.sql", "database" => "app_db", "error" => null,
+			"result" => ["driver" => "php", "statements" => 2], "temporary" => false];
+		$page = $this->Post(["action" => "upload-dump", "confirm" => "app_db", "driver" => "php"], ["step" => "import"]);
+		$this->assertSame(["ImportUpload", null, "app_db", "php", false], $this->dumps->calls[1]);
+		$this->assertSame("upload", $page["result"]["source"]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString("import-20261113-101010.sql", $html);
+		$this->assertStringContainsString("saved in the backups folder", $html);
+
+		$this->dumps->importResult = ["status" => DumpManager::CONFIRM, "file" => "import-20261113-101011.sql", "database" => "app_db", "error" => null, "result" => null, "temporary" => true];
+		$page = $this->Post(["action" => "paste-sql", "sql" => "DROP TABLE </textarea>;", "confirm" => "", "continue" => "1"], ["step" => "import"]);
+		$this->assertSame(["ImportSql", "DROP TABLE </textarea>;", "", null, true], $this->dumps->calls[2]);
+		$this->assertSame("DROP TABLE </textarea>;", $page["result"]["sql"], "the SQL comes back to the form");
+		$html = $this->Render($page);
+		$this->assertStringContainsString("Nothing ran", $html);
+		$this->assertStringContainsString("DROP TABLE &lt;/textarea&gt;;</textarea>", $html, "escaped, and the paste accordion is open");
+		$this->assertMatchesRegularExpression('/<details class="accordion" name="import-source" open>\s*<summary>Paste SQL/', $html);
 	}
 
 	// 5. ADMIN

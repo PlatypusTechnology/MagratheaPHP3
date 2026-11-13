@@ -18,6 +18,10 @@ class DumpsFakeDump extends Dump {
 		$this->calls[] = ["import", $file, $options];
 		return ["driver" => $options["driver"] ?? Dump::PHP, "statements" => 3];
 	}
+	public function ImportFile(string $path, array $options = []): array {
+		$this->calls[] = ["importFile", $path, $options, is_file($path) ? file_get_contents($path) : null];
+		return ["driver" => $options["driver"] ?? Dump::PHP, "statements" => 3];
+	}
 }
 
 // DumpManager whose uploads are moved with rename(): no real upload in the CLI
@@ -232,6 +236,75 @@ class adminDumpsTest extends \PHPUnit\Framework\TestCase {
 			["import", "in.sql", ["continue" => false]],
 			["import", "in.sql", ["continue" => true, "driver" => Dump::BINARY]],
 		], $this->dump->calls);
+	}
+
+	private function ImportFiles(): array {
+		return glob($this->folder."/import-*.sql") ?: [];
+	}
+
+	function testImportSqlSavesThenRuns() {
+		TestsHelper::Print("testing ImportSql() saves nothing until it's confirmed, then saves import-YYYYmmdd-His.sql in the backups folder and runs it...");
+		$this->assertMatchesRegularExpression('/^import-\d{8}-\d{6}\.sql$/', DumpManager::ImportFileName());
+		$this->assertSame(realpath($this->folder), $this->manager->WritableFolder());
+		foreach([null, "", "other"] as $typed) {
+			$rs = $this->manager->ImportSql("DROP TABLE x;\n", $typed);
+			$this->assertSame(DumpManager::CONFIRM, $rs["status"], json_encode($typed));
+			$this->assertFalse($rs["temporary"]);
+		}
+		$this->assertSame([], $this->ImportFiles(), "nothing saved");
+		$this->assertSame([], $this->dump->calls, "nothing ran");
+		$this->Rejects(fn() => $this->manager->ImportSql("  \n", "magrathea"), "no SQL to import", "blank");
+		$this->Rejects(fn() => $this->manager->ImportSql(["x"], "magrathea"), "no SQL to import", "array");
+
+		$rs = $this->manager->ImportSql("DROP TABLE x;\n", "magrathea", Dump::PHP, true);
+		$this->assertSame(DumpManager::OK, $rs["status"]);
+		$this->assertFalse($rs["temporary"]);
+		$files = $this->ImportFiles();
+		$this->assertCount(1, $files);
+		$this->assertSame(basename($files[0]), $rs["file"]);
+		$this->assertSame("DROP TABLE x;\n", file_get_contents($files[0]), "kept after the import");
+		$this->assertSame([["importFile", realpath($files[0]), ["continue" => true, "driver" => Dump::PHP], "DROP TABLE x;\n"]], $this->dump->calls);
+	}
+
+	function testImportUploadSavesThenRuns() {
+		TestsHelper::Print("testing ImportUpload() checks the upload, ignores its name, and saves it as import-YYYYmmdd-His.sql before running it...");
+		$this->Rejects(fn() => $this->manager->ImportUpload(null, "magrathea"), "no file uploaded", "null");
+		$this->Rejects(fn() => $this->manager->ImportUpload($this->Upload("shell.php"), "magrathea"), "only .sql files can be uploaded", "php");
+		$this->assertSame(DumpManager::CONFIRM, $this->manager->ImportUpload($this->Upload("a.sql"))["status"]);
+		$this->assertSame([], $this->manager->moved, "nothing moved before the confirmation");
+
+		$rs = $this->manager->ImportUpload($this->Upload("../My Dump.sql", "SELECT 2;\n"), "magrathea");
+		$this->assertSame(DumpManager::OK, $rs["status"]);
+		$files = $this->ImportFiles();
+		$this->assertCount(1, $files);
+		$this->assertSame(basename($files[0]), $rs["file"]);
+		$this->assertSame("SELECT 2;\n", file_get_contents($files[0]));
+		$this->assertSame("importFile", $this->dump->calls[0][0]);
+		$this->assertSame(realpath($files[0]), $this->dump->calls[0][1]);
+	}
+
+	function testImportWithoutBackupsFolderUsesATemporaryFile() {
+		TestsHelper::Print("testing ImportSql()/ImportUpload() without a backups folder run from a temporary file and delete it...");
+		Config::Instance()->SetConfig([
+			"general" => ["use_environment" => "test"],
+			"test" => ["db_name" => "magrathea", "backups_path" => $this->root."/missing"],
+		])->SetEnvironment(null);
+		$this->assertNull($this->manager->WritableFolder());
+		$this->assertTrue($this->manager->ImportSql("SELECT 1;", "")["temporary"]);
+
+		$rs = $this->manager->ImportSql("SELECT 3;\n", "magrathea");
+		$this->assertSame(DumpManager::OK, $rs["status"]);
+		$this->assertTrue($rs["temporary"]);
+		$this->manager->ImportUpload($this->Upload("a.sql", "SELECT 4;\n"), "magrathea");
+		$this->assertCount(2, $this->dump->calls);
+		foreach([[0, "SELECT 3;\n"], [1, "SELECT 4;\n"]] as [$i, $content]) {
+			[$call, $path, , $read] = $this->dump->calls[$i];
+			$this->assertSame("importFile", $call);
+			$this->assertSame($content, $read, "the file existed while it ran");
+			$this->assertStringStartsWith(sys_get_temp_dir(), $path);
+			$this->assertFileDoesNotExist($path, "deleted afterwards");
+		}
+		$this->assertDirectoryDoesNotExist($this->root."/missing");
 	}
 
 	function testImportNames() {
