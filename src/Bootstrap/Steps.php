@@ -109,6 +109,7 @@ class Steps {
 			"database" => $this->Database(),
 			"import" => $this->Dumps(),
 			"admin" => $this->Admin(),
+			"tables" => $this->Tables(),
 			"checks" => $this->Checks(),
 			"finish" => $this->FinishForm(),
 			default => throw new MagratheaException("unknown step: ".$step),
@@ -290,12 +291,12 @@ class Steps {
 	* @return 	array 	["needsConfig" => bool, "configured" => bool (db_host, db_name and db_user are set), "database", "host",
 	* 					"credentials" => [["key", "label", "raw" => as written in the file (null: missing), "env" => the
 	* 					environment variable's name when `raw` is `$=NAME`, else null, "value" => what `Config::Get()` reads
-	* 					(null: missing, or an unset variable)]], "error"]
+	* 					(null: missing, or an unset variable)]], "unset" and "unsetMessage" (see `UnsetVariables()`), "error"]
 	*/
 	public function Database(): array {
 		$this->RequireVerified();
 		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false,
-			"database" => null, "host" => null, "credentials" => [], "error" => null];
+			"database" => null, "host" => null, "credentials" => [], "unset" => [], "unsetMessage" => null, "error" => null];
 		if($rs["needsConfig"]) return $rs;
 		try {
 			$section = $this->ConfigFile()->GetConfig()[(string)$this->start->GetEnvironmentName()] ?? [];
@@ -315,6 +316,7 @@ class Steps {
 			return $rs;
 		}
 		$rs["configured"] = $this->UsesDatabase();
+		$rs = $this->WithUnset($rs);
 		$rs["database"] = (string)Config::Instance()->Get("db_name");
 		$rs["host"] = (string)Config::Instance()->Get("db_host");
 		return $rs;
@@ -349,14 +351,17 @@ class Steps {
 	// 5. IMPORT
 
 	/**
-	* @return 	array 	["needsConfig", "configured", "folder", "database", "files" => `DumpManager::Files()`,
-	* 					"temporary" (no writable backups folder: an upload or a paste runs from a temporary file), "error"]
+	* @return 	array 	["needsConfig", "configured", "unset" and "unsetMessage" (see `UnsetVariables()`), "folder", "database",
+	* 					"files" => `DumpManager::Files()`, "temporary" (no writable backups folder: an upload or a paste runs
+	* 					from a temporary file), "error"]
 	*/
 	public function Dumps(): array {
 		$this->RequireVerified();
-		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "folder" => null, "database" => null, "files" => [], "temporary" => true, "error" => null];
+		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "unset" => [], "unsetMessage" => null,
+			"folder" => null, "database" => null, "files" => [], "temporary" => true, "error" => null];
 		if($rs["needsConfig"]) return $rs;
 		$rs["configured"] = $this->UsesDatabase();
+		$rs = $this->WithUnset($rs);
 		$rs["database"] = (string)Config::Instance()->Get("db_name");
 		$rs["temporary"] = $this->Dumper()->WritableFolder() === null;
 		try {
@@ -430,15 +435,17 @@ class Steps {
 	// 6. ADMIN
 
 	/**
-	* @return 	array 	["needsConfig", "configured", "connected", "installed" (`_magrathea_config` exists),
+	* @return 	array 	["needsConfig", "configured", "unset" and "unsetMessage" (see `UnsetVariables()`), "connected",
+	* 					"installed" (`_magrathea_config` exists),
 	* 					"canCreateFirstUser" (`Admin\Start::CanCreateFirstUser()`), "superAdmins" (`SuperAdmins()`, once
 	* 					there are users), "error"]
 	*/
 	public function Admin(): array {
 		$this->RequireVerified();
-		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "connected" => false,
-			"installed" => false, "canCreateFirstUser" => false, "superAdmins" => [], "error" => null];
-		if($rs["needsConfig"] || !$this->UsesDatabase()) return $rs;
+		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "unset" => [], "unsetMessage" => null,
+			"connected" => false, "installed" => false, "canCreateFirstUser" => false, "superAdmins" => [], "error" => null];
+		if($rs["needsConfig"]) return $rs;
+		if(!$this->UsesDatabase()) return $this->WithUnset($rs);
 		$rs["configured"] = true;
 		try {
 			$db = $this->Connect();
@@ -571,7 +578,52 @@ class Steps {
 		return ["created" => true, "errors" => [], "email" => $email];
 	}
 
-	// 7. CHECKS
+	// 7. TABLES
+
+	/**
+	* The tables the config's credentials can read, each with its columns: what the database holds after Import and
+	* Admin. Opening the step connects (like Admin). A table whose columns can't be read keeps its row, with the error.
+	* @return 	array 	["needsConfig", "configured", "unset" and "unsetMessage" (see `UnsetVariables()`), "connected",
+	* 					"database", "host", "tables" => `Schema::Tables()` rows plus
+	* 					"framework" (bool: a `_magrathea_*` table) and "columns" (`Schema::Columns()` rows, plus "magrathea_type":
+	* 					`Schema::MagratheaType()`, or null), "columnsError"
+	* 					(string|null), "error"]
+	*/
+	public function Tables(): array {
+		$this->RequireVerified();
+		$rs = ["needsConfig" => !$this->start->HasConfig(), "configured" => false, "unset" => [], "unsetMessage" => null,
+			"connected" => false, "database" => null, "host" => null, "tables" => [], "error" => null];
+		if($rs["needsConfig"]) return $rs;
+		if(!$this->UsesDatabase()) return $this->WithUnset($rs);
+		$rs["configured"] = true;
+		$rs["database"] = (string)Config::Instance()->Get("db_name");
+		$rs["host"] = (string)Config::Instance()->Get("db_host");
+		try {
+			$schema = new Schema($this->Connect());
+			$rs["connected"] = true;
+			$tables = $schema->Tables();
+		} catch(\Throwable $ex) {
+			$rs["error"] = $ex->getMessage();
+			return $rs;
+		}
+		foreach($tables as $table) {
+			$name = (string)($table["name"] ?? "");
+			$table["framework"] = str_starts_with($name, "_magrathea_");
+			$table["columns"] = [];
+			$table["columnsError"] = null;
+			try {
+				$table["columns"] = array_map(
+					fn($column) => $column + ["magrathea_type" => Schema::MagratheaType((string)$column["type"])],
+					$schema->Columns($name));
+			} catch(\Throwable $ex) {
+				$table["columnsError"] = $ex->getMessage();
+			}
+			$rs["tables"][] = $table;
+		}
+		return $rs;
+	}
+
+	// 8. CHECKS
 
 	/**
 	* @return 	array 	`CheckReport::Group(ProjectCheck::Run())`: every check, the schema's timestamps and drift with their fix SQL
@@ -581,7 +633,7 @@ class Steps {
 		return CheckReport::Group(ProjectCheck::Run());
 	}
 
-	// 8. FINISH
+	// 9. FINISH
 
 	/**
 	* @return 	array 	["environment", "unlocked" => the sections with `bootstrap_unlocked`,
@@ -668,10 +720,55 @@ class Steps {
 	private function RequireConfig(): void {
 		if(!$this->start->HasConfig()) throw new MagratheaException("Save the configuration first.");
 	}
-	/** @throws 	MagratheaException 	there's no config, or it has no database */
+	/** @throws 	MagratheaException 	there's no config, or it has no database (or reads it from unset variables) */
 	private function RequireDatabase(): void {
 		$this->RequireConfig();
-		if(!$this->UsesDatabase()) throw new MagratheaException("The configuration has no database (`db_host`, `db_name` and `db_user`).");
+		if($this->UsesDatabase()) return;
+		$message = $this->UnsetMessage($this->UnsetVariables());
+		throw new MagratheaException($message ?? "The configuration has no database (`db_host`, `db_name` and `db_user`).");
+	}
+
+	/**
+	* The database keys (`ProjectCheck::DB_KEYS`) the active section sets to `$=NAME`, where the variable is unset or
+	* empty: the config has a database, but this PHP process can't read it. `UsesDatabase()` is false for them too.
+	* @return 	array 	[["key" => "db_user", "env" => "NAME"]]
+	*/
+	private function UnsetVariables(): array {
+		$unset = [];
+		try {
+			$section = $this->ConfigFile()->GetConfig()[(string)$this->start->GetEnvironmentName()] ?? [];
+			foreach(ProjectCheck::DB_KEYS as $key) {
+				$raw = isset($section[$key]) ? (string)$section[$key] : "";
+				if(!str_starts_with($raw, self::ENV_PREFIX)) continue;
+				$value = Config::Instance()->Get($key);
+				if($value === null || $value === "") $unset[] = ["key" => $key, "env" => substr($raw, strlen(self::ENV_PREFIX))];
+			}
+		} catch(\Throwable $ex) {
+			return [];
+		}
+		return $unset;
+	}
+
+	/**
+	* @param 	array 	$unset 	`UnsetVariables()`
+	* @return 	string|null 	what to tell, with `code` spans; null when nothing is unset
+	*/
+	private function UnsetMessage(array $unset): ?string {
+		if(!$unset) return null;
+		$parts = array_map(fn($row) => "`".$row["key"]."` reads `".$row["env"]."`", $unset);
+		$last = array_pop($parts);
+		$list = $parts ? implode(", ", $parts)." and ".$last : $last;
+		$which = count($unset) === 1 ? "an environment variable that isn't set" : "environment variables that aren't set";
+		return "The config has a database, but ".$list.": ".$which." (or empty) for this PHP process. Set ".
+			(count($unset) === 1 ? "it" : "them")." where the web server or PHP-FPM runs: a variable exported in your shell doesn't reach them.";
+	}
+
+	/** a step's result, with "unset" and "unsetMessage" filled when the config has no usable database */
+	private function WithUnset(array $rs): array {
+		if(!empty($rs["configured"])) return $rs;
+		$rs["unset"] = $this->UnsetVariables();
+		$rs["unsetMessage"] = $this->UnsetMessage($rs["unset"]);
+		return $rs;
 	}
 
 	/**

@@ -90,6 +90,8 @@ details.accordion { border: 1px solid #ddd; border-radius: 6px; margin: 8px 0; b
 details.accordion > summary { padding: 10px 14px; font-weight: 600; cursor: pointer; }
 details.accordion[open] > summary { border-bottom: 1px solid #ddd; }
 details.accordion > form { padding: 12px 14px; margin: 0; }
+details.accordion > .accordion-body { padding: 12px 14px; }
+details.accordion > summary .muted { font-weight: normal; }
 input.token { font-family: ui-monospace, monospace; font-size: 22px; letter-spacing: 3px; text-align: center; }
 .checkbox label { display: inline; font-weight: normal; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }

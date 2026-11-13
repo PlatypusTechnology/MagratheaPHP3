@@ -19,6 +19,13 @@ class RecordingTestsManager extends TestsManager {
 	}
 }
 
+// the real Execute(), callable from the test
+class ExecutingTestsManager extends TestsManager {
+	public function Run(string $command): array {
+		return $this->Execute($command);
+	}
+}
+
 // a RecordingTestsManager that looks for PHPUnit in the given files
 class CandidatesTestsManager extends RecordingTestsManager {
 	public array $candidates = [];
@@ -179,16 +186,24 @@ class testsManagerTest extends \PHPUnit\Framework\TestCase {
 		try {
 			$manager->candidates = [$bin, $phar];
 			$manager->RunFolder($this->root."/tests");
-			$this->assertStringStartsWith("php -d display_errors=on ".escapeshellarg($phar)." ", $manager->commands[0]);
+			$this->assertStringStartsWith("php -d display_errors=stderr ".escapeshellarg($phar)." ", $manager->commands[0]);
 
 			file_put_contents($bin, "");
 			$manager->RunFolder($this->root."/tests");
-			$this->assertStringStartsWith("php -d display_errors=on ".escapeshellarg($bin)." ", $manager->commands[1]);
+			$this->assertStringStartsWith("php -d display_errors=stderr ".escapeshellarg($bin)." ", $manager->commands[1]);
 			$this->assertSame(">> $ phpunit .../models/ArticleTest.php", $manager->RunFunction($this->root."/tests/models/ArticleTest.php", "testSave", false)[0]);
 		} finally {
 			@unlink($bin);
 			@unlink($phar);
 		}
+	}
+
+	public function testExecuteKeepsStderr() {
+		TestsHelper::Print("Testing Execute() returns stderr with stdout: PHP's messages go there, and the page shows them");
+		$php = escapeshellarg(PHP_BINARY);
+		$output = ExecutingTestsManager::Instance()->Run($php." -r ".escapeshellarg('echo "out\n"; fwrite(STDERR, "err\n");'));
+		$this->assertContains("out", $output);
+		$this->assertContains("err", $output);
 	}
 
 	public function testRunWithoutPhpUnitSaysSo() {

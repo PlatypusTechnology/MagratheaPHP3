@@ -46,6 +46,7 @@ class Start extends \Magrathea\Singleton {
 		"database" => "Database",
 		"import" => "Import",
 		"admin" => "Admin",
+		"tables" => "Tables",
 		"checks" => "Checks",
 		"finish" => "Finish",
 	];

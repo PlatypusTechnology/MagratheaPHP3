@@ -16,16 +16,21 @@ use Magrathea\MagratheaPHP;
 use Magrathea\ProjectCheck;
 use Magrathea\Tests\TestsHelper;
 
-// Database that never connects: OpenConnectionPlease() fails with $connectError; the table lookup answers with $tables
+// Database that never connects: OpenConnectionPlease() fails with $connectError; the table lookup answers with $tables,
+// the columns' with $columns (table => rows; $columnsError throws instead)
 class SetupFakeDatabase extends Database {
 	public $log = [];
 	public $connectError = null;
 	public $tables = [];
+	public $columns = [];
+	public $columnsError = null;
 	public function Reset(): static {
 		$this->SetConnectionArray(null);
 		$this->log = [];
 		$this->connectError = null;
 		$this->tables = [];
+		$this->columns = [];
+		$this->columnsError = null;
 		return $this;
 	}
 	public function OpenConnectionPlease(): bool {
@@ -40,6 +45,12 @@ class SetupFakeDatabase extends Database {
 		$this->log[] = $sql;
 		if(str_contains($sql, "FROM information_schema.TABLES")) {
 			return array_map(fn($t) => ["name" => $t, "type" => "BASE TABLE", "engine" => "InnoDB", "rows" => "3", "collation" => "", "comment" => ""], $this->tables);
+		}
+		if(str_contains($sql, "FROM information_schema.COLUMNS")) {
+			if($this->columnsError) throw new MagratheaDBException($this->columnsError);
+			foreach($this->columns as $table => $rows) {
+				if(str_contains($sql, "TABLE_NAME = '".addslashes($table)."'")) return $rows;
+			}
 		}
 		return [];
 	}
@@ -521,7 +532,9 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 
 	function testStepOrder() {
 		TestsHelper::Print("testing the steps' order...");
-		$this->assertSame(["requirements", "configuration", "structure", "database", "import", "admin", "checks", "finish"], array_keys(Start::STEPS));
+		$this->assertSame(["requirements", "configuration", "structure", "database", "import", "admin", "tables", "checks", "finish"], array_keys(Start::STEPS));
+		$this->assertSame("Database", Start::STEPS["database"]);
+		$this->assertSame("Tables", Start::STEPS["tables"]);
 		foreach(Start::ACTIONS as $action => $step) {
 			$this->assertArrayHasKey($step, Start::STEPS, $action);
 		}
@@ -550,6 +563,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			"CreateAdmin" => fn() => $steps->CreateAdmin("a@b.com", "123456789012"),
 			"SuperAdmins" => fn() => $steps->SuperAdmins(),
 			"ResetPassword" => fn() => $steps->ResetPassword(1, "123456789012"),
+			"Tables" => fn() => $steps->Tables(),
 			"Checks" => fn() => $steps->Checks(),
 			"FinishForm" => fn() => $steps->FinishForm(),
 			"Finish" => fn() => $steps->Finish(),
@@ -743,15 +757,65 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			$this->assertSame("MAGRATHEA_SETUP_TEST_UNSET", $rows["db_user"]["env"]);
 			$this->assertNull($rows["db_user"]["value"], "an unset variable");
 			$this->assertNull($rows["db_port"]["raw"], "missing");
+			$this->assertFalse($rs["configured"], "db_user reads an unset variable");
+			$this->assertSame([["key" => "db_user", "env" => "MAGRATHEA_SETUP_TEST_UNSET"]], $rs["unset"], "db_pass isn't one of the required keys");
+			$this->assertStringContainsString("`db_user` reads `MAGRATHEA_SETUP_TEST_UNSET`", $rs["unsetMessage"]);
 			$this->assertSame([], $this->db->log, "opening the step doesn't connect");
 
 			$html = $this->Render($this->Start()->Handle("GET", ["step" => "database"]));
 			$this->assertStringContainsString("env-s3cret", $html, "the password is shown");
 			$this->assertStringContainsString("MAGRATHEA_SETUP_TEST_PASS", $html);
-			$this->assertStringContainsString('value="connect-database"', $html);
+			$this->assertStringContainsString("<code>db_user</code> reads <code>MAGRATHEA_SETUP_TEST_UNSET</code>", $html, "the unset variable is named");
+			$this->assertStringNotContainsString("The config has no database", $html, "it has one: the variable is what's missing");
+			$this->assertStringNotContainsString('value="connect-database"', $html, "no Connect without a user");
 			$this->assertSame([], $this->db->log, "rendering doesn't connect either");
+
+			putenv("MAGRATHEA_SETUP_TEST_UNSET=u");
+			$rs = $this->Start()->Steps()->Database();
+			$this->assertTrue($rs["configured"], "set: the database is usable");
+			$this->assertSame([], $rs["unset"]);
+			$this->assertNull($rs["unsetMessage"]);
+			$this->assertStringContainsString('value="connect-database"', $this->Render($this->Start()->Handle("GET", ["step" => "database"])));
 		} finally {
 			putenv("MAGRATHEA_SETUP_TEST_PASS");
+			putenv("MAGRATHEA_SETUP_TEST_UNSET");
+		}
+	}
+
+	function testUnsetVariablesAreNamedOnEveryDatabaseStep() {
+		TestsHelper::Print("testing Import, Admin, Tables and the actions name the unset variables instead of 'no database'...");
+		$this->VerifiedSession();
+		putenv("MAGRATHEA_SETUP_TEST_HOST");
+		putenv("MAGRATHEA_SETUP_TEST_NAME=");
+		try {
+			$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "\$=MAGRATHEA_SETUP_TEST_HOST",
+				"db_name" => "\$=MAGRATHEA_SETUP_TEST_NAME", "db_user" => "u"]]);
+			$steps = $this->Start()->Steps();
+			$expected = [["key" => "db_host", "env" => "MAGRATHEA_SETUP_TEST_HOST"], ["key" => "db_name", "env" => "MAGRATHEA_SETUP_TEST_NAME"]];
+			foreach(["import" => $steps->Dumps(), "admin" => $steps->Admin(), "tables" => $steps->Tables()] as $step => $rs) {
+				$this->assertFalse($rs["configured"], $step);
+				$this->assertSame($expected, $rs["unset"], $step.": an empty variable counts as unset");
+				$this->assertStringContainsString("`db_host` reads `MAGRATHEA_SETUP_TEST_HOST` and `db_name` reads `MAGRATHEA_SETUP_TEST_NAME`", $rs["unsetMessage"], $step);
+				$html = $this->Render($this->Start()->Handle("GET", ["step" => $step]));
+				$this->assertStringContainsString("<code>MAGRATHEA_SETUP_TEST_HOST</code>", $html, $step);
+				$this->assertStringNotContainsString("The config has no database", $html, $step);
+			}
+			$this->assertSame([], $this->db->log, "no connection is tried");
+			$page = $this->Post(["action" => "connect-database"]);
+			$this->assertStringContainsString("`db_host` reads `MAGRATHEA_SETUP_TEST_HOST`", $page["error"], "the actions say it too");
+			$this->assertSame([], $this->db->log);
+
+			// a config without a database keeps its own message
+			$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true]]);
+			foreach(["import", "admin", "tables"] as $step) {
+				$page = $this->Start()->Handle("GET", ["step" => $step]);
+				$this->assertSame([], $page["data"]["unset"], $step);
+				$this->assertNull($page["data"]["unsetMessage"], $step);
+				$this->assertStringContainsString("The config has no database", $this->Render($page), $step);
+			}
+			$this->assertStringContainsString("The configuration has no database", $this->Post(["action" => "connect-database"])["error"]);
+		} finally {
+			putenv("MAGRATHEA_SETUP_TEST_NAME");
 		}
 	}
 
@@ -773,7 +837,10 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame(["articles"], array_column($page["result"]["tables"], "name"));
 		$this->assertNotEmpty($page["result"]["timezone"]);
 		$this->assertSame("app_db", $page["data"]["database"]);
-		$this->assertStringContainsString("Connected to <b>app_db</b>", $this->Render($page));
+		$html = $this->Render($page);
+		$this->assertStringContainsString("Connected to <b>app_db</b>", $html);
+		$this->assertStringContainsString("has <b>1</b> table:", $html, "only the count: the Tables step lists them");
+		$this->assertStringContainsString("?step=tables", $html);
 
 		$this->db->connectError = "Access denied for user 'u'";
 		$rs = $this->Start()->Steps()->ConnectDatabase();
@@ -962,6 +1029,66 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			$this->assertStringContainsString("couldn't be saved", $ex->getMessage());
 		}
 		$this->assertCount(3, $this->users->calls);
+	}
+
+	// 6. TABLES
+
+	function testTablesStepListsTheTablesAndTheirColumns() {
+		TestsHelper::Print("testing the Tables step: the tables the config reads, with their columns...");
+		$this->VerifiedSession();
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertTrue($rs["needsConfig"]);
+		$this->assertSame([], $this->db->log, "no config: no connection");
+
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true]]);
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertFalse($rs["configured"]);
+		$this->assertSame([], $this->db->log, "no database: no connection");
+
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u"]]);
+		$this->db->tables = ["articles", ProjectCheck::ADMIN_TABLE];
+		$this->db->columns = ["articles" => [
+			["name" => "id", "type" => "int(10) unsigned", "nullable" => "NO", "default" => null, "extra" => "auto_increment", "key" => "PRI"],
+			["name" => "title", "type" => "varchar(255)", "nullable" => "YES", "default" => "<b>x</b>", "extra" => "", "key" => ""],
+		]];
+		$page = $this->Start()->Handle("GET", ["step" => "tables"]);
+		$this->assertSame(200, $page["status"]);
+		$this->assertNull($page["error"]);
+		$rs = $page["data"];
+		$this->assertTrue($rs["connected"]);
+		$this->assertSame("app_db", $rs["database"]);
+		$this->assertSame(["articles", ProjectCheck::ADMIN_TABLE], array_column($rs["tables"], "name"));
+		$this->assertSame([false, true], array_column($rs["tables"], "framework"));
+		$this->assertSame(["id", "title"], array_column($rs["tables"][0]["columns"], "name"));
+		$this->assertFalse($rs["tables"][0]["columns"][0]["nullable"]);
+		$this->assertTrue($rs["tables"][0]["columns"][1]["nullable"]);
+		$this->assertSame(["int", "string"], array_column($rs["tables"][0]["columns"], "magrathea_type"));
+		$this->assertSame([], $rs["tables"][1]["columns"]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString("<h2>Tables</h2>", $html);
+		$this->assertStringContainsString("varchar(255)", $html);
+		$this->assertStringContainsString("&lt;b&gt;x&lt;/b&gt;", $html, "defaults are escaped");
+		$this->assertStringNotContainsString("<b>x</b>", $html);
+		$this->assertStringNotContainsString("admin's tables aren't installed", $html);
+
+		$this->db->tables = [];
+		$html = $this->Render($this->Start()->Handle("GET", ["step" => "tables"]));
+		$this->assertStringContainsString("The database has no tables", $html);
+
+		$this->db->tables = ["articles"];
+		$this->db->columnsError = "boom";
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertSame(["articles"], array_column($rs["tables"], "name"), "a table whose columns fail stays listed");
+		$this->assertSame("boom", $rs["tables"][0]["columnsError"]);
+		$html = $this->Render($this->Start()->Handle("GET", ["step" => "tables"]));
+		$this->assertStringContainsString("Can't read the columns", $html);
+		$this->assertStringContainsString("admin's tables aren't installed", $html);
+
+		$this->db->connectError = "Access denied for user 'u'";
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertFalse($rs["connected"]);
+		$this->assertStringContainsString("Access denied", $rs["error"]);
+		$this->assertSame([], $rs["tables"]);
 	}
 
 	// 7. FINISH

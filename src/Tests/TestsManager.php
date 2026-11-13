@@ -68,7 +68,10 @@ class TestsManager extends \Magrathea\Singleton {
 	 * @throws MagratheaException 	PHPUnit not found
 	 */
 	private function GetPhar($debug=false): string {
-		$pharCommand = "php -d display_errors=on ".escapeshellarg($this->GetPhpUnit());
+		// PHP's messages go to stderr (Execute() merges it into the output): on stdout, the first one (PHPUnit 10's
+		// phar prints deprecations while it loads, on PHP 8.4+) counts as headers sent, and every later
+		// http_response_code() in the tests fails and reads back false
+		$pharCommand = "php -d display_errors=stderr ".escapeshellarg($this->GetPhpUnit());
 		if($debug) {
 			$pharCommand .= " --testdox";
 		}
@@ -182,13 +185,13 @@ class TestsManager extends \Magrathea\Singleton {
 	}
 
 	/**
-	 * Runs a shell command
+	 * Runs a shell command, its stderr merged into the output (PHP's messages go there: see `GetPhar()`)
 	 * @param 	string 		$command	command, arguments already escaped
-	 * @return 	array			output lines
+	 * @return 	array			output lines, stdout and stderr
 	 */
 	protected function Execute(string $command): array {
 		$output = [];
-		exec($command, $output);
+		exec($command." 2>&1", $output);
 		return $output;
 	}
 

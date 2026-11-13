@@ -5,8 +5,8 @@
 **Since:** 3.0.0 (rebuilt; 2.x had a different wizard)
 
 A browser wizard that takes a project from "no config" to a working install: requirements, the
-config file, the database, an optional dump import, the admin and its first user, and the project's
-checks. It's a remote control for the server, so it's locked by a **token only someone with access
+config file, the database, an optional dump import, the admin and its first user, the tables the
+database ends up with, and the project's checks. It's a remote control for the server, so it's locked by a **token only someone with access
 to the server's files can read**.
 
 Classes:
@@ -112,11 +112,12 @@ so until there's one.
 | 1. Requirements | `ProjectCheck::Requirements()`: PHP, `proc_open()`, `mysqli`, the configs folder writable and outside the web root | |
 | 2. Configuration | the config's form | `save-config` |
 | 3. Structure | `ProjectCheck::Folders()`: the logs, cache and backups folders exist and are writable, the configs folder outside the web root | |
-| 4. Database | the credentials (environment variables resolved), without connecting; on request, the connection, `TimezoneCheck::Run()` and the tables (`Schema::Tables()`) | `connect-database` |
+| 4. Database | the credentials (environment variables resolved), without connecting; on request, the connection, `TimezoneCheck::Run()` and how many tables there are | `connect-database` |
 | 5. Import (optional) | the `.sql` files of the backups folder; "Upload a dump" and "Paste SQL" | `import-dump`, `upload-dump`, `paste-sql` |
 | 6. Admin | the admin's tables, the first super admin | `install-admin`, `generate-password`, `create-admin` |
-| 7. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run); a skipped check says why | |
-| 8. Finish | what it removes | `finish` |
+| 7. Tables | the tables the config's credentials read (`Schema::Tables()`), each with its columns (`Schema::Columns()`); connects on opening | |
+| 8. Checks | `ProjectCheck::Run()`, grouped as the admin's Checks page (`CheckReport::Group()`), with the timestamp and drift fixes (shown, never run); a skipped check says why | |
+| 9. Finish | what it removes | `finish` |
 
 ### 2. Configuration
 
@@ -156,8 +157,15 @@ Opening the step **doesn't connect**: it shows the active section's `db_host`, `
 `db_user` and `db_pass`, password included, as `Config::Get()` reads them. A `$=NAME` value shows the
 variable's name and its value (or that it isn't set). The **Connect** button (`connect-database`,
 `Steps::ConnectDatabase()`) then connects: the connection (the error when it fails), the timezone
-findings (this used to be in the 2.x `config-edit` step), and the tables. A slow or unreachable
+findings (this used to be in the 2.x `config-edit` step), and how many tables the database has, with a
+link to the Tables step. A slow or unreachable
 server only holds that request, never the page.
+
+A required key (`db_host`, `db_name`, `db_user`) written as `$=NAME`, where `NAME` is unset or empty
+for PHP, counts as no database: Connect isn't offered. But the page doesn't say "no database". It names
+the key and the variable (`unset` and `unsetMessage` in the steps' arrays), and so do the Import, Admin and Tables steps and
+every database action. A variable exported in your shell doesn't reach the web server or PHP-FPM:
+set it where they run.
 
 ### 5. Import
 
@@ -190,7 +198,21 @@ The admin's entry file (`public/magrathea.php`) comes with the skeleton: the wiz
 forgotten password is `vendor/bin/magrathea admin:reset-password <email>`: shell access proves
 ownership, a web form doesn't.
 
-### 8. Finish
+### 7. Tables
+
+Step key `tables` (`?step=tables`). `Steps::Tables()`
+connects when the step opens, like Admin, and lists what the config's credentials can read: every
+table and view of `db_name`, sorted by name, each in an accordion (`<details>`, no JavaScript) with its
+type, engine and approximate rows, and a badge on the framework's `_magrathea_*` tables. Opened, a table
+shows its columns: name, SQL type, the Magrathea type `Schema::MagratheaType()` suggests, nullable, key,
+default and extra. It's read-only: no rows, no SQL to run.
+
+The point is to see that Import and Admin created what they should. The page warns when the database
+has no tables, or none of the framework's (the admin isn't installed). A table whose columns can't be
+read stays in the list with the error. A failed connection shows the error and links to the Database
+step. Models vs. tables (drift, missing columns) is the Checks step's job, not this one's.
+
+### 9. Finish
 
 - removes `bootstrap_unlocked` from every section but `[dev]`, and from `[dev]` too unless "keep" is
   checked (it's offered when `[dev]` has it);

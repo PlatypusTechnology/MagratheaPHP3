@@ -30,7 +30,9 @@
 			<?php } ?>
 		</table>
 
-		<?php if(!$data["configured"]) { ?>
+		<?php if($data["unsetMessage"] !== null) { ?>
+			<div class="alert level-error"><?=$md($data["unsetMessage"])?> Connect needs every one of <code>db_host</code>, <code>db_name</code> and <code>db_user</code>.</div>
+		<?php } else if(!$data["configured"]) { ?>
 			<div class="alert level-info">The config has no database (<code>db_host</code>, <code>db_name</code> and <code>db_user</code> are empty): nothing to connect to.</div>
 		<?php } else { ?>
 			<h3>Connection</h3>
@@ -49,15 +51,11 @@
 				<h3>Timezone</h3>
 				<?php $findings($result["timezone"]); ?>
 				<h3>Tables</h3>
-				<?php if(empty($result["tables"])) { ?>
+				<?php $count = count($result["tables"]); ?>
+				<?php if($count === 0) { ?>
 					<p class="muted">The database has no tables yet: import a dump, or install the admin's tables.</p>
 				<?php } else { ?>
-					<table>
-						<tr><th>Table</th><th>Engine</th><th>Rows (approx.)</th></tr>
-						<?php foreach($result["tables"] as $table) { ?>
-							<tr><td><?=$h($table["name"] ?? "")?></td><td><?=$h($table["engine"] ?? "")?></td><td><?=$h($table["rows"] ?? "")?></td></tr>
-						<?php } ?>
-					</table>
+					<p>The database has <b><?=$count?></b> table<?=$count === 1 ? "" : "s"?>: see them, with their columns, in the <a href="<?=$h($wizard->GetStepLink("tables"))?>">Tables</a> step.</p>
 				<?php } ?>
 			<?php } ?>
 		<?php } ?>

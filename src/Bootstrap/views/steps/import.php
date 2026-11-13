@@ -53,6 +53,8 @@ $importFields = function(string $id) use ($h, $data) {
 	?>
 	<?php if($data["needsConfig"]) { ?>
 		<div class="alert level-warning">There's no config yet: save the <a href="<?=$h($wizard->GetStepLink("configuration"))?>">configuration</a> first.</div>
+	<?php } else if($data["unsetMessage"] !== null) { ?>
+		<div class="alert level-error"><?=$md($data["unsetMessage"])?></div>
 	<?php } else if(!$data["configured"]) { ?>
 		<div class="alert level-info">The config has no database: there's nothing to import into.</div>
 	<?php } else { ?>

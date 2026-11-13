@@ -80,10 +80,17 @@ what it returns. Checks return **findings** shaped like `TimezoneCheck::Run()`'s
 ## Running the tests
 
 ```bash
-php phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests
+php -d display_errors=stderr phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests
 ```
 
-`phpunit.phar` is in the repository root. The suite is expected to end green, apart from the
+`-d display_errors=stderr` matters. On PHP 8.4+, the phar (PHPUnit 10.5.9) prints its own `Deprecated:`
+lines while it loads. On stdout, that output counts as headers already sent in the CLI, so every later
+`http_response_code()` fails with a warning and reads back `false`. The admin's 405/404 tests then fail
+("false is identical to 405") although the code is right.
+
+`phpunit.phar` is in the repository root. It needs the `dom`, `xml` and `xmlwriter` extensions. When the
+local PHP lacks them, run it in a container:
+`docker run --rm -u $(id -u):$(id -g) -v "$PWD":/app -w /app php:8.4-cli php -d display_errors=stderr phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests`. The suite is expected to end green, apart from the
 three deprecations that `firebase/php-jwt` raises. Record the counts before your first change, so
 you can compare at the end.
 

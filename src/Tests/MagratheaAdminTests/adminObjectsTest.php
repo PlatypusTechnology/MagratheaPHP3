@@ -343,24 +343,30 @@ class adminObjectsTest extends \PHPUnit\Framework\TestCase {
 		$this->explorer->Delete(Article::class, "");
 	}
 
-	function testObjectsIsADefaultFeatureAtTheTopOfTheMenu() {
-		TestsHelper::Print("testing Objects is a default feature, first in the menu, and RemoveFeature() takes it out...");
+	function testObjectsIsADefaultFeatureAndTheFirstSection() {
+		TestsHelper::Print("testing Objects is a default feature, the menu's first section (before Setup), and RemoveFeature() takes it out...");
 		$admin = new Admin();
 		$admin->SetFeatures();
 		$this->assertInstanceOf(AdminFeatureObjects::class, $admin->GetFeatures()["AdminFeatureObjects"] ?? null);
 		$menu = new AdminMenu();
 		$admin->AddMagratheaMenu($menu);
 		$items = $menu->GetMenu();
-		$this->assertSame(["title" => "Objects", "type" => "sub"], $items[0]);
-		$this->assertSame("AdminFeatureObjects", $items[1]["feature"]);
-		$this->assertSame(["title" => "Setup", "type" => "sub"], $items[2]);
+		// the items above the first section (Version, App Configuration) are adminMenuTest's
+		$sections = array_keys(array_filter($items, fn($item) => ($item["type"] ?? null) === "sub"));
+		$objects = $sections[0];
+		$this->assertSame(["title" => "Objects", "type" => "sub"], $items[$objects], "the first section");
+		$this->assertSame("AdminFeatureObjects", $items[$objects + 1]["feature"]);
+		$this->assertSame(["title" => "Setup", "type" => "sub"], $items[$objects + 2]);
 
 		$admin->RemoveFeature("AdminFeatureObjects")->RemoveFeature("NotAFeature");
 		$this->assertArrayNotHasKey("AdminFeatureObjects", $admin->GetFeatures());
 		$menu = new AdminMenu();
 		$admin->AddMagratheaMenu($menu);
-		$this->assertSame(["title" => "Setup", "type" => "sub"], $menu->GetMenu()[0]);
-		$this->assertNotContains("AdminFeatureObjects", array_column($menu->GetMenu(), "feature"));
+		$items = $menu->GetMenu();
+		$sections = array_keys(array_filter($items, fn($item) => ($item["type"] ?? null) === "sub"));
+		$this->assertSame(["title" => "Setup", "type" => "sub"], $items[$sections[0]], "without Objects, Setup is the first section");
+		$this->assertNotContains("Objects", array_column($items, "title"));
+		$this->assertNotContains("AdminFeatureObjects", array_column($items, "feature"));
 	}
 
 	function testOnlyTheFeaturesActionsAreDispatchable() {

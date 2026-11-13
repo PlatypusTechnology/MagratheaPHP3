@@ -176,7 +176,8 @@ class adminMenuTest extends \PHPUnit\Framework\TestCase {
 		$setup = $this->SetupSection($built->GetMenu());
 		$this->assertSame(["Checks", "Configuration File"], array_slice(array_column($setup, "title"), 0, 2));
 		$pages = array_map(fn($i) => $this->PageFromLink($i["link"]), array_filter($built->GetMenu(), fn($i) => !empty($i["link"])));
-		$counts = array_count_values($pages);
+		// links that aren't admin pages (the docs) have no page: null, which array_count_values() can't count
+		$counts = array_count_values(array_filter($pages, fn($page) => $page !== null));
 		$this->assertSame(1, $counts["version"]);
 		$this->assertSame(1, $counts["checks"]);
 	}

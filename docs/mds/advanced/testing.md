@@ -277,6 +277,12 @@ assertion library, and it doesn't run anything by itself.
 checkout. The Composer package doesn't ship the phar (since 3.0). With neither, running a test throws
 `MagratheaException("PHPUnit not found: …")`, which the Tests page shows; listing tests still works.
 
+**The command** is `php -d display_errors=stderr <phpunit> --bootstrap phpUnitBootstrap.php …`, and the
+output lines it returns are stdout and stderr together (`2>&1`), so PHP's messages still show on the page.
+They don't go to stdout because, in the CLI, the first byte there counts as headers sent: one deprecation
+printed early (PHPUnit 10's phar on PHP 8.4+ prints several while it loads) makes every later
+`http_response_code()` in the tests fail and read back `false`. Run your own suite with the same flag.
+
 ```php
 use Magrathea\Tests\TestsManager;
 
