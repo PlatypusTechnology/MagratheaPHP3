@@ -749,7 +749,8 @@ or calls the admin's `CreateBackupFile` API (see the Dumps item below).
   Connection (`connect`).
 - The keys `backups` and `structure` are gone: `GetItem()` returns `null` for them, and `Add(null)`
   adds nothing.
-- The Version page's "Server Time" card is now a link to the Server page's timezone check.
+- The Version page's "Server Time" card shows only the time and timezone; the timezone check is on
+  the Server page.
 - Explorer (M18) is new and read-only: tables, their models and drift status, each table's structure
   and first 20 rows. Nothing to migrate.
 - `AdminElements::Table()` without `$cols` escapes the titles it takes from the rows' keys. A custom

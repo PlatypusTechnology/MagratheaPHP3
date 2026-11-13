@@ -209,8 +209,8 @@ Setup), have their own page: [Admin: the Database section](admin-database.md).
 
 The menu opens with Version and App Configuration, at the top and under no section title; the Setup section
 starts with Checks, above Configuration File. The Version page shows the app,
-Magrathea and PHP versions; the home page shows the app and Magrathea versions under the logo, linking to it. Its "Server Time" card links to the Server page
-(Debugging → Server), which shows the time, the timezone and its check (`TimezoneCheck::Run()`).
+Magrathea and PHP versions; the home page shows the app and Magrathea versions under the logo, linking to it. Its "Server Time" card shows the server's time and
+timezone; their check (`TimezoneCheck::Run()`) is on the Server page (Debugging → Server).
 
 #### Backups, logs, and the removed Query Tester
 
