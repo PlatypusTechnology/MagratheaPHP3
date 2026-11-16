@@ -42,9 +42,11 @@ class Start extends \Magrathea\Singleton {
 	const STEPS = [
 		"requirements" => "Requirements",
 		"configuration" => "Configuration",
+		"structure" => "Structure",
 		"database" => "Database",
 		"import" => "Import",
 		"admin" => "Admin",
+		"tables" => "Tables",
 		"checks" => "Checks",
 		"finish" => "Finish",
 	];
@@ -52,10 +54,14 @@ class Start extends \Magrathea\Singleton {
 	/** the POST actions (`action`), and the step each one belongs to; "verify" (the token form) is the only one without a verified session */
 	const ACTIONS = [
 		"save-config" => "configuration",
+		"connect-database" => "database",
 		"upload-dump" => "import",
 		"import-dump" => "import",
+		"paste-sql" => "import",
 		"install-admin" => "admin",
+		"generate-password" => "admin",
 		"create-admin" => "admin",
+		"reset-password" => "admin",
 		"finish" => "finish",
 	];
 	const VERIFY = "verify";
@@ -320,6 +326,8 @@ class Start extends \Magrathea\Singleton {
 		if(session_status() === PHP_SESSION_NONE && !headers_sent()) session_start();
 		$page = $this->Handle($_SERVER["REQUEST_METHOD"] ?? "GET", $_GET, $_POST, $_FILES);
 		http_response_code($page["status"]);
+		// the pages show the config's secrets (the database password): no copy in caches
+		if(!headers_sent()) header("Cache-Control: no-store");
 		if($page["view"] === "redirect") {
 			header("Location: ".$page["location"]);
 			return;

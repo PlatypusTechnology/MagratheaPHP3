@@ -39,6 +39,7 @@ class ProjectCheck {
 	* Runs every check. Each finding has a `group`: `config`, `folders`, `database`, `timezone` or `schema`.
 	* When the config can't be read, only `config` runs. The database groups (`database`, `timezone` and `schema`)
 	* run only when the config has `db_host`, `db_name` and `db_user`, and stop at a failed connection.
+	* A check that doesn't run is an INFO saying why (`Skipped()`): no group is ever silently empty.
 	* @param 	bool 	$withDatabase 	false skips everything that connects: the `database`, `timezone` and `schema` groups
 	* @return 	array 	list of findings: ["level" => TimezoneCheck::OK|INFO|WARNING|ERROR, "message" => string, "group" => string, …]
 	*/
@@ -46,7 +47,10 @@ class ProjectCheck {
 		$findings = static::PhpFindings();
 		$config = static::ConfigFileFindings();
 		$findings = array_merge($findings, $config);
-		if(static::Failed($config)) return $findings;
+		$databaseGroups = [self::DATABASE, self::TIMEZONE, self::SCHEMA];
+		if(static::Failed($config)) {
+			return array_merge($findings, self::Skipped([self::FOLDERS, ...$databaseGroups], "the config can't be read"));
+		}
 
 		$database = static::DatabaseKeyFindings();
 		$findings = array_merge(
@@ -56,11 +60,22 @@ class ProjectCheck {
 			static::BootstrapFindings(),
 			static::FolderFindings(),
 		);
-		if(!$withDatabase || !static::UsesDatabase() || static::Failed($database)) return $findings;
+		if(!$withDatabase) {
+			return array_merge($findings, self::Skipped($databaseGroups, "the database checks are off for this run"));
+		}
+		// a partial configuration doesn't use the database either: its errors are the reason
+		if(static::Failed($database)) {
+			return array_merge($findings, self::Skipped($databaseGroups, "the database configuration has errors (see Configuration)"));
+		}
+		if(!static::UsesDatabase()) {
+			return array_merge($findings, self::Skipped($databaseGroups, "no database is configured"));
+		}
 
 		$connection = static::ConnectionFindings();
 		$findings = array_merge($findings, $connection);
-		if(static::Failed($connection)) return $findings;
+		if(static::Failed($connection)) {
+			return array_merge($findings, self::Skipped([self::TIMEZONE, self::SCHEMA], "can't connect to the database"));
+		}
 		return array_merge(
 			$findings,
 			static::AdminTableFindings(),
@@ -92,6 +107,17 @@ class ProjectCheck {
 		$webRoot = static::WebRootFinding($configFolder);
 		if($webRoot) $findings[] = $webRoot;
 		return $findings;
+	}
+
+	/**
+	* Only the `folders` group of `Run()` (the Setup Wizard's Structure step): the logs, cache and backups folders,
+	* and the configs folder outside the document root. Doesn't connect and creates nothing.
+	* @return 	array 	findings: the `config` group's when the config can't be read, else the `folders` group's
+	*/
+	public static function Folders(): array {
+		$config = static::ConfigFileFindings();
+		if(static::Failed($config)) return $config;
+		return static::FolderFindings();
 	}
 
 	/**
@@ -289,15 +315,38 @@ class ProjectCheck {
 	}
 
 	/**
-	* SchemaCheck::CheckAll(); one ERROR if it throws
+	* SchemaCheck::CheckAll(); if it throws, one ERROR, and the timestamps skipped
 	* @return 	array 	findings
 	*/
 	protected static function SchemaFindings(): array {
 		try {
 			return (new SchemaCheck())->CheckAll();
 		} catch(\Throwable $ex) {
-			return [self::Finding(self::SCHEMA, TimezoneCheck::ERROR, "The models can't be checked against the database: ".$ex->getMessage())];
+			return [
+				self::Finding(self::SCHEMA, TimezoneCheck::ERROR, "The models can't be checked against the database: ".$ex->getMessage()),
+				self::Finding(self::SCHEMA, TimezoneCheck::INFO, "Skipped: the models can't be checked against the database.",
+					["check" => SchemaCheck::CHECK_TIMESTAMPS]),
+			];
 		}
+	}
+
+	/**
+	* One INFO per group that didn't run, saying why; `schema` gets two: its models and its timestamps
+	* (`"check" => SchemaCheck::CHECK_TIMESTAMPS`), which reports show apart
+	* @param 	array 	$groups 	groups (FOLDERS, DATABASE, TIMEZONE, SCHEMA)
+	* @param 	string 	$reason 	why, for the message
+	* @return 	array 	findings
+	*/
+	private static function Skipped(array $groups, string $reason): array {
+		$message = "Skipped: ".$reason.".";
+		$findings = [];
+		foreach($groups as $group) {
+			$findings[] = self::Finding($group, TimezoneCheck::INFO, $message);
+			if($group === self::SCHEMA) {
+				$findings[] = self::Finding($group, TimezoneCheck::INFO, $message, ["check" => SchemaCheck::CHECK_TIMESTAMPS]);
+			}
+		}
+		return $findings;
 	}
 
 	/**
@@ -358,7 +407,7 @@ class ProjectCheck {
 	* @param 	string 	$group 		CONFIG, FOLDERS, DATABASE, TIMEZONE or SCHEMA
 	* @param 	string 	$level 		TimezoneCheck::OK, INFO, WARNING or ERROR
 	* @param 	string 	$message 	message
-	* @param 	array 	$extra 		optional keys (`table`, `model`, `field`, `fix`)
+	* @param 	array 	$extra 		optional keys (`table`, `model`, `field`, `fix`, `check`)
 	* @return 	array
 	*/
 	private static function Finding(string $group, string $level, string $message, array $extra = []): array {

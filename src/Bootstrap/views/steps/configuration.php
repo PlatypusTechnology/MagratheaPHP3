@@ -1,17 +1,17 @@
 <?php
 // $data: Steps::ConfigurationForm(); $result: Steps::SaveConfiguration(), after a save. Helpers: see index.php
 $errors = $result["errors"] ?? [];
-// after a refused save, the form shows what was typed (never the password)
+// after a refused save, the form shows what was typed
 $values = $data["values"];
 $environment = $data["environment"];
 if($result && !$result["saved"]) {
 	$values = array_merge($values, $result["values"]);
 	if($data["environmentEditable"]) $environment = $result["environment"];
 }
-$input = function(string $key, string $type = "text", string $hint = "") use ($data, $values, $errors, $h, $md, $fieldError) {
+$input = function(string $key, string $hint = "") use ($data, $values, $errors, $h, $md, $fieldError) {
 	$wide = in_array($key, ["app_url", "logs_path", "cache_path", "backups_path", "jwt_key"], true) ? " wide" : "";
 	echo '<div class="field'.$wide.'"><label for="'.$h($key).'">'.$h($data["fields"][$key]).'</label>';
-	echo '<input type="'.$h($type).'" id="'.$h($key).'" name="'.$h($key).'" value="'.$h($values[$key] ?? "").'" autocomplete="off">';
+	echo '<input type="text" id="'.$h($key).'" name="'.$h($key).'" value="'.$h($values[$key] ?? "").'" autocomplete="off">';
 	if($hint) echo '<div class="hint">'.$md($hint).'</div>';
 	$fieldError($errors, $key);
 	echo '</div>';
@@ -52,11 +52,11 @@ $input = function(string $key, string $type = "text", string $hint = "") use ($d
 				<?php $fieldError($errors, "environment"); ?>
 			</div>
 			<?php
-			$input("db_host", "text", "Host, name and user all empty: a project without a database.");
-			$input("db_port", "text", "Empty: the default (3306).");
+			$input("db_host", "Host, name and user all empty: a project without a database.");
+			$input("db_port", "Empty: the default (3306).");
 			$input("db_name");
 			$input("db_user");
-			$input("db_pass", "password", $data["hasPassword"] ? "Empty: keeps the current password." : "");
+			$input("db_pass", "Shown and saved as typed: empty is no password. `$=NAME` reads the environment variable `NAME`.");
 			?>
 			<div class="field">
 				<label for="timezone">Timezone</label>
@@ -73,8 +73,8 @@ $input = function(string $key, string $type = "text", string $hint = "") use ($d
 			$input("app_url");
 			$input("logs_path");
 			$input("cache_path");
-			$input("backups_path", "text", "The folders aren't created: the Checks step tells which are missing.");
-			$input("jwt_key", "text", "A random key, for `MagratheaApiAuth`'s tokens.");
+			$input("backups_path", "The folders aren't created: the Structure step tells which are missing.");
+			$input("jwt_key", "A random key, for `MagratheaApiAuth`'s tokens.");
 			?>
 		</div>
 		<button type="submit">Save the configuration</button>

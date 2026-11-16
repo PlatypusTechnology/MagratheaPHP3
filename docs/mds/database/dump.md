@@ -150,6 +150,13 @@ A lost connection always throws.
 
 A missing file throws `"file not found: <name>"`.
 
+### `ImportFile(string $path, array $options = []): array`
+
+`Import()` by a full path, without the name check: the file doesn't have to be in the backups folder.
+`Import()` validates the name and calls it; `DumpManager::ImportUpload()`/`ImportSql()` (the Setup
+Wizard's) use it to run a temporary file when there's no backups folder. Same options, result and
+errors. It's the one exception to "paths are never accepted", so never hand it a path from a request.
+
 ---
 
 ## SqlSplitter: SQL into statements

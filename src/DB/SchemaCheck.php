@@ -27,6 +27,8 @@ class SchemaCheck {
 	const GROUP = "schema";
 	/** owned by the database: never in `$dbValues`, checked by CheckTimestamps() */
 	const TIMESTAMPS = ["created_at", "updated_at"];
+	/** the `check` of every CheckTimestamps() finding: the timestamps are their own section in reports */
+	const CHECK_TIMESTAMPS = "timestamps";
 	/** types that bind and load the same (as text, unchanged): compared as one type */
 	const TEXT_TYPES = ["string", "text", "uuid"];
 
@@ -113,10 +115,10 @@ class SchemaCheck {
 
 	/**
 	* Checks a model against its table: the table, the PK, each `$dbValues` field and its type, the columns the
-	* model doesn't list, and the timestamp columns' presence (their definitions: CheckTimestamps()).
+	* model doesn't list. The timestamp columns, present or not, are CheckTimestamps()'s.
 	* Never throws: a class that can't be checked is a finding.
 	* @param 	string 	$class 		model class (full name)
-	* @return 	array 	findings
+	* @return 	array 	findings: its problems, or one OK when it matches its table (never empty)
 	*/
 	public function CheckModel(string $class): array {
 		try {
@@ -168,58 +170,82 @@ class SchemaCheck {
 				"`".$table."`.`".$column["name"]."` isn't in `".$class."::\$dbValues`: the model doesn't read or write it.",
 				$at + ["field" => $column["name"]]);
 		}
-
-		foreach(self::TIMESTAMPS as $timestamp) {
-			if(isset($columns[$timestamp])) continue;
-			$findings[] = self::Finding(TimezoneCheck::ERROR,
-				"`".$table."` has no `".$timestamp."` column: every SELECT built from `".$class."` fails.",
-				$at + ["field" => $timestamp]);
+		if(empty($findings)) {
+			$fields = count(array_filter(array_keys($model["values"]), fn($f) => !in_array(strtolower($f), self::TIMESTAMPS, true)));
+			$findings[] = self::Finding(TimezoneCheck::OK,
+				"`".$class."` matches `".$table."` (".$fields." field".($fields == 1 ? "" : "s").").", $at);
 		}
 		return $findings;
 	}
 
 	/**
-	* Checks a table's `created_at` and `updated_at` against the contract: both `DEFAULT CURRENT_TIMESTAMP`,
-	* and only `updated_at` with `ON UPDATE CURRENT_TIMESTAMP`. One finding per column that breaks it, whose `fix`
-	* is an `ALTER TABLE … MODIFY …` keeping the column's type and nullability. A missing column isn't reported
-	* here (CheckModel() does).
+	* Checks a table's `created_at` and `updated_at` against the contract: both exist, both have
+	* `DEFAULT CURRENT_TIMESTAMP`, and only `updated_at` has `ON UPDATE CURRENT_TIMESTAMP`. Exactly one finding per
+	* column, `created_at` first: OK when it follows the contract; ERROR when it's missing (every SELECT built from
+	* a model of the table fails), with an `ALTER TABLE … ADD COLUMN …` `fix`; ERROR or WARNING when it breaks the
+	* contract, with an `ALTER TABLE … MODIFY …` `fix` keeping its type and nullability.
+	* Every finding has `"check" => CHECK_TIMESTAMPS`.
 	* @param 	string 	$table 		table name
-	* @return 	array 	findings
+	* @return 	array 	findings (two)
 	* @throws 	MagratheaDBException 	unknown table
 	*/
 	public function CheckTimestamps(string $table): array {
+		$columns = [];
+		foreach($this->schema->Columns($table) as $column) $columns[strtolower($column["name"])] = $column;
 		$findings = [];
-		foreach($this->schema->Columns($table) as $column) {
-			$name = strtolower($column["name"]);
-			if(!in_array($name, self::TIMESTAMPS, true)) continue;
-			$level = null;
-			$problems = [];
-			if(!self::IsCurrentTimestamp($column["default"])) {
-				if($column["nullable"]) {
-					$level = TimezoneCheck::WARNING;
-					$problems[] = "no `DEFAULT CURRENT_TIMESTAMP` (it's `NULL` after an insert)";
-				} else {
-					$level = TimezoneCheck::ERROR;
-					$problems[] = "no `DEFAULT CURRENT_TIMESTAMP` (".($column["default"] === null
-						? "inserts fail"
-						: "inserts store `".$column["default"]."`").")";
-				}
+		foreach(self::TIMESTAMPS as $timestamp) {
+			$at = ["table" => $table, "field" => $timestamp, "check" => self::CHECK_TIMESTAMPS];
+			$column = $columns[$timestamp] ?? null;
+			if($column === null) {
+				$findings[] = self::Finding(TimezoneCheck::ERROR,
+					"`".$table."` has no `".$timestamp."` column: every SELECT built from its models fails.",
+					$at + ["fix" => self::AddTimestampFix($table, $timestamp)]);
+				continue;
 			}
-			$onUpdate = (bool)preg_match('/on update current_timestamp/i', (string)$column["extra"]);
-			if($name == "created_at" && $onUpdate) {
-				$level = TimezoneCheck::ERROR;
-				$problems[] = "`ON UPDATE CURRENT_TIMESTAMP` (it changes on every update)";
-			}
-			if($name == "updated_at" && !$onUpdate) {
-				$level = TimezoneCheck::ERROR;
-				$problems[] = "no `ON UPDATE CURRENT_TIMESTAMP` (updates don't change it)";
-			}
-			if(empty($problems)) continue;
-			$findings[] = self::Finding($level,
-				"`".$table."`.`".$column["name"]."` has ".implode(" and ", $problems).".",
-				["table" => $table, "field" => $column["name"], "fix" => self::TimestampFix($table, $column)]);
+			$findings[] = self::TimestampFinding($table, $column);
 		}
 		return $findings;
+	}
+
+	/**
+	* One existing timestamp column against the contract
+	* @param 	string 	$table 		table name
+	* @param 	array 	$column 	`Schema::Columns()` row of `created_at` or `updated_at`
+	* @return 	array 	finding: OK, or the problems with their `fix`
+	*/
+	private static function TimestampFinding(string $table, array $column): array {
+		$name = strtolower($column["name"]);
+		$at = ["table" => $table, "field" => $column["name"], "check" => self::CHECK_TIMESTAMPS];
+		$level = null;
+		$problems = [];
+		if(!self::IsCurrentTimestamp($column["default"])) {
+			if($column["nullable"]) {
+				$level = TimezoneCheck::WARNING;
+				$problems[] = "no `DEFAULT CURRENT_TIMESTAMP` (it's `NULL` after an insert)";
+			} else {
+				$level = TimezoneCheck::ERROR;
+				$problems[] = "no `DEFAULT CURRENT_TIMESTAMP` (".($column["default"] === null
+					? "inserts fail"
+					: "inserts store `".$column["default"]."`").")";
+			}
+		}
+		$onUpdate = (bool)preg_match('/on update current_timestamp/i', (string)$column["extra"]);
+		if($name == "created_at" && $onUpdate) {
+			$level = TimezoneCheck::ERROR;
+			$problems[] = "`ON UPDATE CURRENT_TIMESTAMP` (it changes on every update)";
+		}
+		if($name == "updated_at" && !$onUpdate) {
+			$level = TimezoneCheck::ERROR;
+			$problems[] = "no `ON UPDATE CURRENT_TIMESTAMP` (updates don't change it)";
+		}
+		if(empty($problems)) {
+			return self::Finding(TimezoneCheck::OK,
+				"`".$table."`.`".$column["name"]."` follows the contract (`DEFAULT CURRENT_TIMESTAMP".($name == "updated_at" ? " ON UPDATE CURRENT_TIMESTAMP" : "")."`).",
+				$at);
+		}
+		return self::Finding($level,
+			"`".$table."`.`".$column["name"]."` has ".implode(" and ", $problems).".",
+			$at + ["fix" => self::TimestampFix($table, $column)]);
 	}
 
 	/**
@@ -308,6 +334,16 @@ class SchemaCheck {
 			($column["nullable"] ? " NULL" : " NOT NULL")." DEFAULT ".$now;
 		if(strtolower($column["name"]) == "updated_at") $sql .= " ON UPDATE ".$now;
 		return $sql.";";
+	}
+
+	/**
+	* `ALTER TABLE … ADD COLUMN …` for a missing timestamp column, as the admin's own tables define it
+	* (`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`, plus `ON UPDATE CURRENT_TIMESTAMP` for `updated_at`).
+	* Existing rows get the current time.
+	*/
+	private static function AddTimestampFix(string $table, string $timestamp): string {
+		return "ALTER TABLE ".self::Quote($table)." ADD COLUMN ".self::Quote($timestamp)." DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP".
+			($timestamp == "updated_at" ? " ON UPDATE CURRENT_TIMESTAMP" : "").";";
 	}
 
 	private static function Quote(string $name): string {

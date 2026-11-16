@@ -1,7 +1,6 @@
 <?php
 
 use Magrathea\Admin\AdminElements;
-use Magrathea\Admin\AdminUrls;
 use Magrathea\MagratheaPHP;
 
 AdminElements::Instance()->Header("Version");
@@ -30,8 +29,7 @@ $magPhp = MagratheaPHP::Instance();
 			<div class="card-close" aria-label="Close" onclick="closeCard(this);">&times;</div>
 		</div>
 		<div class="card-body">
-			The server's time and timezone, and their check, are on the
-			<a href="<?=htmlspecialchars(AdminUrls::Instance()->GetPageUrl("server"))?>#timezone-check">Server page</a>.
+			Now: <?=now()?> / Timezone: <?=date_default_timezone_get()?>
 		</div>
 	</div>
 

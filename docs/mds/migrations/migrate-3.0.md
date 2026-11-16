@@ -749,7 +749,8 @@ or calls the admin's `CreateBackupFile` API (see the Dumps item below).
   Connection (`connect`).
 - The keys `backups` and `structure` are gone: `GetItem()` returns `null` for them, and `Add(null)`
   adds nothing.
-- The Version page's "Server Time" card is now a link to the Server page's timezone check.
+- The Version page's "Server Time" card shows only the time and timezone; the timezone check is on
+  the Server page.
 - Explorer (M18) is new and read-only: tables, their models and drift status, each table's structure
   and first 20 rows. Nothing to migrate.
 - `AdminElements::Table()` without `$cols` escapes the titles it takes from the rows' keys. A custom
@@ -857,7 +858,7 @@ grep -rn 'bootstrap_unlocked' configs/ 2>/dev/null
 - With a config present, it also needs `bootstrap_unlocked = true` in the active environment, as in
   2.4.0. Its Configuration step writes the flag into the section it saves; its Finish step removes
   it from every section but `[dev]` (and from `[dev]` too, unless kept) and deletes the token.
-- New steps: Requirements, Configuration, Database, Import, Admin, Checks, Finish. Every form posts
+- New steps: Requirements, Configuration, Structure (checks the folders, creates none), Database, Import, Admin, Checks, Finish. Every form posts
   with the admin's CSRF token. The pages load nothing from CDNs and have no JavaScript.
 - Removed: `PreLoad()` (it copied the sample config, which arrived unlocked) and
   `CreateDefaultConfigFile()`, `setPath()`, `CheckSelf()`, `ValidateStructure()`,

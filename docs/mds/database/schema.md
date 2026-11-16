@@ -145,6 +145,7 @@ Each finding has the same shape as `TimezoneCheck::Run()`'s, plus the keys that 
 | `model` | the model class |
 | `table` | the table |
 | `field` | the field or column |
+| `check` | `SchemaCheck::CHECK_TIMESTAMPS` (`"timestamps"`) on every `CheckTimestamps()` finding: reports show the timestamps in their own section |
 | `fix` | SQL that fixes it (timestamp findings only): **shown, never run** |
 
 ### `FindModels(): array`
@@ -188,25 +189,31 @@ It never throws. These are findings:
 | a primary key on a `char(36)` column declared `string`/`text`: `Insert()` sends no PK | WARNING |
 | any other type that differs from `Schema::MagratheaType()` (skipped when that's `null`) | WARNING |
 | a column that isn't in `$dbValues`: the model never reads or writes it | INFO |
-| the table has no `created_at` or `updated_at`: every SELECT built from the model fails | ERROR |
+| none of the above: the model matches its table | one OK, "`App\Models\Article` matches `articles` (5 fields)." |
+
+It's never empty: a model gets its problems, or that one OK. A model with any problem gets no OK:
+a partly matching model doesn't match. The field count leaves the timestamps out.
 
 `string`, `text` and `uuid` count as one type: they bind and load the same (as text, unchanged).
 The difference only matters for a primary key, where `uuid` makes `Insert()` generate and send it.
 Field and column names are compared case-insensitively, as MySQL does.
 
 `created_at` and `updated_at` don't belong in `$dbValues` (see the MagratheaModel page). They're
-skipped by both the field and the column comparisons, even when `$dbValues` lists them. Their
-presence is the last row of the table above, and their definitions are `CheckTimestamps()`'s.
+skipped by both the field and the column comparisons, even when `$dbValues` lists them. Whether
+they exist, and how they're defined, is `CheckTimestamps()`'s.
 
 ### `CheckTimestamps(string $table): array`
 
 Checks `created_at` and `updated_at` against the table contract:
 `created_at … DEFAULT CURRENT_TIMESTAMP` and
-`updated_at … DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`. It reports one finding per
-column that breaks it, listing every problem:
+`updated_at … DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`. It always returns exactly two
+findings, `created_at`'s then `updated_at`'s, whatever the table's column order: a passing column
+is an `OK` ("follows the contract"), so a clean table reads as checked, not as silent. A column that
+breaks the contract is one finding listing every problem:
 
 | Problem | Level |
 |---------|-------|
+| the column doesn't exist: every SELECT built from the table's models fails | ERROR |
 | no `DEFAULT CURRENT_TIMESTAMP`, `NOT NULL`: inserts fail (or store the literal default) | ERROR |
 | no `DEFAULT CURRENT_TIMESTAMP`, nullable: it's `NULL` after an insert | WARNING |
 | `created_at` with `ON UPDATE CURRENT_TIMESTAMP`: it changes on every update (MySQL 5.7 gives it to a table's first bare `TIMESTAMP`) | ERROR |
@@ -217,21 +224,29 @@ what sets them, `updated_at` included (until the first update, it's the creation
 `CURRENT_TIMESTAMP` and MariaDB's `current_timestamp()` are both recognized, with or without
 fractional seconds.
 
-The `fix` is an `ALTER TABLE … MODIFY …` that brings the column to the contract, keeping its type
-and nullability:
+For a missing column, the `fix` adds it, defined as the admin's own tables define theirs (existing
+rows get the current time):
+
+```sql
+ALTER TABLE `posts` ADD COLUMN `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+```
+
+For an existing one, it's an `ALTER TABLE … MODIFY …` that brings the column to the contract,
+keeping its type and nullability:
 
 ```sql
 ALTER TABLE `posts` MODIFY `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3);
 ```
 
-Read it before running it:
+Every finding has `"check" => SchemaCheck::CHECK_TIMESTAMPS`, passing ones included.
+
+Read a `MODIFY` before running it:
 - `MODIFY` redefines the whole column: a column `COMMENT` is dropped;
 - it assumes a `DATETIME` or `TIMESTAMP` column. On any other type (a `varchar` timestamp), MySQL
   rejects the `DEFAULT`, and converting the column is a decision for whoever owns the data;
 - on a large table it can rebuild the table and block writes while it runs.
 
-A column that doesn't exist isn't reported here (`CheckModel()` does). An unknown table throws
-`MagratheaDBException`.
+An unknown table throws `MagratheaDBException`.
 
 ### `CheckAll(): array`
 

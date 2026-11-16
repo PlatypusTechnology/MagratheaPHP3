@@ -3,6 +3,7 @@
 use Magrathea\Admin\AdminCsrf;
 use Magrathea\Admin\DumpManager;
 use Magrathea\Admin\Features\User\AdminUser;
+use Magrathea\Admin\Features\User\AdminUserControl;
 use Magrathea\Admin\Install;
 use Magrathea\Bootstrap\SetupToken;
 use Magrathea\Bootstrap\Start;
@@ -15,16 +16,21 @@ use Magrathea\MagratheaPHP;
 use Magrathea\ProjectCheck;
 use Magrathea\Tests\TestsHelper;
 
-// Database that never connects: OpenConnectionPlease() fails with $connectError; the table lookup answers with $tables
+// Database that never connects: OpenConnectionPlease() fails with $connectError; the table lookup answers with $tables,
+// the columns' with $columns (table => rows; $columnsError throws instead)
 class SetupFakeDatabase extends Database {
 	public $log = [];
 	public $connectError = null;
 	public $tables = [];
+	public $columns = [];
+	public $columnsError = null;
 	public function Reset(): static {
 		$this->SetConnectionArray(null);
 		$this->log = [];
 		$this->connectError = null;
 		$this->tables = [];
+		$this->columns = [];
+		$this->columnsError = null;
 		return $this;
 	}
 	public function OpenConnectionPlease(): bool {
@@ -39,6 +45,12 @@ class SetupFakeDatabase extends Database {
 		$this->log[] = $sql;
 		if(str_contains($sql, "FROM information_schema.TABLES")) {
 			return array_map(fn($t) => ["name" => $t, "type" => "BASE TABLE", "engine" => "InnoDB", "rows" => "3", "collation" => "", "comment" => ""], $this->tables);
+		}
+		if(str_contains($sql, "FROM information_schema.COLUMNS")) {
+			if($this->columnsError) throw new MagratheaDBException($this->columnsError);
+			foreach($this->columns as $table => $rows) {
+				if(str_contains($sql, "TABLE_NAME = '".addslashes($table)."'")) return $rows;
+			}
 		}
 		return [];
 	}
@@ -75,6 +87,34 @@ class SetupFakeAdminStart extends \Magrathea\Admin\Start {
 	public function HasUsers(): bool { return $this->users > 0; }
 }
 
+// the admin's users: GetWhere() filters $users (static, as GetWhere() is); SetNewPassword() is recorded
+class SetupFakeUserControl extends AdminUserControl {
+	public static $users = [];
+	public static $wheres = [];
+	public $calls = [];
+	public $saveResult = ["success" => true];
+	public static function GetWhere(string|array $arr, $condition = "AND") {
+		static::$wheres[] = $arr;
+		return array_values(array_filter(static::$users, function($user) use ($arr) {
+			foreach($arr as $field => $value) if($user->$field != $value) return false;
+			return true;
+		}));
+	}
+	public function SetNewPassword(AdminUser $user, string $pwd) {
+		$this->calls[] = ["SetNewPassword", $user->email, $pwd];
+		return $this->saveResult;
+	}
+	public static function User(int $id, string $email, int $role, bool $active = true, ?string $lastLogin = null): AdminUser {
+		$user = new AdminUser();
+		$user->id = $id;
+		$user->email = $email;
+		$user->role_id = $role;
+		$user->active = $active ? 1 : 0;
+		$user->last_login = $lastLogin;
+		return $user;
+	}
+}
+
 // dumps, recorded
 class SetupFakeDumpManager extends DumpManager {
 	public $calls = [];
@@ -85,9 +125,14 @@ class SetupFakeDumpManager extends DumpManager {
 		$this->calls[] = ["Import", $file, $confirm, $driver, $continue];
 		return $this->importResult;
 	}
-	public function Upload($upload, $name = null): array {
-		$this->calls[] = ["Upload", $upload, $name];
-		return ["file" => "up.sql", "size" => 5];
+	public function WritableFolder(): ?string { return "/backups"; }
+	public function ImportUpload($upload, $confirm = null, $driver = null, bool $continue = false): array {
+		$this->calls[] = ["ImportUpload", $upload, $confirm, $driver, $continue];
+		return $this->importResult;
+	}
+	public function ImportSql($sql, $confirm = null, $driver = null, bool $continue = false): array {
+		$this->calls[] = ["ImportSql", $sql, $confirm, $driver, $continue];
+		return $this->importResult;
 	}
 }
 
@@ -103,6 +148,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 	private SetupFakeInstall $install;
 	private SetupFakeAdminStart $admin;
 	private SetupFakeDumpManager $dumps;
+	private SetupFakeUserControl $users;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -123,8 +169,11 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$this->admin = SetupFakeAdminStart::Instance();
 		$this->admin->users = 0;
 		$this->dumps = new SetupFakeDumpManager();
+		$this->users = new SetupFakeUserControl();
+		SetupFakeUserControl::$users = [];
+		SetupFakeUserControl::$wheres = [];
 		$start = Start::Instance()->SetMagRoot($this->root);
-		$start->SetSteps(new Steps($start, $this->dumps, $this->install, $this->admin));
+		$start->SetSteps(new Steps($start, $this->dumps, $this->install, $this->admin, $this->users));
 	}
 
 	protected function tearDown(): void {
@@ -472,7 +521,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 	function testUnknownStepsAndActionsAre404() {
 		TestsHelper::Print("testing unknown steps and actions: 404...");
 		$this->VerifiedSession();
-		foreach(["structure", "../../Start", "tools", ["x"]] as $step) {
+		foreach(["config-file", "../../Start", "tools", ["x"]] as $step) {
 			$this->assertSame(404, $this->Start()->Handle("GET", ["step" => $step])["status"], var_export($step, true));
 		}
 		foreach(["run-query", "user-reset", "users-get", "show-tables", "install-admin-preview", "database-test", "../x", "", null] as $action) {
@@ -483,7 +532,9 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 
 	function testStepOrder() {
 		TestsHelper::Print("testing the steps' order...");
-		$this->assertSame(["requirements", "configuration", "database", "import", "admin", "checks", "finish"], array_keys(Start::STEPS));
+		$this->assertSame(["requirements", "configuration", "structure", "database", "import", "admin", "tables", "checks", "finish"], array_keys(Start::STEPS));
+		$this->assertSame("Database", Start::STEPS["database"]);
+		$this->assertSame("Tables", Start::STEPS["tables"]);
 		foreach(Start::ACTIONS as $action => $step) {
 			$this->assertArrayHasKey($step, Start::STEPS, $action);
 		}
@@ -499,13 +550,20 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			"Requirements" => fn() => $steps->Requirements(),
 			"ConfigurationForm" => fn() => $steps->ConfigurationForm(),
 			"SaveConfiguration" => fn() => $steps->SaveConfiguration($this->ValidConfigForm()),
+			"Structure" => fn() => $steps->Structure(),
 			"Database" => fn() => $steps->Database(),
+			"ConnectDatabase" => fn() => $steps->ConnectDatabase(),
 			"Dumps" => fn() => $steps->Dumps(),
 			"Upload" => fn() => $steps->Upload(["name" => "a.sql"]),
+			"Paste" => fn() => $steps->Paste("SELECT 1;"),
 			"Import" => fn() => $steps->Import("a.sql", "app_db"),
 			"Admin" => fn() => $steps->Admin(),
 			"InstallAdmin" => fn() => $steps->InstallAdmin(),
-			"CreateAdmin" => fn() => $steps->CreateAdmin("a@b.com", "123456789012", "123456789012"),
+			"GeneratePassword" => fn() => $steps->GeneratePassword("a@b.com"),
+			"CreateAdmin" => fn() => $steps->CreateAdmin("a@b.com", "123456789012"),
+			"SuperAdmins" => fn() => $steps->SuperAdmins(),
+			"ResetPassword" => fn() => $steps->ResetPassword(1, "123456789012"),
+			"Tables" => fn() => $steps->Tables(),
 			"Checks" => fn() => $steps->Checks(),
 			"FinishForm" => fn() => $steps->FinishForm(),
 			"Finish" => fn() => $steps->Finish(),
@@ -620,16 +678,16 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$form = $this->Start()->Steps()->ConfigurationForm();
 		$this->assertFalse($form["environmentEditable"]);
 		$this->assertSame("dev", $form["environment"]);
-		$this->assertSame("", $form["values"]["db_pass"], "the password is never sent back");
-		$this->assertTrue($form["hasPassword"]);
+		$this->assertSame("old-pass", $form["values"]["db_pass"], "the password is shown");
+		$this->assertStringNotContainsString('type="password"', $this->Render($this->Start()->Handle("GET", ["step" => "configuration"])));
 
-		$rs = $this->Start()->Steps()->SaveConfiguration($this->ValidConfigForm(["environment" => "production", "db_pass" => ""]));
+		$rs = $this->Start()->Steps()->SaveConfiguration($this->ValidConfigForm(["environment" => "production", "db_pass" => "new-pass"]));
 		$this->assertTrue($rs["saved"], json_encode($rs["errors"]));
 		$this->assertSame("dev", $rs["environment"], "the environment can't change");
 		$config = $this->ReadConfig();
 		$this->assertSame(["use_environment" => "dev"], $config["general"]);
 		$this->assertSame(["db_host" => "prod-host", "db_pass" => "prod-pass"], $config["production"]);
-		$this->assertSame("old-pass", $config["dev"]["db_pass"], "an empty password keeps the current one");
+		$this->assertSame("new-pass", $config["dev"]["db_pass"]);
 		$this->assertSame("kept", $config["dev"]["custom_key"]);
 		$this->assertSame("app_db", $config["dev"]["db_name"]);
 	}
@@ -644,7 +702,7 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 			$this->assertArrayHasKey($field, $rs["errors"], $field);
 			$this->assertFileDoesNotExist($this->root."/configs/magrathea.conf", $field);
 		}
-		$this->assertArrayNotHasKey("db_pass", $steps->SaveConfiguration($this->ValidConfigForm(["db_pass" => "a\"b"]))["values"], "the password isn't sent back");
+		$this->assertSame("a\"b", $steps->SaveConfiguration($this->ValidConfigForm(["db_pass" => "a\"b"]))["values"]["db_pass"], "the password is sent back as typed");
 	}
 
 	function testOtherInvalidValues() {
@@ -675,27 +733,140 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 
 	// 3. DATABASE
 
-	function testDatabaseStep() {
-		TestsHelper::Print("testing the Database step: connects, the timezone check, the tables...");
+	function testDatabaseStepShowsTheCredentialsWithoutConnecting() {
+		TestsHelper::Print("testing the Database step: shows the credentials (environment variables resolved) and doesn't connect...");
 		$this->VerifiedSession();
 		$this->assertTrue($this->Start()->Steps()->Database()["needsConfig"]);
 		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true]]);
 		$rs = $this->Start()->Steps()->Database();
 		$this->assertFalse($rs["configured"], "no database in the config");
-		$this->assertSame([], $this->db->log);
+		$this->assertSame([null], array_unique(array_column($rs["credentials"], "raw")));
 
+		putenv("MAGRATHEA_SETUP_TEST_PASS=env-s3cret");
+		putenv("MAGRATHEA_SETUP_TEST_UNSET");
+		try {
+			$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db",
+				"db_user" => "\$=MAGRATHEA_SETUP_TEST_UNSET", "db_pass" => "\$=MAGRATHEA_SETUP_TEST_PASS"]]);
+			$rs = $this->Start()->Steps()->Database();
+			$this->assertNull($rs["error"]);
+			$rows = array_column($rs["credentials"], null, "key");
+			$this->assertSame(Steps::DB_FIELDS, array_keys($rows));
+			$this->assertSame(["key" => "db_host", "label" => "Database host", "raw" => "h", "env" => null, "value" => "h"], $rows["db_host"]);
+			$this->assertSame(["raw" => "\$=MAGRATHEA_SETUP_TEST_PASS", "env" => "MAGRATHEA_SETUP_TEST_PASS", "value" => "env-s3cret"],
+				array_intersect_key($rows["db_pass"], ["raw" => 1, "env" => 1, "value" => 1]));
+			$this->assertSame("MAGRATHEA_SETUP_TEST_UNSET", $rows["db_user"]["env"]);
+			$this->assertNull($rows["db_user"]["value"], "an unset variable");
+			$this->assertNull($rows["db_port"]["raw"], "missing");
+			$this->assertFalse($rs["configured"], "db_user reads an unset variable");
+			$this->assertSame([["key" => "db_user", "env" => "MAGRATHEA_SETUP_TEST_UNSET"]], $rs["unset"], "db_pass isn't one of the required keys");
+			$this->assertStringContainsString("`db_user` reads `MAGRATHEA_SETUP_TEST_UNSET`", $rs["unsetMessage"]);
+			$this->assertSame([], $this->db->log, "opening the step doesn't connect");
+
+			$html = $this->Render($this->Start()->Handle("GET", ["step" => "database"]));
+			$this->assertStringContainsString("env-s3cret", $html, "the password is shown");
+			$this->assertStringContainsString("MAGRATHEA_SETUP_TEST_PASS", $html);
+			$this->assertStringContainsString("<code>db_user</code> reads <code>MAGRATHEA_SETUP_TEST_UNSET</code>", $html, "the unset variable is named");
+			$this->assertStringNotContainsString("The config has no database", $html, "it has one: the variable is what's missing");
+			$this->assertStringNotContainsString('value="connect-database"', $html, "no Connect without a user");
+			$this->assertSame([], $this->db->log, "rendering doesn't connect either");
+
+			putenv("MAGRATHEA_SETUP_TEST_UNSET=u");
+			$rs = $this->Start()->Steps()->Database();
+			$this->assertTrue($rs["configured"], "set: the database is usable");
+			$this->assertSame([], $rs["unset"]);
+			$this->assertNull($rs["unsetMessage"]);
+			$this->assertStringContainsString('value="connect-database"', $this->Render($this->Start()->Handle("GET", ["step" => "database"])));
+		} finally {
+			putenv("MAGRATHEA_SETUP_TEST_PASS");
+			putenv("MAGRATHEA_SETUP_TEST_UNSET");
+		}
+	}
+
+	function testUnsetVariablesAreNamedOnEveryDatabaseStep() {
+		TestsHelper::Print("testing Import, Admin, Tables and the actions name the unset variables instead of 'no database'...");
+		$this->VerifiedSession();
+		putenv("MAGRATHEA_SETUP_TEST_HOST");
+		putenv("MAGRATHEA_SETUP_TEST_NAME=");
+		try {
+			$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "\$=MAGRATHEA_SETUP_TEST_HOST",
+				"db_name" => "\$=MAGRATHEA_SETUP_TEST_NAME", "db_user" => "u"]]);
+			$steps = $this->Start()->Steps();
+			$expected = [["key" => "db_host", "env" => "MAGRATHEA_SETUP_TEST_HOST"], ["key" => "db_name", "env" => "MAGRATHEA_SETUP_TEST_NAME"]];
+			foreach(["import" => $steps->Dumps(), "admin" => $steps->Admin(), "tables" => $steps->Tables()] as $step => $rs) {
+				$this->assertFalse($rs["configured"], $step);
+				$this->assertSame($expected, $rs["unset"], $step.": an empty variable counts as unset");
+				$this->assertStringContainsString("`db_host` reads `MAGRATHEA_SETUP_TEST_HOST` and `db_name` reads `MAGRATHEA_SETUP_TEST_NAME`", $rs["unsetMessage"], $step);
+				$html = $this->Render($this->Start()->Handle("GET", ["step" => $step]));
+				$this->assertStringContainsString("<code>MAGRATHEA_SETUP_TEST_HOST</code>", $html, $step);
+				$this->assertStringNotContainsString("The config has no database", $html, $step);
+			}
+			$this->assertSame([], $this->db->log, "no connection is tried");
+			$page = $this->Post(["action" => "connect-database"]);
+			$this->assertStringContainsString("`db_host` reads `MAGRATHEA_SETUP_TEST_HOST`", $page["error"], "the actions say it too");
+			$this->assertSame([], $this->db->log);
+
+			// a config without a database keeps its own message
+			$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true]]);
+			foreach(["import", "admin", "tables"] as $step) {
+				$page = $this->Start()->Handle("GET", ["step" => $step]);
+				$this->assertSame([], $page["data"]["unset"], $step);
+				$this->assertNull($page["data"]["unsetMessage"], $step);
+				$this->assertStringContainsString("The config has no database", $this->Render($page), $step);
+			}
+			$this->assertStringContainsString("The configuration has no database", $this->Post(["action" => "connect-database"])["error"]);
+		} finally {
+			putenv("MAGRATHEA_SETUP_TEST_NAME");
+		}
+	}
+
+	function testDatabaseStepConnectsOnRequest() {
+		TestsHelper::Print("testing the Database step's Connect: the connection, the timezone check, the tables...");
+		$this->VerifiedSession();
+		try {
+			$this->Start()->Steps()->ConnectDatabase();
+			$this->fail("connected without a config");
+		} catch(MagratheaException $ex) {
+			$this->assertStringContainsString("Save the configuration first", $ex->getMessage());
+		}
 		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u", "timezone" => "America/Sao_Paulo"]]);
 		$this->db->tables = ["articles"];
-		$rs = $this->Start()->Steps()->Database();
-		$this->assertTrue($rs["connected"]);
-		$this->assertSame("app_db", $rs["database"]);
-		$this->assertSame(["articles"], array_column($rs["tables"], "name"));
-		$this->assertNotEmpty($rs["timezone"]);
+		$page = $this->Post(["action" => "connect-database"]);
+		$this->assertSame(200, $page["status"]);
+		$this->assertSame("database", $page["step"]);
+		$this->assertTrue($page["result"]["connected"]);
+		$this->assertSame(["articles"], array_column($page["result"]["tables"], "name"));
+		$this->assertNotEmpty($page["result"]["timezone"]);
+		$this->assertSame("app_db", $page["data"]["database"]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString("Connected to <b>app_db</b>", $html);
+		$this->assertStringContainsString("has <b>1</b> table:", $html, "only the count: the Tables step lists them");
+		$this->assertStringContainsString("?step=tables", $html);
 
 		$this->db->connectError = "Access denied for user 'u'";
-		$rs = $this->Start()->Steps()->Database();
+		$rs = $this->Start()->Steps()->ConnectDatabase();
 		$this->assertFalse($rs["connected"]);
 		$this->assertStringContainsString("Access denied", $rs["error"]);
+	}
+
+	// 3. STRUCTURE
+
+	function testStructureStep() {
+		TestsHelper::Print("testing the Structure step: the folders, without connecting or creating anything...");
+		$this->VerifiedSession();
+		$this->assertTrue($this->Start()->Steps()->Structure()["needsConfig"]);
+		mkdir($this->root."/logs");
+		mkdir($this->root."/backups");
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u",
+			"logs_path" => $this->root."/logs", "cache_path" => $this->root."/cache", "backups_path" => $this->root."/backups"]]);
+		$rs = $this->Start()->Steps()->Structure();
+		$this->assertFalse($rs["needsConfig"]);
+		$this->assertSame(["folders"], array_values(array_unique(array_column($rs["findings"], "group"))));
+		$messages = implode("\n", array_column($rs["findings"], "message"));
+		$this->assertStringContainsString("Cache: `".$this->root."/cache` doesn't exist", $messages);
+		$this->assertStringContainsString("Backups: `".$this->root."/backups` exists and is writable", $messages);
+		$this->assertDirectoryDoesNotExist($this->root."/cache", "nothing is created");
+		$this->assertSame([], $this->db->log, "nothing connects");
+		$this->assertStringContainsString("<h2>Structure", $this->Render($this->Start()->Handle("GET", ["step" => "structure"])));
 	}
 
 	// 4. IMPORT
@@ -719,9 +890,27 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString("12 statements ran", $html);
 		$this->assertStringContainsString("Table &#039;x&#039; exists", $html);
 
-		$page = $this->Post(["action" => "upload-dump", "name" => "up.sql"], ["step" => "import"]);
-		$this->assertSame("Upload", $this->dumps->calls[1][0]);
-		$this->assertStringContainsString("Nothing ran", $this->Render($page));
+		$this->assertStringContainsString("Upload a dump", $html);
+		$this->assertStringContainsString("Paste SQL", $html);
+		$this->assertStringContainsString("import-YYYYmmdd-His.sql", $html);
+
+		$this->dumps->importResult = ["status" => DumpManager::OK, "file" => "import-20261113-101010.sql", "database" => "app_db", "error" => null,
+			"result" => ["driver" => "php", "statements" => 2], "temporary" => false];
+		$page = $this->Post(["action" => "upload-dump", "confirm" => "app_db", "driver" => "php"], ["step" => "import"]);
+		$this->assertSame(["ImportUpload", null, "app_db", "php", false], $this->dumps->calls[1]);
+		$this->assertSame("upload", $page["result"]["source"]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString("import-20261113-101010.sql", $html);
+		$this->assertStringContainsString("saved in the backups folder", $html);
+
+		$this->dumps->importResult = ["status" => DumpManager::CONFIRM, "file" => "import-20261113-101011.sql", "database" => "app_db", "error" => null, "result" => null, "temporary" => true];
+		$page = $this->Post(["action" => "paste-sql", "sql" => "DROP TABLE </textarea>;", "confirm" => "", "continue" => "1"], ["step" => "import"]);
+		$this->assertSame(["ImportSql", "DROP TABLE </textarea>;", "", null, true], $this->dumps->calls[2]);
+		$this->assertSame("DROP TABLE </textarea>;", $page["result"]["sql"], "the SQL comes back to the form");
+		$html = $this->Render($page);
+		$this->assertStringContainsString("Nothing ran", $html);
+		$this->assertStringContainsString("DROP TABLE &lt;/textarea&gt;;</textarea>", $html, "escaped, and the paste accordion is open");
+		$this->assertMatchesRegularExpression('/<details class="accordion" name="import-source" open>\s*<summary>Paste SQL/', $html);
 	}
 
 	// 5. ADMIN
@@ -748,25 +937,158 @@ class bootstrapTest extends \PHPUnit\Framework\TestCase {
 		$steps = $this->Start()->Steps();
 		$this->assertTrue($steps->Admin()["canCreateFirstUser"]);
 
-		$this->assertArrayHasKey("email", $steps->CreateAdmin("not-an-email", "123456789012", "123456789012")["errors"]);
-		$this->assertArrayHasKey("password", $steps->CreateAdmin("a@b.com", "12345678901", "12345678901")["errors"]);
-		$this->assertArrayHasKey("password_confirm", $steps->CreateAdmin("a@b.com", "123456789012", "123456789013")["errors"]);
-		$this->assertArrayHasKey("password", $steps->CreateAdmin("a@b.com", ["x"], null)["errors"]);
+		$this->assertArrayHasKey("email", $steps->CreateAdmin("not-an-email", "123456789012")["errors"]);
+		$short = $steps->CreateAdmin("a@b.com", "12345678901");
+		$this->assertArrayHasKey("password", $short["errors"]);
+		$this->assertSame("12345678901", $short["password"], "the typed password is given back");
+		$this->assertArrayHasKey("password", $steps->CreateAdmin("a@b.com", ["x"])["errors"]);
+
+		$generated = $steps->GeneratePassword(" admin@example.com ");
+		$this->assertFalse($generated["created"]);
+		$this->assertSame("admin@example.com", $generated["email"]);
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{'.(Steps::GENERATED_BYTES * 2).'}$/', $generated["password"]);
+		$this->assertGreaterThanOrEqual(Steps::MIN_PASSWORD, strlen($generated["password"]));
+		$this->assertNotSame($generated["password"], $steps->GeneratePassword(null)["password"]);
 		$this->assertSame([], $this->install->calls);
 
-		$rs = $steps->CreateAdmin(" admin@example.com ", "a long password", "a long password");
+		$rs = $steps->CreateAdmin(" admin@example.com ", "a long password");
 		$this->assertTrue($rs["created"]);
 		$this->assertSame([["CreateFirstUser", "admin@example.com", "a long password"]], $this->install->calls);
 
 		$this->admin->users = 1;
 		$this->assertFalse($steps->Admin()["canCreateFirstUser"]);
 		try {
-			$steps->CreateAdmin("other@example.com", "a long password", "a long password");
+			$steps->CreateAdmin("other@example.com", "a long password");
 			$this->fail("created a second first user");
 		} catch(MagratheaException $ex) {
 			$this->assertStringContainsString("already has users", $ex->getMessage());
 		}
 		$this->assertCount(1, $this->install->calls);
+	}
+
+	function testTheAdminStepListsSuperAdminsAndResetsTheirPasswords() {
+		TestsHelper::Print("testing the Admin step: super admins listed, passwords reset (typed or generated), others refused...");
+		$this->VerifiedSession();
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u"]]);
+		$this->db->tables = [ProjectCheck::ADMIN_TABLE];
+		SetupFakeUserControl::$users = [
+			SetupFakeUserControl::User(5, "<b>late</b>@example.com", Steps::SUPER_ADMIN_ROLE, false),
+			SetupFakeUserControl::User(2, "root@example.com", Steps::SUPER_ADMIN_ROLE, true, "2026-11-01 10:00:00"),
+			SetupFakeUserControl::User(3, "editor@example.com", 2),
+		];
+		$steps = $this->Start()->Steps();
+
+		$this->assertSame([], $steps->Admin()["superAdmins"], "no list while the first user can still be created");
+		$this->admin->users = 3;
+		$this->assertSame([
+			["id" => 2, "email" => "root@example.com", "active" => true, "last_login" => "2026-11-01 10:00:00"],
+			["id" => 5, "email" => "<b>late</b>@example.com", "active" => false, "last_login" => null],
+		], $steps->Admin()["superAdmins"]);
+
+		$html = $this->Render($this->Start()->Handle("GET", ["step" => "admin"]));
+		$this->assertStringContainsString("root@example.com", $html);
+		$this->assertStringContainsString("&lt;b&gt;late&lt;/b&gt;@example.com", $html, "escaped");
+		$this->assertStringNotContainsString("editor@example.com", $html, "only super admins");
+		$this->assertStringContainsString('value="reset-password"', $html);
+
+		$short = $steps->ResetPassword("2", "too short");
+		$this->assertFalse($short["reset"]);
+		$this->assertArrayHasKey("password", $short["errors"]);
+		$this->assertSame("too short", $short["password"], "the typed password is given back");
+		$this->assertSame([], $this->users->calls);
+
+		$typed = $steps->ResetPassword("2", "a long password");
+		$this->assertTrue($typed["reset"]);
+		$this->assertFalse($typed["generated"]);
+		$this->assertSame([["SetNewPassword", "root@example.com", "a long password"]], $this->users->calls);
+
+		$page = $this->Post(["action" => "reset-password", "id" => "5", "password" => ""]);
+		$this->assertNull($page["error"]);
+		$generated = $page["result"];
+		$this->assertTrue($generated["generated"]);
+		$this->assertFalse($generated["active"]);
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{'.(Steps::GENERATED_BYTES * 2).'}$/', $generated["password"]);
+		$this->assertSame(["SetNewPassword", "<b>late</b>@example.com", $generated["password"]], $this->users->calls[1]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString($generated["password"], $html, "shown once");
+		$this->assertStringContainsString("inactive", $html);
+
+		foreach([3, 99, "x", null, "-1"] as $id) {
+			try {
+				$steps->ResetPassword($id, "a long password");
+				$this->fail("reset the password of [".var_export($id, true)."]");
+			} catch(MagratheaException $ex) {
+				$this->assertStringContainsString("no super admin", $ex->getMessage());
+			}
+		}
+		$this->users->saveResult = ["success" => false];
+		try {
+			$steps->ResetPassword(2, "a long password");
+			$this->fail("a failed save was reported as reset");
+		} catch(MagratheaException $ex) {
+			$this->assertStringContainsString("couldn't be saved", $ex->getMessage());
+		}
+		$this->assertCount(3, $this->users->calls);
+	}
+
+	// 6. TABLES
+
+	function testTablesStepListsTheTablesAndTheirColumns() {
+		TestsHelper::Print("testing the Tables step: the tables the config reads, with their columns...");
+		$this->VerifiedSession();
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertTrue($rs["needsConfig"]);
+		$this->assertSame([], $this->db->log, "no config: no connection");
+
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true]]);
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertFalse($rs["configured"]);
+		$this->assertSame([], $this->db->log, "no database: no connection");
+
+		$this->WriteConfig(["dev" => ["bootstrap_unlocked" => true, "db_host" => "h", "db_name" => "app_db", "db_user" => "u"]]);
+		$this->db->tables = ["articles", ProjectCheck::ADMIN_TABLE];
+		$this->db->columns = ["articles" => [
+			["name" => "id", "type" => "int(10) unsigned", "nullable" => "NO", "default" => null, "extra" => "auto_increment", "key" => "PRI"],
+			["name" => "title", "type" => "varchar(255)", "nullable" => "YES", "default" => "<b>x</b>", "extra" => "", "key" => ""],
+		]];
+		$page = $this->Start()->Handle("GET", ["step" => "tables"]);
+		$this->assertSame(200, $page["status"]);
+		$this->assertNull($page["error"]);
+		$rs = $page["data"];
+		$this->assertTrue($rs["connected"]);
+		$this->assertSame("app_db", $rs["database"]);
+		$this->assertSame(["articles", ProjectCheck::ADMIN_TABLE], array_column($rs["tables"], "name"));
+		$this->assertSame([false, true], array_column($rs["tables"], "framework"));
+		$this->assertSame(["id", "title"], array_column($rs["tables"][0]["columns"], "name"));
+		$this->assertFalse($rs["tables"][0]["columns"][0]["nullable"]);
+		$this->assertTrue($rs["tables"][0]["columns"][1]["nullable"]);
+		$this->assertSame(["int", "string"], array_column($rs["tables"][0]["columns"], "magrathea_type"));
+		$this->assertSame([], $rs["tables"][1]["columns"]);
+		$html = $this->Render($page);
+		$this->assertStringContainsString("<h2>Tables</h2>", $html);
+		$this->assertStringContainsString("varchar(255)", $html);
+		$this->assertStringContainsString("&lt;b&gt;x&lt;/b&gt;", $html, "defaults are escaped");
+		$this->assertStringNotContainsString("<b>x</b>", $html);
+		$this->assertStringNotContainsString("admin's tables aren't installed", $html);
+
+		$this->db->tables = [];
+		$html = $this->Render($this->Start()->Handle("GET", ["step" => "tables"]));
+		$this->assertStringContainsString("The database has no tables", $html);
+
+		$this->db->tables = ["articles"];
+		$this->db->columnsError = "boom";
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertSame(["articles"], array_column($rs["tables"], "name"), "a table whose columns fail stays listed");
+		$this->assertSame("boom", $rs["tables"][0]["columnsError"]);
+		$html = $this->Render($this->Start()->Handle("GET", ["step" => "tables"]));
+		$this->assertStringContainsString("Can't read the columns", $html);
+		$this->assertStringContainsString("admin's tables aren't installed", $html);
+
+		$this->db->connectError = "Access denied for user 'u'";
+		$rs = $this->Start()->Steps()->Tables();
+		$this->assertFalse($rs["connected"]);
+		$this->assertStringContainsString("Access denied", $rs["error"]);
+		$this->assertSame([], $rs["tables"]);
 	}
 
 	// 7. FINISH

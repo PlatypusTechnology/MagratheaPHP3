@@ -11,6 +11,7 @@ $elements->Header($feature->GetHeaderTitle());
 ?>
 
 <input type="hidden" value="<?=$feature->featureId?>" id="crud-feature-id" />
+<input type="hidden" value="<?=htmlspecialchars((string)$feature->object->GetPkName())?>" id="crud-pk-name" />
 <div class="container">
 
 <div class="row">

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Artifact",
+      "Bash(cp /mnt/Rincewind/MagratheaPHP2/skills.MD /home/paulo/.claude/skills/magrathea-php2/SKILL.md)",
+      "Read(//home/paulo/.claude/skills/magrathea-php2/**)",
+      "Bash(php phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests)",
+      "Bash(php -l docs/data/examples.php)"
+    ]
+  }
+}

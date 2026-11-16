@@ -40,7 +40,8 @@ function saveCrudObject(el) {
 function deleteCrudObject(el) {
 	let featureId = $("#crud-feature-id").val();
 	let data = getFormDataFromElement(el);
-	if(!data["id"]) {
+	let pk = $("#crud-pk-name").val() || "id";
+	if(!data || !data[pk]) {
 		alert("Could not find id for deletion");
 		return;
 	}

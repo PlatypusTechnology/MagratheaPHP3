@@ -41,7 +41,7 @@ under the new names.
    ones. For each item:
    1. change the code;
    2. add or adjust tests in `src/Tests/`;
-   3. run the full suite: `php phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests`.
+   3. run the full suite: `php -d display_errors=stderr phpunit.phar --bootstrap src/Tests/phpUnitBootstrap.php src/Tests`.
       Record the baseline before the first change. On 2026-10-25 it was 400 tests, 1546
       assertions and 3 deprecations, all from `firebase/php-jwt`. Every item ends with the suite
       green. From item 3 on, also run item 2's check, which catches the old names in files no test

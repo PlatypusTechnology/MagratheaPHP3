@@ -1,6 +1,7 @@
 <?php
 
 use Magrathea\Admin\CheckReport;
+use Magrathea\DB\SchemaCheck;
 use Magrathea\Tests\TestsHelper;
 use Magrathea\TimezoneCheck;
 
@@ -54,26 +55,55 @@ class adminCheckReportTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	function testSchemaSplitsTimestampsFromModels() {
-		TestsHelper::Print("testing CheckReport::Group() splits schema findings: with a fix (timestamps), without (models)...");
+		TestsHelper::Print("testing CheckReport::Group() splits schema findings by their check: timestamps, or models...");
+		$ts = ["check" => SchemaCheck::CHECK_TIMESTAMPS];
 		$fix1 = "ALTER TABLE `a` MODIFY `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;";
-		$fix2 = "ALTER TABLE `b` MODIFY `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;";
+		$fix2 = "ALTER TABLE `b` ADD COLUMN `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;";
 		$findings = [
 			self::Finding("schema", TimezoneCheck::ERROR, "`App\\A::\$dbValues[x]` has no column in `a`: writes fail.", ["model" => "App\\A", "table" => "a", "field" => "x"]),
-			self::Finding("schema", TimezoneCheck::WARNING, "`a`.`created_at` has no `DEFAULT CURRENT_TIMESTAMP`.", ["table" => "a", "field" => "created_at", "fix" => $fix1."\n"]),
+			self::Finding("schema", TimezoneCheck::WARNING, "`a`.`created_at` has no `DEFAULT CURRENT_TIMESTAMP`.", ["table" => "a", "field" => "created_at"] + $ts + ["fix" => $fix1."\n"]),
 			self::Finding("schema", TimezoneCheck::INFO, "No model maps the table `c`.", ["table" => "c"]),
-			self::Finding("schema", TimezoneCheck::ERROR, "`b`.`updated_at` has no `ON UPDATE CURRENT_TIMESTAMP`.", ["table" => "b", "field" => "updated_at", "fix" => $fix2]),
-			self::Finding("schema", TimezoneCheck::ERROR, "`b` has no `created_at` column.", ["table" => "b", "field" => "created_at", "fix" => ""]),
+			// a passing timestamp has no fix, and still is a timestamp
+			self::Finding("schema", TimezoneCheck::OK, "`a`.`updated_at` follows the contract.", ["table" => "a", "field" => "updated_at"] + $ts),
+			self::Finding("schema", TimezoneCheck::ERROR, "`b` has no `created_at` column.", ["table" => "b", "field" => "created_at"] + $ts + ["fix" => $fix2]),
+			// a fix doesn't make a finding a timestamp's
+			self::Finding("schema", TimezoneCheck::WARNING, "Some future drift.", ["table" => "c", "fix" => "ALTER TABLE `c` …;"]),
 		];
 		$report = CheckReport::Group($findings);
 		$timestamps = self::Section($report, "timestamps");
-		$this->assertSame([$findings[1], $findings[3]], $timestamps["findings"]);
+		$this->assertSame([$findings[1], $findings[3], $findings[4]], $timestamps["findings"]);
 		$this->assertSame(TimezoneCheck::ERROR, $timestamps["status"]);
 		$this->assertSame($fix1."\n".$fix2, $timestamps["fixes"]);
 
 		$models = self::Section($report, "models");
-		$this->assertSame([$findings[0], $findings[2], $findings[4]], $models["findings"]);
+		$this->assertSame([$findings[0], $findings[2], $findings[5]], $models["findings"]);
 		$this->assertSame(TimezoneCheck::ERROR, $models["status"]);
-		$this->assertSame("", $models["fixes"]);
+		$this->assertSame("ALTER TABLE `c` …;", $models["fixes"]);
+	}
+
+	function testSkippedChecksFillTheirSections() {
+		TestsHelper::Print("testing CheckReport::Group() of ProjectCheck::Run() without a database: no section is empty...");
+		$report = CheckReport::Group([
+			self::Finding("config", TimezoneCheck::INFO, "No database configured."),
+			self::Finding("folders", TimezoneCheck::OK, "Logs: fine."),
+			self::Finding("database", TimezoneCheck::INFO, "Skipped: no database is configured."),
+			self::Finding("timezone", TimezoneCheck::INFO, "Skipped: no database is configured."),
+			self::Finding("schema", TimezoneCheck::INFO, "Skipped: no database is configured."),
+			self::Finding("schema", TimezoneCheck::INFO, "Skipped: no database is configured.", ["check" => SchemaCheck::CHECK_TIMESTAMPS]),
+		]);
+		foreach($report["sections"] as $section) {
+			$this->assertCount(1, $section["findings"], $section["key"]);
+			$this->assertNotNull($section["status"], $section["key"]);
+		}
+		$this->assertSame("Skipped: no database is configured.", self::Section($report, "timestamps")["findings"][0]["message"]);
+	}
+
+	function testAnUnknownSchemaCheckGoesToOther() {
+		TestsHelper::Print("testing CheckReport::Group() sends a schema finding with an unknown check to Other...");
+		$finding = self::Finding("schema", TimezoneCheck::INFO, "?", ["check" => "indexes"]);
+		$report = CheckReport::Group([$finding]);
+		$this->assertSame([$finding], self::Section($report, CheckReport::OTHER)["findings"]);
+		$this->assertSame([], self::Section($report, "models")["findings"]);
 	}
 
 	function testUnknownGroupsGoToOther() {

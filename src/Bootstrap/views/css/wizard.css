@@ -77,10 +77,29 @@ input[type=text], input[type=password], input[type=email], input[type=url], sele
 	font: inherit;
 	background: var(--white);
 }
+textarea {
+	width: 100%;
+	padding: 7px 9px;
+	border: 1px solid #bbb;
+	border-radius: 5px;
+	font: 13px/1.4 ui-monospace, monospace;
+	background: var(--white);
+	resize: vertical;
+}
+details.accordion { border: 1px solid #ddd; border-radius: 6px; margin: 8px 0; background: var(--white); }
+details.accordion > summary { padding: 10px 14px; font-weight: 600; cursor: pointer; }
+details.accordion[open] > summary { border-bottom: 1px solid #ddd; }
+details.accordion > form { padding: 12px 14px; margin: 0; }
+details.accordion > .accordion-body { padding: 12px 14px; }
+details.accordion > summary .muted { font-weight: normal; }
 input.token { font-family: ui-monospace, monospace; font-size: 22px; letter-spacing: 3px; text-align: center; }
 .checkbox label { display: inline; font-weight: normal; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .grid .wide { grid-column: 1 / -1; }
+form .field-button { align-self: start; padding-top: 22px; }
+.inline-form { display: flex; gap: 6px; margin: 0; }
+.inline-form input[type=text] { flex: 1; min-width: 0; }
+.default-submit { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 button, .button {
 	display: inline-block;
