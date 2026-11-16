@@ -1,3 +1,8 @@
+### 3.0.1
+2026-11-16
+	- **fix:** a failed admin action no longer fails silently. `callAction()` (the JS helper behind the actions of the Queries, Query Editor, Dumps, Logs, Tests, Connection, .htaccess and Caddy pages) shows an error toast when an action answers 4xx/5xx or nothing at all: the HTTP status and the start of the body, as text. It still rejects, with the same object as before plus the new fields below. Before, the page showed nothing and the console got a bare jqXHR dump: `ajax()` kept only `responseJSON`, so an HTML or text error body (a PHP fatal, the web server's own 500 page, a WAF block) was lost.
+	- **new:** `ajax()` rejects with `status` (the HTTP status, `0` when there was no response) and `body` (the raw response text) besides `error` and `data`, and logs the method, URL, status and body when a request fails. It no longer logs `"auth: "` on every POST. `ajaxError(jqXHR)` builds that rejection object, and `showRequestError(name, err)` shows it as the toast. The Tests page runs tests through `callAction()` (it called `ajax()` directly), and the Dumps page's upload shows the same toast (it showed only the status text).
+
 ### 3.0.0
 2026-11-04
 	- **fix:** the admin's Tests page runs PHPUnit with `-d display_errors=stderr` (it was `display_errors=on`) and `TestsManager::Execute()` merges stderr into the output (`2>&1`), so PHP's messages still show. On PHP 8.4+ the phar's own deprecations went to stdout first, counted as headers sent in the CLI, and made every test that checks `http_response_code()` fail ("false is identical to 405") although the code was right.

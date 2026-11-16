@@ -25,7 +25,7 @@ The central bootstrap class for any MagratheaPHP application. Manages the app ro
 Returns the current framework version string.
 
 ```php
-echo MagratheaPHP::Version(); // "3.0.0", from src/version
+echo MagratheaPHP::Version(); // "3.0.1", from src/version
 ```
 
 ### `GetDocumentationLink(): string`

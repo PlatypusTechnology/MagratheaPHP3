@@ -111,8 +111,8 @@ textarea. **Save** (`Save`, POST only) posts it back:
 - if any line fails, nothing is written and a danger alert lists the failing lines. Otherwise the
   file is written (with a lock); if it can't be written, the alert shows the path.
 
-Errors answer HTTP 200 with an alert (the admin's `ajax()` drops non-JSON error bodies); only a
-non-POST `Save` answers 405. The file must be writable by the web server's user, and like everything
+Errors answer HTTP 200 with an alert, so the page renders them like any other response (`callFeature()`
+shows nothing for a 4xx/5xx); only a non-POST `Save` answers 405. The file must be writable by the web server's user, and like everything
 in `configs/`, it must not be reachable from the web.
 
 **Menu item:** "CORS Origins", in the Setup section after Configuration File

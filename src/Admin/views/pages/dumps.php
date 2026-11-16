@@ -121,7 +121,7 @@ function dumpUpload() {
 			$(input).val("");
 			dumpsShow(rs);
 		})
-		.fail(err => showToast($("<span>").text(err.statusText).html(), "Upload failed", true))
+		.fail(err => showRequestError("dump-upload", ajaxError(err)))
 		.always(hideLoading);
 }
 function dumpImport(file) {

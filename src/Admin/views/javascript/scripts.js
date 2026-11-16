@@ -83,24 +83,46 @@ function ucfirst(string) {
 	return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+// what ajax() rejects with: the status text, the HTTP status (0: no response), the JSON body (if any) and the raw body
+function ajaxError(jqXHR) {
+	return {
+		error: jqXHR.statusText,
+		status: jqXHR.status,
+		data: jqXHR.responseJSON,
+		body: jqXHR.responseText,
+	};
+}
+
+// a failed request as an error toast: its status and the start of its body, as text
+// (an HTML error page is parsed in an inert document, never rendered)
+function showRequestError(name, err) {
+	let escape = (str) => $("<span>").text(str).html();
+	let status = err.status ? ("HTTP " + err.status + " " + (err.error || "")).trim() : "no response from the server";
+	let text = "";
+	if(err.body) {
+		text = new DOMParser().parseFromString(err.body, "text/html").body.textContent;
+		text = text.replace(/\s+/g, " ").trim();
+		if(text.length > 300) text = text.substring(0, 300) + "…";
+	}
+	let message = "<b>" + escape(status) + "</b>" + (text ? "<br/>" + escape(text) : "");
+	showToast(message, escape(name) + " failed", true);
+}
+
 function ajax(method, url, payload, authorization, debug=false) {
 	showLoading();
 	if(debug) console.info("Calling ["+method+"]"+url+" with payload", payload);
+	let fail = (reject) => (err) => {
+		console.error("["+method+"] "+url+" failed: HTTP "+err.status+" "+err.statusText, err.responseText);
+		reject(ajaxError(err));
+	};
 	return new Promise(function(resolve, reject) {
 		switch(method.toUpperCase()) {
 			case "POST":
-				console.info("auth: ", authorization);
 				payload = Object.assign({}, payload, {
 					magrathea_csrf_token: (typeof magrathea_csrf_token !== "undefined") ? magrathea_csrf_token : null,
 				});
 				$.post(url, payload, (rs) => resolve(rs))
-				.fail(err => {
-					console.error("error", err);
-					reject({ 
-						error: err.statusText,
-						data: err.responseJSON
-					});
-				})
+				.fail(fail(reject))
 				.always(() => hideLoading());
 				break;
 			default:
@@ -112,13 +134,7 @@ function ajax(method, url, payload, authorization, debug=false) {
 					url = url + '&' + queryString;
 				}
 				$.get(url, (rs) => resolve(rs))
-				.fail(err => {
-					console.error("error", err);
-					reject({ 
-						error: err.statusText,
-						data: err.responseJSON
-					});
-				})
+				.fail(fail(reject))
 				.always(() => hideLoading());
 		}
   });
@@ -163,9 +179,14 @@ function ajaxApi(method, url, payload, authorization, debug=false, withStatus=fa
 	});
 }
 
+// a failed action (4xx/5xx, no response) shows an error toast, then rejects with ajaxError()'s object
 function callAction(action, method="GET", data=null) {
 	let url = getCurrentPage()+"?magrathea_subpage="+action;
-	return ajax(method, url, data, null, true);
+	return ajax(method, url, data, null, true)
+		.catch(err => {
+			showRequestError(action.split("&")[0], err);
+			throw err;
+		});
 }
 
 function callApi(object, fn, params=null) {
